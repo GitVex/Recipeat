@@ -2,5 +2,6 @@ import { defineConfig } from '@playwright/test'
 
 export default defineConfig({
   testDir: './tests',
-  use: { channel: 'msedge', headless: true },
+  testIgnore: '**/auth/**',
+  use: { baseURL: 'http://localhost:3000', channel: 'msedge', headless: true },
 })

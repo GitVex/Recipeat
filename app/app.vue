@@ -70,6 +70,7 @@ function collection() { collectionOnly.value = true; mobileNav.value = false; do
       <a class="logo" href="#" aria-label="Recipeat home"><span class="logo-mark"><AppIcon name="book" :size="23" /></span>recipeat<span class="logo-dot">.</span></a>
       <nav :class="{ open: mobileNav }" aria-label="Main navigation">
         <a href="#how-it-works" @click="mobileNav = false">How it works</a><a href="#recipes" @click="collectionOnly = false; mobileNav = false">The inspiration shelf</a><button @click="collection">My collection <span v-if="saved.length" class="count">{{ saved.length }}</span></button>
+        <AuthControls />
       </nav>
       <button class="button small header-cta" @click="openImport">Start your collection <AppIcon name="arrow" :size="16" /></button>
       <button class="menu-button icon-button" aria-label="Toggle navigation" :aria-expanded="mobileNav" @click="mobileNav = !mobileNav"><AppIcon name="menu" /></button>

@@ -20,4 +20,8 @@ The website includes an import preview for links, photos, and text, sample recip
 
 ## Self-hosted Ollama
 
-[compose.ollama.yaml](compose.ollama.yaml) provides a CPU-only Ollama service for the VPS. See [the setup guide](docs/ollama.md) for migrating the existing container while preserving downloaded models, API testing, and SSH access. This service is not yet connected to the mockup.
+[compose.ollama.yaml](docker/compose.ollama.yaml) provides a CPU-only Ollama service for the VPS and an initialization service that pulls `qwen3.5:4b`. See [the setup guide](docs/ollama.md) for migrating the existing container while preserving downloaded models, API testing, and SSH access. This service is not yet connected to the mockup.
+
+## Authentication
+
+Zitadel login uses `nuxt-oidc-auth`. See [authentication setup](docs/authentication.md) for the Zitadel application, `.env` values, and Coolify deployment. Requires Node.js 22.19+ and a running Nuxt server; static generation does not support authentication. The recipe demo remains public and local to the browser.

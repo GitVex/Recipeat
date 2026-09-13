@@ -31,6 +31,18 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  ollama-init:
+    image: ollama/ollama:latest
+    restart: "no"
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: "http://ollama:11434"
+    # The CLI asks the main server to download into its persistent volume.
+    entrypoint: ["/bin/ollama"]
+    command: ["pull", "qwen3.5:4b"]
+
 volumes:
   ollama:
     # Reuse the volume created by the original docker run command.

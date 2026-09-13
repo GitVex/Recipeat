@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 
 test('recipe preview, saving, and collection persistence', async ({ page }) => {
-  await page.goto('http://localhost:3000')
+  await page.goto('/')
   await page.screenshot({ path: 'test-results/desktop.png', fullPage: true })
   await expect(page.getByRole('heading', { level: 1 })).toContainText('inspiration')
   await page.getByRole('button', { name: 'Save your first recipe' }).click()
@@ -19,7 +19,7 @@ test('recipe preview, saving, and collection persistence', async ({ page }) => {
 
 test('mobile layout and navigation', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto('http://localhost:3000')
+  await page.goto('/')
   await page.screenshot({ path: 'test-results/mobile.png', fullPage: true })
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   await page.getByRole('button', { name: 'Toggle navigation' }).click()

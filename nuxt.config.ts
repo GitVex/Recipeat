@@ -1,5 +1,28 @@
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
+  modules: ['nuxt-oidc-auth'],
+  oidc: {
+    defaultProvider: 'zitadel',
+    middleware: { globalMiddlewareEnabled: false },
+    providers: {
+      zitadel: {
+        baseUrl: '',
+        clientId: '',
+        authenticationScheme: 'none',
+        redirectUri: 'http://localhost:3000/auth/zitadel/callback',
+        logoutRedirectUri: 'http://localhost:3000/',
+        scope: ['openid', 'profile', 'email', 'offline_access'],
+        tokenValidationMode: 'strict',
+        optionalClaims: ['sub'],
+        filterUserInfo: ['sub', 'name', 'preferred_username', 'email'],
+        additionalLogoutParameters: { clientId: '{clientId}', idTokenHint: '' },
+        sessionConfiguration: { expirationThreshold: 60 },
+      },
+    },
+  },
+  nitro: {
+    storage: { oidc: { driver: 'fs', base: './.data/oidc' } },
+  },
   css: ['~/assets/main.css'],
   app: {
     head: {

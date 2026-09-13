@@ -4,6 +4,8 @@ This configuration targets the existing CPU-only VPS with 6 vCPUs and 12 GB RAM.
 
 The configuration uses an existing external Docker volume named `ollama`, preserving models downloaded with the earlier `docker run` command. The health check verifies that Ollama responds; it does not verify that a particular model is installed or can complete inference.
 
+The `ollama-init` service explicitly declares `qwen3.5:4b` in its `command`. It waits for Ollama to be healthy, asks that server to pull the model into the persistent volume, and exits. Exit code 0 means the pull succeeded. This service is a CLI client, not a second inference server. Pulling can check for model updates and reuses existing matching layers. API requests still need to specify `"model": "qwen3.5:4b"`; downloading a model does not configure an API default or preload it into RAM.
+
 ## Transfer the configuration
 
 Docker and Docker Compose v2 must be installed on the VPS. Check with `docker compose version`.
@@ -11,7 +13,7 @@ Docker and Docker Compose v2 must be installed on the VPS. Check with `docker co
 From the local project directory, copy the file to the VPS (replace `YOUR_VPS_IP`):
 
 ```sh
-scp compose.ollama.yaml root@YOUR_VPS_IP:/root/compose.ollama.yaml
+scp docker/compose.ollama.yaml root@YOUR_VPS_IP:/root/compose.ollama.yaml
 ```
 
 Run the remaining deployment commands over SSH, in `/root`:
@@ -38,10 +40,12 @@ After confirming the existing named volume, replace the container. This briefly 
 docker stop ollama
 docker rm ollama
 docker compose -f compose.ollama.yaml up -d
+docker compose -f compose.ollama.yaml logs -f ollama-init
+docker compose -f compose.ollama.yaml ps -a
 docker compose -f compose.ollama.yaml exec ollama ollama list
 ```
 
-Your existing `qwen3.5:4b` model should appear without another download.
+Wait for `ollama-init` to finish with exit code 0 before sending inference requests. Existing matching model layers are reused; updated layers may be downloaded.
 
 ## Fresh installation instead
 
@@ -50,8 +54,11 @@ If there is no existing container or model volume:
 ```sh
 docker volume create ollama
 docker compose -f compose.ollama.yaml up -d
-docker compose -f compose.ollama.yaml exec ollama ollama pull qwen3.5:4b
+docker compose -f compose.ollama.yaml logs -f ollama-init
+docker compose -f compose.ollama.yaml ps -a
 ```
+
+Wait for `ollama-init` to exit with code 0. If the pull fails, inspect its logs and retry with `docker compose -f compose.ollama.yaml run --rm ollama-init`.
 
 ## Test the API
 
@@ -102,7 +109,7 @@ docker compose -f compose.ollama.yaml pull
 docker compose -f compose.ollama.yaml up -d
 ```
 
-The image uses `latest` for initial setup. Pin a tested version tag or image digest when you need reproducible deployments. Updating the container image does not update model weights; model updates use `ollama pull` separately.
+Both services use `latest` for initial setup. Pin both to the same tested version tag or image digest when you need reproducible deployments. The initialization service runs `ollama pull` when started by Compose and may update model weights. To explicitly pull again, run `docker compose -f compose.ollama.yaml run --rm ollama-init`. Changing the model means changing the initializer's `command` and the model name in your API requests; existing models remain on disk.
 
 Stop and remove the Compose container and network:
 
