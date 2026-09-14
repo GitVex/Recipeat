@@ -1,7 +1,7 @@
 import { fail } from './errors.ts'
 import { parseExtraction, type ExtractedRecipe } from './recipe.ts'
 
-// Well beyond the 20s-4m extractions measured in docs/prompts.md, since
+// Well beyond the 20s-4m extractions measured in docs/extraction.md, since
 // Ollama runs one request at a time and a queued caller waits behind it.
 const REQUEST_TIMEOUT_MS = 300_000
 
