@@ -1,6 +1,10 @@
 # Recipeat
 
-A responsive Nuxt 4 landing-page mockup for a multimodal recipe collection app.
+A little inspiration. A lot of good food.
+
+Recipeat turns recipes from photos, websites, and scraps of text into your own
+collection. It is a Nuxt 4 app with Zitadel login and a self-hosted Ollama model
+behind an authenticated extraction API.
 
 ## Run
 
@@ -9,19 +13,41 @@ npm install
 npm run dev
 ```
 
-## Production
+Needs Node.js 22.19+. Login and extraction both require a running server;
+`nuxt generate` cannot serve them.
 
 ```sh
 npm run build
-npm run preview
+node .output/server/index.mjs
 ```
 
-The website includes an import preview for links, photos, and text, sample recipe details, and a collection persisted in localStorage. Imports show explicitly labeled sample recipes; no files are uploaded and no LLM or backend is connected. Photography is hosted on Unsplash and fonts on Google Fonts, so those assets require internet access.
+## Test
 
-## Self-hosted Ollama
+```sh
+npm run test:extraction              # node:test, no browser or model needed
+npm run build && npm run test:auth   # Playwright against a mock OIDC issuer
+```
 
-[compose.ollama.yaml](docker/compose.ollama.yaml) provides a CPU-only Ollama service for the VPS and an initialization service that pulls `qwen3.5:4b`. See [the setup guide](docs/ollama.md) for migrating the existing container while preserving downloaded models, API testing, and SSH access. This service is not yet connected to the mockup.
+## What works today
 
-## Authentication
+- **Landing page and recipe demo.** The collection lives in browser local
+  storage, and the import dialog still shows labelled sample recipes.
+- **Zitadel login** through `nuxt-oidc-auth`, with `GET /api/me` as the worked
+  example of a server-enforced private endpoint.
+- **`POST /api/extract/text`** sends text to Ollama and returns a normalized
+  recipe. It is authenticated, and it stores nothing yet.
 
-Zitadel login uses `nuxt-oidc-auth`. See [authentication setup](docs/authentication.md) for the Zitadel application, `.env` values, and Coolify deployment. Requires Node.js 22.19+ and a running Nuxt server; static generation does not support authentication. The recipe demo remains public and local to the browser.
+The demo collection is not connected to an account, and no recipe is written to
+a database. [Planning](docs/planning.md) covers what that needs.
+
+## Docs
+
+| | |
+|---|---|
+| [Authentication](docs/authentication.md) | Zitadel application, secrets, deployment |
+| [Ollama](docs/ollama.md) | The VPS service, the model, local access |
+| [Extraction](docs/extraction.md) | The API, the pipeline, the recipe shape |
+| [Planning](docs/planning.md) | What is next, and what is still undecided |
+
+Photography comes from Unsplash and fonts from Google Fonts, so both need
+internet access.

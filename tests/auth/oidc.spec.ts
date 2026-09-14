@@ -76,6 +76,16 @@ test.beforeAll(async () => {
 test.afterAll(async () => { await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())) })
 test.beforeEach(() => { failure = '' })
 
+test('text extraction requires login and validates authenticated requests', async ({ page }) => {
+  const anonymous = await page.request.post('/api/extract/text', { data: { text: 'Toast' } })
+  expect(anonymous.status()).toBe(401)
+  expect(anonymous.headers()['cache-control']).toBe('no-store')
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await expect(page.getByText('Test Cook', { exact: true })).toBeVisible()
+  expect((await page.request.post('/api/extract/text', { data: { text: '' } })).status()).toBe(400)
+})
+
 test('login, PKCE, session persistence, token refresh, and logout', async ({ page }) => {
   expect((await page.request.get('/api/me')).status()).toBe(401)
   await page.goto('/')

@@ -14,6 +14,7 @@ export default defineConfig({
       PORT: '3100',
       NUXT_OIDC_PROVIDERS_ZITADEL_BASE_URL: 'http://localhost:3101',
       NUXT_OIDC_PROVIDERS_ZITADEL_CLIENT_ID: 'recipeat-test',
+      NUXT_OIDC_PROVIDERS_ZITADEL_AUTHENTICATION_SCHEME: 'none',
       NUXT_OIDC_PROVIDERS_ZITADEL_REDIRECT_URI: 'http://localhost:3100/auth/zitadel/callback',
       NUXT_OIDC_PROVIDERS_ZITADEL_LOGOUT_REDIRECT_URI: 'http://localhost:3100/',
       NUXT_OIDC_PROVIDERS_ZITADEL_OPEN_ID_CONFIGURATION: 'http://localhost:3101/.well-known/openid-configuration',
