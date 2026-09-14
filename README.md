@@ -16,7 +16,7 @@ npm run build
 npm run preview
 ```
 
-The website includes an import preview for links, photos, and text, sample recipe details, and a collection persisted in localStorage. Imports show explicitly labeled sample recipes; no files are uploaded and no LLM or backend is connected. Photography is hosted on Unsplash and fonts on Google Fonts, so those assets require internet access.
+The website includes an import preview for links, photos, and text, sample recipe details, and a collection persisted in localStorage. The import UI still shows explicitly labeled sample recipes and does not upload files. A separate authenticated [text extraction API](docs/extraction.md) connects to Ollama and returns recipe drafts. Photography is hosted on Unsplash and fonts on Google Fonts, so those assets require internet access.
 
 ## Self-hosted Ollama
 
