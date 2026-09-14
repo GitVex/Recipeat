@@ -1,6 +1,6 @@
 # Ollama on the VPS
 
-This configuration targets the existing CPU-only VPS with 6 vCPUs and 12 GB RAM. Ollama is capped at 4 CPUs and 8 GB RAM, with no container swap allowance. It loads one model and processes one inference request at a time. The API is published only on the VPS loopback interface.
+This configuration targets the existing CPU-only VPS with 6 vCPUs and 12 GB RAM. Ollama is capped at 4 CPUs and 8 GB RAM, with no container swap allowance. It loads one model and processes one inference request at a time. The context window is 16384 tokens, sized for the 20 000-character upper bound the extraction API accepts; its KV cache costs roughly 2 GB on top of the model weights, and CPU prompt processing grows with the amount of context actually used. The API is published only on the VPS loopback interface.
 
 The configuration uses an existing external Docker volume named `ollama`, preserving models downloaded with the earlier `docker run` command. The health check verifies that Ollama responds; it does not verify that a particular model is installed or can complete inference.
 
