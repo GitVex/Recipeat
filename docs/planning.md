@@ -55,14 +55,9 @@ composite because the listing query is always
 insert, so without one the column never changes.
 
 `source` is JSONB rather than TEXT so a website import can record its URL and
-retrieval time, and a photo import its object key:
-
-```ts
-type RecipeSource =
-  | { type: 'website', url: string, author: string | null, retrievedAt: string }
-  | { type: 'photo', objectKey: string, originalFilename: string | null }
-  | { type: 'text', originalText: string }
-```
+retrieval time, and a photo import its object key. The `RecipeSource` union
+already exists in code; each extraction modality builds its own, since only it
+knows where the recipe came from.
 
 Work involved: a Postgres service alongside the Ollama compose file, a
 connection URL in `runtimeConfig`, a driver (`postgres` handles JSONB natively
