@@ -41,7 +41,10 @@ export type Ingredient = {
 
 export type StepPart =
   | { type: 'text', value: string }
+  // Keys into the step's own quantities.
   | { type: 'measurement', quantity: string }
+  // Points at an ingredient whose full amount this step restates.
+  | { type: 'ingredientQuantity', ingredientId: string }
 
 export type StepQuantity = Quantity & { kind: QuantityKind, scaleWithPortions: boolean | null }
 
@@ -52,13 +55,20 @@ export type Step = {
   quantities: Record<string, StepQuantity>
 }
 
+// Only the modality that ran the extraction knows where it came from, so each
+// one builds this itself and hands it to parseExtraction.
+export type RecipeSource =
+  | { type: 'text', originalText: string }
+  | { type: 'website', url: string, author: string | null, retrievedAt: string }
+  | { type: 'photo', objectKey: string, originalFilename: string | null }
+
 export type ExtractedRecipe = {
   title: string | null
   source_lang: string
   portions: number | null
   ingredients: Ingredient[]
   steps: Step[]
-  source: { type: 'text', originalText: string }
+  source: RecipeSource
 }
 
 const clamp = (value: string, max: number) => value.length > max ? value.slice(0, max) : value
@@ -89,7 +99,7 @@ const ingredientsOf = (value: unknown[]): Ingredient[] => value
     }
   })
 
-export function parseExtraction(value: unknown, source: string): ExtractedRecipe {
+export function parseExtraction(value: unknown, source: RecipeSource): ExtractedRecipe {
   // The grammar makes these unreachable while it is applied. Reaching them
   // means `format` was ignored, and then nothing below can be trusted.
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
@@ -123,6 +133,6 @@ export function parseExtraction(value: unknown, source: string): ExtractedRecipe
       parts: [{ type: 'text', value: originalText }],
       quantities: {},
     })),
-    source: { type: 'text', originalText: source },
+    source,
   }
 }

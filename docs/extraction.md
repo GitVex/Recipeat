@@ -36,10 +36,13 @@ Four steps, in `server/extraction/`, behind the barrel at
 1. **`readExtractionText`** — content type, JSON parse, then `validateText`
    for presence and length. The text is passed on unmodified; whitespace only
    decides whether it is empty.
-2. **`extractText`** — one `/api/chat` call: `stream: false`, `think: false`,
-   `temperature: 0`, a JSON schema in `format`, and the source as its own user
-   message, never interpolated into the instructions. Rejects a truncated
-   answer (`done_reason: "length"`) even when it parses.
+2. **`askOllama`** — the transport, shared by every input modality: one
+   `/api/chat` call with `stream: false`, `think: false`, `temperature: 0` and a
+   JSON schema in `format`. Rejects a truncated answer (`done_reason: "length"`)
+   even when it parses, and sanitizes every upstream failure.
+   **`extractText`** is the text modality on top of it — it builds the messages,
+   keeping the source as its own user message rather than interpolating it into
+   the instructions, and records a `RecipeSource` of `type: "text"`.
 3. **`parseExtraction`** — validates and clamps, then assigns IDs.
 4. **`normalizeRecipe`** — reads quantities into numbers and units, finds
    measurements in step prose, and links steps back to ingredients.
@@ -96,8 +99,13 @@ type Recipe = {
   portions: number | null
   ingredients: Ingredient[]
   steps: Step[]
-  source: { type: 'text', originalText: string }
+  source: RecipeSource
 }
+
+type RecipeSource =
+  | { type: 'text', originalText: string }
+  | { type: 'website', url: string, author: string | null, retrievedAt: string }
+  | { type: 'photo', objectKey: string, originalFilename: string | null }
 
 type Ingredient = {
   id: string                    // "ingredient_1", dense and stable
@@ -117,7 +125,7 @@ type Step = {
 type StepPart =
   | { type: 'text', value: string }
   | { type: 'measurement', quantity: string }        // key into step.quantities
-  | { type: 'ingredientQuantity', ingredientId: string }
+  | { type: 'ingredientQuantity', ingredientId: string }  // an ingredient's own amount
 
 type Quantity = {
   value: number

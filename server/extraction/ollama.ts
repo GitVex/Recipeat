@@ -47,11 +47,24 @@ const RESPONSE_FORMAT = {
   additionalProperties: false,
 }
 
-export async function extractText(
-  source: string,
+export type OllamaMessage = {
+  role: 'system' | 'user'
+  content: string
+  // Base64-encoded images for the model's vision modality, used by photo import.
+  images?: string[]
+}
+
+/**
+ * The transport, shared by every input modality. Sends one chat request and
+ * returns the decoded recipe draft, still unvalidated. Each modality supplies
+ * its own messages; everything that can go wrong upstream is handled here, and
+ * sanitized before it reaches the client.
+ */
+export async function askOllama(
+  messages: OllamaMessage[],
   config: OllamaConfig,
   fetcher: typeof globalThis.fetch = globalThis.fetch,
-): Promise<{ recipe: ExtractedRecipe }> {
+): Promise<unknown> {
   // Trailing slashes are trimmed rather than resolved away, so a base URL
   // carrying a path prefix survives.
   const url = `${config.ollamaBaseUrl.replace(/[/]+$/, '')}/api/chat`
@@ -62,11 +75,7 @@ export async function extractText(
     format: RESPONSE_FORMAT,
     // Extraction copies, it does not compose.
     options: { temperature: 0 },
-    messages: [
-      { role: 'system', content: SYSTEM_PROMPT },
-      // The source is its own message, never interpolated into the instructions.
-      { role: 'user', content: source },
-    ],
+    messages,
   }
 
   let response: Response
@@ -107,12 +116,27 @@ export async function extractText(
   const content = payload.message?.content
   if (typeof content !== 'string') throw fail(502, 'Ollama returned no message content.', payload)
 
-  let draft: unknown
   try {
-    draft = JSON.parse(content)
+    return JSON.parse(content)
   } catch (error) {
     throw fail(502, 'Ollama returned invalid JSON.', error)
   }
+}
 
-  return { recipe: parseExtraction(draft, source) }
+/**
+ * The text modality. A sibling for photos differs only in the messages it
+ * builds and the RecipeSource it records; the transport and the validation
+ * below it are the same.
+ */
+export async function extractText(
+  text: string,
+  config: OllamaConfig,
+  fetcher: typeof globalThis.fetch = globalThis.fetch,
+): Promise<{ recipe: ExtractedRecipe }> {
+  const draft = await askOllama([
+    { role: 'system', content: SYSTEM_PROMPT },
+    // The source is its own message, never interpolated into the instructions.
+    { role: 'user', content: text },
+  ], config, fetcher)
+  return { recipe: parseExtraction(draft, { type: 'text', originalText: text }) }
 }

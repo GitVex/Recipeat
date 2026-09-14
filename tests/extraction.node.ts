@@ -7,6 +7,7 @@ import { extractText, normalizeRecipe, parseExtraction, parseQuantity, readExtra
 const bread = { originalText: '1 slice bread', quantity: '1 slice', name: 'bread' }
 const recipe = { title: 'Toast', source_lang: 'en', portions: 1, ingredients: [bread], steps: ['Toast the bread.'] }
 const config = { ollamaBaseUrl: 'http://ollama:11434/', ollamaModel: 'test-model' }
+const textSource = { type: 'text', originalText: 'source' } as const
 const status = (statusCode: number) => (error: unknown) => (error as { statusCode: number }).statusCode === statusCode
 
 test('text validation rejects missing, invalid and oversized input; preserves source', () => {
@@ -17,7 +18,7 @@ test('text validation rejects missing, invalid and oversized input; preserves so
 
 test('parsing preserves the source line and uses stable reference IDs', () => {
   const flour = { originalText: '1½ cups flour', quantity: '1½ cups', name: 'flour' }
-  const result = parseExtraction({ ...recipe, title: null, portions: null, ingredients: [flour] }, 'source')
+  const result = parseExtraction({ ...recipe, title: null, portions: null, ingredients: [flour] }, textSource)
   assert.equal(result.title, null)
   assert.equal(result.ingredients[0].originalText, '1½ cups flour')
   assert.equal(result.ingredients[0].name, 'flour')
@@ -32,18 +33,18 @@ test('parsing preserves the source line and uses stable reference IDs', () => {
 test('unusable envelopes fail; recoverable model slips are clamped', () => {
   // Reaching these means the grammar was not applied, so nothing can be trusted.
   for (const value of [null, [], {}, { ...recipe, ingredients: 'flour' }]) {
-    assert.throws(() => parseExtraction(value, 'source'), status(502))
+    assert.throws(() => parseExtraction(value, textSource), status(502))
   }
-  assert.throws(() => parseExtraction({ ...recipe, ingredients: [], steps: [] }, 'source'), status(422))
-  assert.equal(parseExtraction({ ...recipe, portions: -1 }, 'source').portions, null)
-  assert.equal(parseExtraction({ ...recipe, portions: Infinity }, 'source').portions, null)
-  assert.equal(parseExtraction({ ...recipe, title: '  ' }, 'source').title, null)
-  assert.equal(parseExtraction({ ...recipe, source_lang: '' }, 'source').source_lang, 'und')
-  assert.deepEqual(parseExtraction({ ...recipe, steps: [42] }, 'source').steps, [])
+  assert.throws(() => parseExtraction({ ...recipe, ingredients: [], steps: [] }, textSource), status(422))
+  assert.equal(parseExtraction({ ...recipe, portions: -1 }, textSource).portions, null)
+  assert.equal(parseExtraction({ ...recipe, portions: Infinity }, textSource).portions, null)
+  assert.equal(parseExtraction({ ...recipe, title: '  ' }, textSource).title, null)
+  assert.equal(parseExtraction({ ...recipe, source_lang: '' }, textSource).source_lang, 'und')
+  assert.deepEqual(parseExtraction({ ...recipe, steps: [42] }, textSource).steps, [])
   // Ingredients are objects now; a bare string is a slip, not a line.
-  assert.deepEqual(parseExtraction({ ...recipe, ingredients: ['1 slice bread'] }, 'source').ingredients, [])
+  assert.deepEqual(parseExtraction({ ...recipe, ingredients: ['1 slice bread'] }, textSource).ingredients, [])
   // A model that segments nothing out still leaves a displayable line.
-  const unsegmented = parseExtraction({ ...recipe, ingredients: [{ originalText: 'salt', quantity: '  ', name: '' }] }, 'source')
+  const unsegmented = parseExtraction({ ...recipe, ingredients: [{ originalText: 'salt', quantity: '  ', name: '' }] }, textSource)
   assert.equal(unsegmented.ingredients[0].name, 'salt')
   assert.equal(unsegmented.ingredients[0].quantityText, null)
 })
@@ -68,7 +69,7 @@ test('normalization fills ingredient quantities and locates measurements in step
   const flour = { originalText: '1½ cups flour', quantity: '1½ cups', name: 'flour' }
   const result = normalizeRecipe(parseExtraction({
     ...recipe, ingredients: [flour], steps: ['Bake at 180C for 20 minutes.', 'Stir well.'],
-  }, 'source'))
+  }, textSource))
 
   assert.deepEqual(result.ingredients[0].quantity, { value: 1.5, maxValue: null, unit: 'cup' })
   assert.equal(result.ingredients[0].originalText, '1½ cups flour')
@@ -98,7 +99,7 @@ test('a step restating an ingredient amount references it instead of copying it'
     ...recipe,
     ingredients: [flour],
     steps: ['Add 2 cups flour and stir.', 'Bake at 180C.', 'Add 1 cup water.', 'Rest 20 to 25 minutes.'],
-  }, 'source'))
+  }, textSource))
   const [add, bake, water, rest] = result.steps
 
   // The head noun matches, so "flour" finds "all-purpose flour".
@@ -151,7 +152,7 @@ test('oversized fields are clamped to storage limits instead of failing', () => 
     title: 'x'.repeat(301),
     ingredients: [{ originalText: 'x'.repeat(2001), quantity: 'y'.repeat(101), name: 'z' }, ...Array(201).fill(bread)],
     steps: Array(101).fill('x'.repeat(5001)),
-  }, 'source')
+  }, textSource)
   assert.equal(long.title.length, 300)
   assert.equal(long.ingredients.length, 200)
   assert.equal(long.ingredients.at(-1).id, 'ingredient_200')
@@ -159,7 +160,7 @@ test('oversized fields are clamped to storage limits instead of failing', () => 
   assert.equal(long.steps.length, 100)
   assert.equal(long.steps[0].originalText.length, 5000)
   assert.equal(long.ingredients[0].quantityText!.length, 100)
-  const exact = parseExtraction({ ...recipe, ingredients: [{ ...bread, originalText: 'x'.repeat(2000) }], steps: ['x'.repeat(5000)] }, 'source')
+  const exact = parseExtraction({ ...recipe, ingredients: [{ ...bread, originalText: 'x'.repeat(2000) }], steps: ['x'.repeat(5000)] }, textSource)
   assert.equal(exact.ingredients[0].originalText.length, 2000)
   assert.equal(exact.steps[0].originalText.length, 5000)
 })

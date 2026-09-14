@@ -1,7 +1,7 @@
 // Public surface of the text extraction pipeline:
 // readExtractionText -> extractText -> parseExtraction -> normalizeRecipe.
 export { MAX_TEXT_LENGTH, readExtractionText, validateText } from '../extraction/text.ts'
-export { extractText, type OllamaConfig } from '../extraction/ollama.ts'
+export { askOllama, extractText, type OllamaConfig, type OllamaMessage } from '../extraction/ollama.ts'
 export { normalizeRecipe } from '../extraction/normalize.ts'
 export { kindOf, parseQuantity, unitInfo } from '../extraction/quantity.ts'
 export {
@@ -12,6 +12,7 @@ export {
   type Quantity,
   type QuantityKind,
   type RecipeDraft,
+  type RecipeSource,
   type Step,
   type StepPart,
   type StepQuantity,
