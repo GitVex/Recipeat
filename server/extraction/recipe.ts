@@ -1,0 +1,128 @@
+import { fail } from './errors.ts'
+
+// Storage limits. A generation grammar cannot express them, so they are
+// applied here, on the way from model output to stored document.
+const LIMITS = { title: 300, ingredient: 2000, quantity: 100, ingredients: 200, step: 5000, steps: 100 }
+
+// What the model is asked for. Untrusted until parseExtraction has run.
+export type IngredientDraft = { originalText: string, quantity: string | null, name: string }
+
+export type RecipeDraft = {
+  title: string | null
+  source_lang: string
+  portions: number | null
+  ingredients: IngredientDraft[]
+  steps: string[]
+}
+
+export type Unit =
+  | 'g' | 'kg' | 'mg' | 'oz' | 'lb'
+  | 'ml' | 'l' | 'cup_us' | 'cup_metric' | 'tbsp_us' | 'tbsp_metric' | 'tbsp_au'
+  | 'tsp_us' | 'tsp_metric' | 'fl_oz_us' | 'fl_oz_imperial'
+  | 'celsius' | 'fahrenheit'
+  | 'second' | 'minute' | 'hour'
+  | 'mm' | 'cm' | 'inch'
+  | 'count'
+  // Regionally ambiguous as written; resolved for display, not at extraction.
+  | 'cup' | 'tbsp' | 'tsp' | 'fl_oz'
+
+export type QuantityKind = 'mass' | 'volume' | 'count' | 'temperature' | 'duration' | 'length' | 'other'
+
+export type Quantity = { value: number, maxValue: number | null, unit: Unit | null }
+
+export type Ingredient = {
+  id: string
+  originalText: string
+  name: string
+  // The model's segmentation, kept so the parser can be rerun without it.
+  quantityText: string | null
+  quantity: Quantity | null
+}
+
+export type StepPart =
+  | { type: 'text', value: string }
+  | { type: 'measurement', quantity: string }
+
+export type StepQuantity = Quantity & { kind: QuantityKind, scaleWithPortions: boolean | null }
+
+export type Step = {
+  id: string
+  originalText: string
+  parts: StepPart[]
+  quantities: Record<string, StepQuantity>
+}
+
+export type ExtractedRecipe = {
+  title: string | null
+  source_lang: string
+  portions: number | null
+  ingredients: Ingredient[]
+  steps: Step[]
+  source: { type: 'text', originalText: string }
+}
+
+const clamp = (value: string, max: number) => value.length > max ? value.slice(0, max) : value
+
+const text = (value: unknown, max: number) =>
+  typeof value === 'string' && value.trim() ? clamp(value, max) : null
+
+const lines = (value: unknown[], maxItems: number, maxLength: number) => value
+  .filter((item): item is string => typeof item === 'string' && item.trim() !== '')
+  .slice(0, maxItems)
+  .map(item => clamp(item, maxLength))
+
+const ingredientsOf = (value: unknown[]): Ingredient[] => value
+  .filter((item): item is Partial<IngredientDraft> =>
+    typeof item === 'object' && item !== null && !Array.isArray(item)
+    && text((item as IngredientDraft).originalText, LIMITS.ingredient) !== null)
+  .slice(0, LIMITS.ingredients)
+  .map((item, index) => {
+    const originalText = clamp((item.originalText as string).trim(), LIMITS.ingredient)
+    return {
+      id: `ingredient_${index + 1}`,
+      originalText,
+      // A model that segments nothing out still leaves a displayable line.
+      name: text(item.name, LIMITS.ingredient) ?? originalText,
+      quantityText: text(item.quantity, LIMITS.quantity),
+      // Filled by normalizeRecipe, the step after this one.
+      quantity: null,
+    }
+  })
+
+export function parseExtraction(value: unknown, source: string): ExtractedRecipe {
+  // The grammar makes these unreachable while it is applied. Reaching them
+  // means `format` was ignored, and then nothing below can be trusted.
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw fail(502, 'Ollama did not return a recipe object.', value)
+  }
+  const draft = value as Partial<RecipeDraft>
+  if (!Array.isArray(draft.ingredients) || !Array.isArray(draft.steps)) {
+    throw fail(502, 'Ollama returned a recipe without ingredient and step lists.', draft)
+  }
+
+  // IDs are assigned after filtering and slicing, so they stay dense and the
+  // step schema's references cannot point at a dropped line.
+  const ingredients = ingredientsOf(draft.ingredients)
+  const steps = lines(draft.steps, LIMITS.steps, LIMITS.step)
+  // Grammar-valid but empty: the source was probably not a recipe at all.
+  if (!ingredients.length && !steps.length) {
+    throw fail(422, 'No recipe could be found in that text.')
+  }
+
+  return {
+    // Everything below recovers rather than rejects: a clamped field still
+    // makes a usable recipe, and the model cannot be argued with.
+    title: text(draft.title, LIMITS.title),
+    source_lang: text(draft.source_lang, 35) ?? 'und',
+    portions: typeof draft.portions === 'number' && Number.isFinite(draft.portions) && draft.portions > 0 ? draft.portions : null,
+    ingredients,
+    steps: steps.map((originalText, index) => ({
+      id: `step_${index + 1}`,
+      originalText,
+      // Replaced by normalizeRecipe once the measurements are located.
+      parts: [{ type: 'text', value: originalText }],
+      quantities: {},
+    })),
+    source: { type: 'text', originalText: source },
+  }
+}

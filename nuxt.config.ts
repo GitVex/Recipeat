@@ -1,5 +1,9 @@
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
+  runtimeConfig: {
+    ollamaBaseUrl: 'http://127.0.0.1:11434',
+    ollamaModel: 'qwen3.5:4b',
+  },
   modules: ['nuxt-oidc-auth'],
   oidc: {
     defaultProvider: 'zitadel',
