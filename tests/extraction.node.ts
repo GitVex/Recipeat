@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { createServer } from 'node:http'
 import { createApp, defineEventHandler, readRawBody, toNodeListener, toWebHandler } from 'h3'
-import { extractText, isUnit, normalizeRecipe, parseExtraction, parseQuantity, readExtractionText, validateText } from '../server/utils/extraction.ts'
+import { extractText, extractWebsite, isUnit, normalizeRecipe, parseExtraction, parseQuantity, readExtractionText, validateText, validateUrl } from '../server/utils/extraction.ts'
 
 const bread = { originalText: '1 slice bread', quantity: '1 slice', name: 'bread' }
 const recipe = { title: 'Toast', source_lang: 'en', portions: 1, ingredients: [bread], steps: ['Toast the bread.'] }
@@ -229,6 +229,90 @@ test('connection failures and upstream HTTP errors provide distinct diagnostics'
     error => status(502)(error) && /Could not connect to Ollama/.test((error as Error).message))
   await assert.rejects(extractText('source', config, async () => new Response('private upstream details', { status: 404 })),
     error => status(502)(error) && /Ollama returned HTTP 404/.test((error as Error).message) && !/private/.test((error as Error).message))
+})
+
+const page = {
+  title: 'Pancakes',
+  language: 'en',
+  yields: '4 servings',
+  canonicalUrl: 'https://example.com/pancakes',
+  author: 'A Cook',
+  // Already shaped like a draft's ingredient, with the amount the service read.
+  ingredients: [{ originalText: '1 lb 2 oz potatoes', name: 'potatoes', quantity: '1 lb 2 oz', parsedQuantity: { value: 1.125, maxValue: null, unit: 'lb' } }],
+  steps: ['Boil them.'],
+}
+const fetcherConfig = { fetcherBaseUrl: 'http://recipeat-fetcher:8000/' }
+const served = (body: unknown, init?: ResponseInit): typeof fetch => async () => Response.json(body, init)
+const sourceOf = (recipe: { source: unknown }) => recipe.source as { type: string, url: string, author: string | null, retrievedAt: string }
+
+test('URL validation accepts web addresses and rejects everything else', () => {
+  for (const body of [null, [], {}, { url: 42 }, { url: 'not a url' }, { url: 'ftp://example.com/r' }, { url: 'javascript:alert(1)' }, { url: 'file:///etc/passwd' }]) {
+    assert.throws(() => validateUrl(body), status(400))
+  }
+  assert.throws(() => validateUrl({ url: `https://example.com/${'x'.repeat(2048)}` }), status(413))
+  assert.equal(validateUrl({ url: '  https://Example.com/r  ' }), 'https://example.com/r')
+})
+
+test('website extraction sends the URL onward and records where the recipe came from', async () => {
+  const fetcher: typeof fetch = async (url, init) => {
+    assert.equal(url, 'http://recipeat-fetcher:8000/fetch')
+    assert.deepEqual(JSON.parse(init!.body as string), { url: 'https://example.com/pancakes' })
+    assert.ok(init?.signal)
+    return Response.json(page)
+  }
+  const { recipe: result } = await extractWebsite('https://example.com/pancakes', fetcherConfig, fetcher)
+  assert.equal(result.title, 'Pancakes')
+  assert.equal(result.source_lang, 'en')
+  // "4 servings" is the site's wording; only the count is taken from it.
+  assert.equal(result.portions, 4)
+  // The amount the service read survives: parseQuantity stops at "1 lb" here.
+  assert.deepEqual(normalizeRecipe(result).ingredients[0]!.quantity, { value: 1.125, maxValue: null, unit: 'lb' })
+
+  const source = sourceOf(result)
+  assert.equal(source.type, 'website')
+  assert.equal(source.url, 'https://example.com/pancakes')
+  assert.equal(source.author, 'A Cook')
+  assert.ok(Date.parse(source.retrievedAt))
+})
+
+test("a page's own canonical link is checked before it is believed", async () => {
+  // It is stored, and later rendered as a link, so it is as untrusted as any
+  // other string the page chose.
+  for (const canonicalUrl of ['javascript:alert(1)', 'file:///etc/passwd', 42, null, undefined]) {
+    const { recipe: result } = await extractWebsite('https://example.com/r', fetcherConfig, served({ ...page, canonicalUrl }))
+    assert.equal(sourceOf(result).url, 'https://example.com/r', String(canonicalUrl))
+  }
+  const { recipe: moved } = await extractWebsite('https://example.com/r', fetcherConfig, served({ ...page, canonicalUrl: 'https://example.com/canonical' }))
+  assert.equal(sourceOf(moved).url, 'https://example.com/canonical')
+})
+
+test('fetcher failures become the status the caller should see', async () => {
+  const extract = (fetcher: typeof fetch) => extractWebsite('https://example.com/r', fetcherConfig, fetcher)
+
+  // A detail from the fetcher is a message we wrote about the caller's own
+  // URL, so it is passed on rather than replaced with something vaguer.
+  await assert.rejects(extract(served({ detail: 'No recipe scraper supports example.com.' }, { status: 422 })),
+    error => status(422)(error) && /No recipe scraper supports/.test((error as Error).message))
+  await assert.rejects(extract(served({ detail: 'That page is too large to read.' }, { status: 413 })), status(413))
+  await assert.rejects(extract(served({ detail: 'example.com answered 404.' }, { status: 502 })),
+    error => status(502)(error) && /answered 404/.test((error as Error).message))
+  await assert.rejects(extract(served({ detail: 'slow.example did not answer in time.' }, { status: 504 })), status(504))
+  // A URL that serves something other than a page is the caller's problem, but
+  // not a problem with the content type of the request they made.
+  await assert.rejects(extract(served({ detail: 'x served application/pdf, not a web page.' }, { status: 415 })),
+    error => status(422)(error) && /not a web page/.test((error as Error).message))
+
+  // Anything that is not one of those messages gets our own wording.
+  await assert.rejects(extract(served({ detail: [{ loc: ['body'] }] }, { status: 422 })),
+    error => status(422)(error) && /That page could not be read/.test((error as Error).message))
+  await assert.rejects(extract(async () => { throw new TypeError('fetch failed') }),
+    error => status(502)(error) && /Could not connect to the recipe fetcher/.test((error as Error).message))
+  await assert.rejects(extract(async () => { throw Object.assign(new Error('slow'), { name: 'TimeoutError' }) }), status(504))
+  await assert.rejects(extract(async () => new Response('<html>', { status: 200 })), status(502))
+
+  // An empty page is not an extraction failure, and says so in its own terms.
+  await assert.rejects(extract(served({ ...page, ingredients: [], steps: [] })),
+    error => status(422)(error) && /on that page/.test((error as Error).message))
 })
 
 test('HTTP body reader enforces content type, JSON and length', async () => {

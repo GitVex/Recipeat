@@ -130,24 +130,33 @@ const ingredientsOf = (value: unknown[]): Ingredient[] => value
     }
   })
 
+// A failure should name what actually failed, and each modality answers to
+// something different. Only the wording changes; what is checked does not.
+const ORIGIN: Record<RecipeSource['type'], { service: string, where: string }> = {
+  text: { service: 'Ollama', where: 'in that text' },
+  website: { service: 'The recipe fetcher', where: 'on that page' },
+  photo: { service: 'Ollama', where: 'in that photo' },
+}
+
 export function parseExtraction(value: unknown, source: RecipeSource): ExtractedRecipe {
-  // The grammar makes these unreachable while it is applied. Reaching them
-  // means `format` was ignored, and then nothing below can be trusted.
+  const origin = ORIGIN[source.type]
+  // For the model these are unreachable while the grammar is applied: reaching
+  // them means `format` was ignored, and then nothing below can be trusted.
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw fail(502, 'Ollama did not return a recipe object.', value)
+    throw fail(502, `${origin.service} did not return a recipe object.`, value)
   }
   const draft = value as Partial<RecipeDraft>
   if (!Array.isArray(draft.ingredients) || !Array.isArray(draft.steps)) {
-    throw fail(502, 'Ollama returned a recipe without ingredient and step lists.', draft)
+    throw fail(502, `${origin.service} returned a recipe without ingredient and step lists.`, draft)
   }
 
   // IDs are assigned after filtering and slicing, so they stay dense and the
   // step schema's references cannot point at a dropped line.
   const ingredients = ingredientsOf(draft.ingredients)
   const steps = lines(draft.steps, LIMITS.steps, LIMITS.step)
-  // Grammar-valid but empty: the source was probably not a recipe at all.
+  // Well-formed but empty: the source was probably not a recipe at all.
   if (!ingredients.length && !steps.length) {
-    throw fail(422, 'No recipe could be found in that text.')
+    throw fail(422, `No recipe could be found ${origin.where}.`)
   }
 
   return {
