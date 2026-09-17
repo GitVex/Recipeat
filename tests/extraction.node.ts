@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { createServer } from 'node:http'
 import { createApp, defineEventHandler, readRawBody, toNodeListener, toWebHandler } from 'h3'
-import { extractText, normalizeRecipe, parseExtraction, parseQuantity, readExtractionText, validateText } from '../server/utils/textExtraction.ts'
+import { extractText, isUnit, normalizeRecipe, parseExtraction, parseQuantity, readExtractionText, validateText } from '../server/utils/textExtraction.ts'
 
 const bread = { originalText: '1 slice bread', quantity: '1 slice', name: 'bread' }
 const recipe = { title: 'Toast', source_lang: 'en', portions: 1, ingredients: [bread], steps: ['Toast the bread.'] }
@@ -125,6 +125,57 @@ test('a step restating an ingredient amount references it instead of copying it'
       if (part.type === 'measurement') assert.ok(step.quantities[part.quantity])
     }
   }
+})
+
+test('the shared unit vocabulary is exactly what parseQuantity can produce', () => {
+  for (const unit of ['g', 'kg', 'oz', 'ml', 'l', 'cup', 'tbsp', 'tsp', 'fl_oz', 'celsius', 'minute', 'cm', 'count']) {
+    assert.equal(isUnit(unit), true, unit)
+  }
+  // The regional variants are resolved for display. One arriving from a parser
+  // would never compare equal to the same amount read out of a step, so the
+  // ingredient it belongs to would quietly stop rescaling with that step.
+  for (const unit of ['cup_us', 'tbsp_metric', 'fl_oz_imperial', 'gallon', '', 42, null, undefined]) {
+    assert.equal(isUnit(unit), false, String(unit))
+  }
+})
+
+test('an amount a source parsed itself is validated, not trusted', () => {
+  const quantityOf = (parsedQuantity: unknown) =>
+    parseExtraction({ ...recipe, ingredients: [{ ...bread, parsedQuantity }] }, textSource).ingredients[0]!.quantity
+
+  assert.deepEqual(quantityOf({ value: 1.5, maxValue: null, unit: 'cup' }), { value: 1.5, maxValue: null, unit: 'cup' })
+  assert.deepEqual(quantityOf({ value: 2, maxValue: 3, unit: 'tbsp' }), { value: 2, maxValue: 3, unit: 'tbsp' })
+
+  // Nothing usable in the envelope leaves the text to be read instead.
+  for (const value of [null, undefined, 'cup', [], {}, { value: 0 }, { value: -1 }, { value: Infinity }, { value: '2' }]) {
+    assert.equal(quantityOf(value), null, JSON.stringify(value) ?? 'undefined')
+  }
+
+  // A parser reports an upper limit equal to the value when the amount is not
+  // a range; carrying that would stop it matching the same amount in a step.
+  assert.deepEqual(quantityOf({ value: 2, maxValue: 2, unit: 'g' }), { value: 2, maxValue: null, unit: 'g' })
+  // An unrecognised unit is reported as no unit, as parseQuantity does.
+  for (const unit of ['cup_us', 'gallon', 42, null]) {
+    assert.equal(quantityOf({ value: 1, unit })!.unit, null, String(unit))
+  }
+})
+
+test('a parsed amount wins over the text and still links to the step restating it', () => {
+  const milk = { originalText: '2 cups milk', quantity: '2 cups', name: 'milk', parsedQuantity: { value: 2, maxValue: null, unit: 'cup' } }
+  const linked = normalizeRecipe(parseExtraction({ ...recipe, ingredients: [milk], steps: ['Pour in 2 cups milk.'] }, textSource))
+  assert.deepEqual(linked.ingredients[0]!.quantity, { value: 2, maxValue: null, unit: 'cup' })
+  assert.ok(linked.steps[0]!.parts.some(part => part.type === 'ingredientQuantity' && part.ingredientId === 'ingredient_1'))
+
+  // Where the two readings disagree the source's wins, which is the point of
+  // sending it: parseQuantity stops at the first number in "1 lb 2 oz".
+  const composite = { originalText: '1 lb 2 oz potatoes', quantity: '1 lb 2 oz', name: 'potatoes', parsedQuantity: { value: 1.125, maxValue: null, unit: 'lb' } }
+  const combined = normalizeRecipe(parseExtraction({ ...recipe, ingredients: [composite] }, textSource))
+  assert.deepEqual(combined.ingredients[0]!.quantity, { value: 1.125, maxValue: null, unit: 'lb' })
+  assert.deepEqual(parseQuantity('1 lb 2 oz'), { value: 1, maxValue: null, unit: null })
+
+  // The text pipeline is untouched: no parsed amount means the text is read.
+  const fromText = normalizeRecipe(parseExtraction({ ...recipe, ingredients: [{ originalText: '2 cups milk', quantity: '2 cups', name: 'milk' }] }, textSource))
+  assert.deepEqual(fromText.ingredients[0]!.quantity, { value: 2, maxValue: null, unit: 'cup' })
 })
 
 test('Ollama request uses server config, structured output and separate source message', async () => {

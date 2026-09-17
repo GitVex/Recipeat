@@ -1,11 +1,20 @@
 import { fail } from './errors.ts'
+import { isUnit } from './quantity.ts'
 
 // Storage limits. A generation grammar cannot express them, so they are
 // applied here, on the way from model output to stored document.
 const LIMITS = { title: 300, ingredient: 2000, quantity: 100, ingredients: 200, step: 5000, steps: 100 }
 
 // What the model is asked for. Untrusted until parseExtraction has run.
-export type IngredientDraft = { originalText: string, quantity: string | null, name: string }
+export type IngredientDraft = {
+  originalText: string
+  quantity: string | null
+  name: string
+  // Only a source that parses amounts itself sends this — the fetcher service
+  // does, the model is never asked for it. Absent, normalizeRecipe reads the
+  // quantity out of the text instead.
+  parsedQuantity?: Quantity | null
+}
 
 export type RecipeDraft = {
   title: string | null
@@ -81,6 +90,27 @@ const lines = (value: unknown[], maxItems: number, maxLength: number) => value
   .slice(0, maxItems)
   .map(item => clamp(item, maxLength))
 
+/**
+ * An amount a source claims to have already read into numbers. It arrives over
+ * HTTP like everything else here, so each field is checked rather than trusted,
+ * and anything unusable becomes null — leaving normalizeRecipe to read the
+ * text, which is what happens for every ingredient the model extracted.
+ */
+const parsedQuantityOf = (value: unknown): Quantity | null => {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
+  const { value: amount, maxValue, unit } = value as Partial<Quantity>
+  if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) return null
+  return {
+    value: amount,
+    // A range that does not climb is not a range, and one that looks like it
+    // would stop this amount matching the same amount stated in a step.
+    maxValue: typeof maxValue === 'number' && Number.isFinite(maxValue) && maxValue > amount ? maxValue : null,
+    // An unrecognised unit is reported as no unit, exactly as parseQuantity
+    // does with wording it cannot place.
+    unit: isUnit(unit) ? unit : null,
+  }
+}
+
 const ingredientsOf = (value: unknown[]): Ingredient[] => value
   .filter((item): item is Partial<IngredientDraft> =>
     typeof item === 'object' && item !== null && !Array.isArray(item)
@@ -94,8 +124,9 @@ const ingredientsOf = (value: unknown[]): Ingredient[] => value
       // A model that segments nothing out still leaves a displayable line.
       name: text(item.name, LIMITS.ingredient) ?? originalText,
       quantityText: text(item.quantity, LIMITS.quantity),
-      // Filled by normalizeRecipe, the step after this one.
-      quantity: null,
+      // Already read into numbers by the source, or filled by normalizeRecipe,
+      // the step after this one.
+      quantity: parsedQuantityOf(item.parsedQuantity),
     }
   })
 

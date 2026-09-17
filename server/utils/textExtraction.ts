@@ -3,7 +3,7 @@
 export { MAX_TEXT_LENGTH, readExtractionText, validateText } from '../extraction/text.ts'
 export { askOllama, extractText, type OllamaConfig, type OllamaMessage } from '../extraction/ollama.ts'
 export { normalizeRecipe } from '../extraction/normalize.ts'
-export { kindOf, parseQuantity, unitInfo } from '../extraction/quantity.ts'
+export { isUnit, kindOf, parseQuantity, unitInfo } from '../extraction/quantity.ts'
 export {
   parseExtraction,
   type ExtractedRecipe,

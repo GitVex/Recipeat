@@ -113,7 +113,9 @@ function normalizeStep(step: Step, ingredients: Ingredient[]): Step {
 export function normalizeRecipe(recipe: ExtractedRecipe): ExtractedRecipe {
   const ingredients = recipe.ingredients.map(ingredient => ({
     ...ingredient,
-    quantity: parseQuantity(ingredient.quantityText),
+    // A source that read the amount itself keeps its reading; everything else
+    // is read out of the segmented text here.
+    quantity: ingredient.quantity ?? parseQuantity(ingredient.quantityText),
   }))
   return {
     ...recipe,
