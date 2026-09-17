@@ -3,8 +3,10 @@
 Where Recipeat is, what comes next, and which decisions are still open.
 
 ```
-text ─▶ extract ─▶ validate ─▶ normalize ─▶ [ store ] ─▶ [ collection UI ]
-        ══════════ done ══════════════════   ▲ next
+text ─▶ model ──┐
+                ├─▶ validate ─▶ normalize ─▶ [ store ] ─▶ [ collection UI ]
+url ─▶ fetcher ─┘
+   ═══════════════ done ══════════════════   ▲ next
 ```
 
 ## State
@@ -17,7 +19,7 @@ text ─▶ extract ─▶ validate ─▶ normalize ─▶ [ store ] ─▶ [ c
 | `POST /api/extract/text` | Done; returns a recipe, stores nothing |
 | Storage | Not started — no database, driver, or migration |
 | Import UI wired to the API | Not started — the dialog still shows samples |
-| Website import | In progress — the fetcher service is scaffolded, nothing is wired up |
+| Website import | Done; returns a recipe, stores nothing. No SSRF guard yet |
 | Photo import | Not started |
 
 ## Next: storage
@@ -92,19 +94,6 @@ equivalent for. The app and the server should share one definition, and the
 table needs somewhere to put an image before a saved recipe can render like the
 demo does.
 
-**Website import.** A URL goes to
-[`recipeat-fetcher`](../services/recipeat-fetcher/), a small Python service
-beside Ollama: `recipe-scrapers` reads the page's structured data and
-`ingredient-parser` splits each ingredient line into an amount and a food. Both
-are deterministic, so no model runs, and the import is quick enough for an
-ordinary `POST /api/extract/website` rather than a job and a poll. The service
-fetches the page itself behind an SSRF guard instead of letting a library open
-the socket, and returns the draft shape `parseExtraction` already takes, so the
-pipeline below it is unchanged.
-
-It owns ingredient lines only. `quantity.ts` keeps reading measurements out of
-step prose, which a parser trained on ingredient sentences cannot do.
-
 **Photo import.** Still the slow one at 4m, so the job-and-poll argument stands
 there. Photos also need object storage and downsampling; full resolution is what
 makes them slow.
@@ -120,6 +109,11 @@ translation. Either a `translations JSONB` keyed by language tag, or a
   succeed but leaves a browser hanging for ten minutes, which is the real
   argument for the job-and-poll design. Website import no longer runs through
   the model, so this is now about long text and photos.
+- **No SSRF guard.** The fetcher resolves no addresses and follows a redirect
+  wherever it points, so a URL given to it reaches anything its container can.
+  It runs as its own Compose project to keep that blast radius small, which is
+  a mitigation and not the fix. The fix is to resolve each hop and reject
+  private, loopback and link-local addresses before connecting.
 - **One `Unit`, two languages.** The fetcher emits `Unit` values directly, and
   may only emit ones `parseQuantity` could also produce. Where the two
   disagree nothing throws — `normalizeRecipe` simply stops linking a step's
