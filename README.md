@@ -26,6 +26,7 @@ node .output/server/index.mjs
 ```sh
 npm run test:extraction              # node:test, no browser or model needed
 npm run build && npm run test:auth   # Playwright against a mock OIDC issuer
+cd services/recipeat-fetcher && uv run pytest   # the fetcher service
 ```
 
 ## What works today

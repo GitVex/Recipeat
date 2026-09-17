@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { createServer } from 'node:http'
+import { readFileSync } from 'node:fs'
 import { createApp, defineEventHandler, readRawBody, toNodeListener, toWebHandler } from 'h3'
-import { extractText, extractWebsite, isUnit, normalizeRecipe, parseExtraction, parseQuantity, readExtractionText, validateText, validateUrl } from '../server/utils/extraction.ts'
+import { extractText, extractWebsite, isUnit, normalizeRecipe, parseExtraction, parseQuantity, readExtractionText, unitInfo, validateText, validateUrl } from '../server/utils/extraction.ts'
 
 const bread = { originalText: '1 slice bread', quantity: '1 slice', name: 'bread' }
 const recipe = { title: 'Toast', source_lang: 'en', portions: 1, ingredients: [bread], steps: ['Toast the bread.'] }
@@ -140,6 +141,23 @@ test('the shared unit vocabulary is exactly what parseQuantity can produce', () 
   // ingredient it belongs to would quietly stop rescaling with that step.
   for (const unit of ['cup_us', 'tbsp_metric', 'fl_oz_imperial', 'gallon', '', 42, null, undefined]) {
     assert.equal(isUnit(unit), false, String(unit))
+  }
+})
+
+test('the fetcher may only speak units this side already knows', () => {
+  // The other half of the contract. units.json is a data file precisely so it
+  // can be read from here: where the two vocabularies drift nothing throws,
+  // a step's amount just stops matching the ingredient it restates.
+  const map = JSON.parse(readFileSync(
+    new URL('../services/recipeat-fetcher/src/recipeat_fetcher/units.json', import.meta.url), 'utf8',
+  )) as Record<string, string>
+
+  assert.ok(Object.keys(map).length > 0, 'the unit map is where this test expects it')
+  for (const [pintName, unit] of Object.entries(map)) {
+    assert.equal(isUnit(unit), true, `${pintName} -> ${unit}`)
+    // Where this side knows the same word, both must read it the same way.
+    const own = unitInfo(pintName)
+    if (own) assert.equal(own[0], unit, pintName)
   }
 })
 
