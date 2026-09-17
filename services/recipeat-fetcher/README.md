@@ -20,6 +20,19 @@ uv run recipeat-fetcher                          # or serve with the settings be
 
 `GET /health` answers `{"status": "ok"}` once it is up.
 
+## Test
+
+```sh
+uv run pytest
+```
+
+Nothing reaches the internet. The fetch layer runs against a server on
+loopback, because a timeout, a redirect limit and an encoding only behave like
+themselves when something is really serving them; the scraper is stubbed where
+a test is about this service's mapping rather than about recipe-scrapers, which
+has its own suite. `units.json` is checked from both sides — here, and by
+`npm run test:extraction` in the app.
+
 ## Fetch
 
 `POST /fetch` scrapes a recipe from a supported site and parses its ingredient
