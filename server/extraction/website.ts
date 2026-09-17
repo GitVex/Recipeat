@@ -2,14 +2,13 @@ import type { H3Event } from 'h3'
 import { readJsonBody } from './body.ts'
 import { fail } from './errors.ts'
 import { parseExtraction, type ExtractedRecipe, type RecipeSource } from './recipe.ts'
+import { httpUrl, MAX_URL_LENGTH } from './url.ts'
 
 // Long enough for the service's own ten-second page fetch plus CRF inference
 // over the lines it finds, and short enough that a browser is not left hanging.
 // No model runs on this path, which is why it is not the text pipeline's five
 // minutes.
 const REQUEST_TIMEOUT_MS = 60_000
-
-export const MAX_URL_LENGTH = 2048
 
 export type FetcherConfig = { fetcherBaseUrl: string }
 
@@ -29,29 +28,13 @@ export function validateUrl(body: unknown): string {
   const { url } = body as { url?: unknown }
   if (typeof url !== 'string') throw fail(400, 'Expected "url" to be a string.')
   if (url.length > MAX_URL_LENGTH) throw fail(413, `Recipe URLs are limited to ${MAX_URL_LENGTH} characters.`)
-  const web = webUrl(url.trim())
+  const web = httpUrl(url)
   if (!web) throw fail(400, 'Expected "url" to be an http or https address.')
   return web
 }
 
 export async function readExtractionUrl(event: H3Event): Promise<string> {
   return validateUrl(await readJsonBody(event))
-}
-
-/**
- * The URL, normalized, or null. Only http and https: the service fetches
- * whatever it is handed, and a page's own canonical link is as untrusted as
- * anything else it says.
- */
-function webUrl(value: unknown): string | null {
-  if (typeof value !== 'string' || value.length > MAX_URL_LENGTH) return null
-  let parsed: URL
-  try {
-    parsed = new URL(value)
-  } catch {
-    return null
-  }
-  return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.href : null
 }
 
 /**
@@ -66,6 +49,11 @@ function portionsOf(yields: unknown): number | null {
   const value = Number(found[0].replace(',', '.'))
   return Number.isFinite(value) && value > 0 ? value : null
 }
+
+// Whoever the page credits, and whatever it calls itself. Both are its own
+// wording, so both are trimmed and clamped before they are stored.
+const attribution = (value: unknown): string | null =>
+  typeof value === 'string' && value.trim() ? value.trim().slice(0, 300) : null
 
 async function askFetcher(
   url: string,
@@ -132,6 +120,8 @@ export async function extractWebsite(
     title: page.title,
     source_lang: page.language,
     portions: portionsOf(page.yields),
+    image: page.image,
+    totalTime: page.totalTime,
     ingredients: page.ingredients,
     steps: page.steps,
   }
@@ -141,10 +131,9 @@ export async function extractWebsite(
     // The page's canonical link where it declares a usable one. It is the
     // better key to dedupe on, and it is also a string the page chose, so it
     // is checked like any other.
-    url: webUrl(page.canonicalUrl) ?? url,
-    author: typeof page.author === 'string' && page.author.trim()
-      ? page.author.trim().slice(0, 300)
-      : null,
+    url: httpUrl(page.canonicalUrl) ?? url,
+    author: attribution(page.author),
+    siteName: attribution(page.siteName),
     retrievedAt: new Date().toISOString(),
   }
 

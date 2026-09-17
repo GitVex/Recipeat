@@ -1,9 +1,12 @@
 import { fail } from './errors.ts'
 import { isUnit } from './quantity.ts'
+import { httpUrl } from './url.ts'
 
 // Storage limits. A generation grammar cannot express them, so they are
 // applied here, on the way from model output to stored document.
-const LIMITS = { title: 300, ingredient: 2000, quantity: 100, ingredients: 200, step: 5000, steps: 100 }
+// totalTime is in minutes, capped at a month: a cured ham is days, nothing is
+// longer, and a site that says otherwise is reporting something else.
+const LIMITS = { title: 300, ingredient: 2000, quantity: 100, extra: 500, ingredients: 200, step: 5000, steps: 100, totalTime: 60 * 24 * 30 }
 
 // What the model is asked for. Untrusted until parseExtraction has run.
 export type IngredientDraft = {
@@ -14,6 +17,9 @@ export type IngredientDraft = {
   // does, the model is never asked for it. Absent, normalizeRecipe reads the
   // quantity out of the text instead.
   parsedQuantity?: Quantity | null
+  // What is left of the line once the amount and the name are out: how the
+  // ingredient is prepared, an aside, what it is for. Also fetcher-only.
+  extra?: string | null
 }
 
 export type RecipeDraft = {
@@ -22,6 +28,10 @@ export type RecipeDraft = {
   portions: number | null
   ingredients: IngredientDraft[]
   steps: string[]
+  // A page carries these; a paste and a photo do not, and the model is not
+  // asked to invent them.
+  image?: string | null
+  totalTime?: number | null
 }
 
 export type Unit =
@@ -46,6 +56,9 @@ export type Ingredient = {
   // The model's segmentation, kept so the parser can be rerun without it.
   quantityText: string | null
   quantity: Quantity | null
+  // "finely diced", "for the sauce" — the rest of the line, for display
+  // beside the name. Null where the source segmented nothing out.
+  extra: string | null
 }
 
 export type StepPart =
@@ -68,13 +81,17 @@ export type Step = {
 // one builds this itself and hands it to parseExtraction.
 export type RecipeSource =
   | { type: 'text', originalText: string }
-  | { type: 'website', url: string, author: string | null, retrievedAt: string }
+  | { type: 'website', url: string, author: string | null, siteName: string | null, retrievedAt: string }
   | { type: 'photo', objectKey: string, originalFilename: string | null }
 
 export type ExtractedRecipe = {
   title: string | null
   source_lang: string
   portions: number | null
+  // A picture of the dish, and how long it takes end to end. Both come from a
+  // page's own metadata; null for every other source, for now.
+  image: string | null
+  totalTime: number | null
   ingredients: Ingredient[]
   steps: Step[]
   source: RecipeSource
@@ -84,6 +101,13 @@ const clamp = (value: string, max: number) => value.length > max ? value.slice(0
 
 const text = (value: unknown, max: number) =>
   typeof value === 'string' && value.trim() ? clamp(value, max) : null
+
+// Minutes, rounded and capped. A site reporting a negative or absurd total is
+// reporting something that is not a duration.
+const minutes = (value: unknown): number | null =>
+  typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? Math.min(Math.round(value), LIMITS.totalTime)
+    : null
 
 const lines = (value: unknown[], maxItems: number, maxLength: number) => value
   .filter((item): item is string => typeof item === 'string' && item.trim() !== '')
@@ -124,6 +148,7 @@ const ingredientsOf = (value: unknown[]): Ingredient[] => value
       // A model that segments nothing out still leaves a displayable line.
       name: text(item.name, LIMITS.ingredient) ?? originalText,
       quantityText: text(item.quantity, LIMITS.quantity),
+      extra: text(item.extra, LIMITS.extra),
       // Already read into numbers by the source, or filled by normalizeRecipe,
       // the step after this one.
       quantity: parsedQuantityOf(item.parsedQuantity),
@@ -165,6 +190,9 @@ export function parseExtraction(value: unknown, source: RecipeSource): Extracted
     title: text(draft.title, LIMITS.title),
     source_lang: text(draft.source_lang, 35) ?? 'und',
     portions: typeof draft.portions === 'number' && Number.isFinite(draft.portions) && draft.portions > 0 ? draft.portions : null,
+    // A page chose this URL, so it is checked before it is kept.
+    image: httpUrl(draft.image),
+    totalTime: minutes(draft.totalTime),
     ingredients,
     steps: steps.map((originalText, index) => ({
       id: `step_${index + 1}`,

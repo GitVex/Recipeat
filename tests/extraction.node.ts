@@ -28,6 +28,10 @@ test('parsing preserves the source line and uses stable reference IDs', () => {
   assert.equal(result.ingredients[0].id, 'ingredient_1')
   assert.deepEqual(result.steps[0].parts, [{ type: 'text', value: 'Toast the bread.' }])
   assert.deepEqual(result.source, { type: 'text', originalText: 'source' })
+  // A paste carries no picture, no timing, and nothing beside the name.
+  assert.equal(result.image, null)
+  assert.equal(result.totalTime, null)
+  assert.equal(result.ingredients[0].extra, null)
 })
 
 test('unusable envelopes fail; recoverable model slips are clamped', () => {
@@ -235,15 +239,18 @@ const page = {
   title: 'Pancakes',
   language: 'en',
   yields: '4 servings',
+  image: 'https://example.com/pancakes.jpg',
+  totalTime: 45,
   canonicalUrl: 'https://example.com/pancakes',
   author: 'A Cook',
+  siteName: 'Example Kitchen',
   // Already shaped like a draft's ingredient, with the amount the service read.
-  ingredients: [{ originalText: '1 lb 2 oz potatoes', name: 'potatoes', quantity: '1 lb 2 oz', parsedQuantity: { value: 1.125, maxValue: null, unit: 'lb' } }],
+  ingredients: [{ originalText: '1 lb 2 oz potatoes', name: 'potatoes', quantity: '1 lb 2 oz', parsedQuantity: { value: 1.125, maxValue: null, unit: 'lb' }, extra: 'peeled' }],
   steps: ['Boil them.'],
 }
 const fetcherConfig = { fetcherBaseUrl: 'http://recipeat-fetcher:8000/' }
 const served = (body: unknown, init?: ResponseInit): typeof fetch => async () => Response.json(body, init)
-const sourceOf = (recipe: { source: unknown }) => recipe.source as { type: string, url: string, author: string | null, retrievedAt: string }
+const sourceOf = (recipe: { source: unknown }) => recipe.source as { type: string, url: string, author: string | null, siteName: string | null, retrievedAt: string }
 
 test('URL validation accepts web addresses and rejects everything else', () => {
   for (const body of [null, [], {}, { url: 42 }, { url: 'not a url' }, { url: 'ftp://example.com/r' }, { url: 'javascript:alert(1)' }, { url: 'file:///etc/passwd' }]) {
@@ -267,12 +274,43 @@ test('website extraction sends the URL onward and records where the recipe came 
   assert.equal(result.portions, 4)
   // The amount the service read survives: parseQuantity stops at "1 lb" here.
   assert.deepEqual(normalizeRecipe(result).ingredients[0]!.quantity, { value: 1.125, maxValue: null, unit: 'lb' })
+  assert.equal(result.image, 'https://example.com/pancakes.jpg')
+  assert.equal(result.totalTime, 45)
+  assert.equal(result.ingredients[0]!.extra, 'peeled')
 
   const source = sourceOf(result)
   assert.equal(source.type, 'website')
   assert.equal(source.url, 'https://example.com/pancakes')
   assert.equal(source.author, 'A Cook')
+  assert.equal(source.siteName, 'Example Kitchen')
   assert.ok(Date.parse(source.retrievedAt))
+})
+
+test('page metadata is clamped, and its URLs checked like anything else a page says', async () => {
+  const extracted = async (fields: Record<string, unknown>) =>
+    (await extractWebsite('https://example.com/r', fetcherConfig, served({ ...page, ...fields }))).recipe
+
+  // An image is rendered into a page a user looks at, so it is a link like the
+  // canonical one and gets the same treatment.
+  for (const image of ['javascript:alert(1)', 'data:text/html;base64,x', '/relative.jpg', 42, null]) {
+    assert.equal((await extracted({ image })).image, null, String(image))
+  }
+  assert.equal((await extracted({ image: 'http://example.com/a.jpg' })).image, 'http://example.com/a.jpg')
+
+  // Minutes, rounded and capped. Anything that is not a duration is dropped.
+  for (const totalTime of [0, -5, Infinity, '45', null]) {
+    assert.equal((await extracted({ totalTime })).totalTime, null, String(totalTime))
+  }
+  assert.equal((await extracted({ totalTime: 44.6 })).totalTime, 45)
+  assert.equal((await extracted({ totalTime: 1e9 })).totalTime, 60 * 24 * 30)
+
+  // Whoever the page credits and whatever it calls itself are its own wording.
+  const credited = await extracted({ author: '   ', siteName: 'x'.repeat(400) })
+  assert.equal(sourceOf(credited).author, null)
+  assert.equal(sourceOf(credited).siteName!.length, 300)
+
+  const wordy = await extracted({ ingredients: [{ ...page.ingredients[0], extra: 'x'.repeat(600) }] })
+  assert.equal(wordy.ingredients[0]!.extra!.length, 500)
 })
 
 test("a page's own canonical link is checked before it is believed", async () => {
