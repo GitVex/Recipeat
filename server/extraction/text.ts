@@ -1,12 +1,10 @@
-import { getHeader, readBody, type H3Event } from 'h3'
+import type { H3Event } from 'h3'
+import { readJsonBody } from './body.ts'
 import { fail } from './errors.ts'
 
 // Characters, not bytes. Sized against OLLAMA_CONTEXT_LENGTH in
 // docker/compose.ollama.yaml: raising one means revisiting the other.
 export const MAX_TEXT_LENGTH = 20_000
-
-// application/json, plus vendor types such as application/vnd.api+json.
-const JSON_TYPE = /^application\/([\w.+-]+\+)?json$/i
 
 export function validateText(body: unknown): string {
   if (typeof body !== 'object' || body === null || Array.isArray(body)) {
@@ -21,16 +19,5 @@ export function validateText(body: unknown): string {
 }
 
 export async function readExtractionText(event: H3Event): Promise<string> {
-  // The parameters after ";" (charset and friends) are not our concern.
-  if (!JSON_TYPE.test((getHeader(event, 'content-type') ?? '').split(';')[0]!.trim())) {
-    throw fail(415, 'Expected a JSON request body.')
-  }
-  let body: unknown
-  try {
-    // strict: true so a malformed body throws instead of arriving as a string.
-    body = await readBody(event, { strict: true })
-  } catch (error) {
-    throw fail(400, 'Request body is not valid JSON.', error)
-  }
-  return validateText(body)
+  return validateText(await readJsonBody(event))
 }
