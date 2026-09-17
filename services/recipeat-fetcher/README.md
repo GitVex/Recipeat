@@ -163,6 +163,45 @@ Two rules keep the parsers comparable:
   pint's registry — `cans`, `sticks` — drops the whole amount instead, so the
   text parser gets its turn at the same string.
 
+## Deploy
+
+[`docker/compose.fetcher.yaml`](../../docker/compose.fetcher.yaml) builds this
+directory and publishes the service on loopback, the way Ollama is published.
+
+It is a separate Compose project from the Ollama one on purpose. This service
+opens connections to URLs a user supplies and has no SSRF guard yet, so it must
+not share a network with anything private: its own project gives it its own
+network, and a loopback-only published port is not reachable from inside
+another container.
+
+The build context is this directory, so the repository has to be on the host —
+unlike the Ollama file, this one cannot be copied across on its own.
+
+```sh
+git clone https://github.com/GitVex/Recipeat.git
+cd Recipeat
+docker compose -f docker/compose.fetcher.yaml up -d --build
+docker compose -f docker/compose.fetcher.yaml logs -f
+```
+
+The image pre-downloads the part-of-speech tagger that `ingredient-parser`
+would otherwise fetch from the internet the first time it is imported, so a
+cold container answers without reaching out, and a tagger it cannot get fails
+the build rather than the first request.
+
+The app finds the service at `NUXT_FETCHER_BASE_URL`, which defaults to
+`http://127.0.0.1:8000`. If Nuxt is containerized on the same host, attach it to
+`recipeat-fetch_default` and set
+`NUXT_FETCHER_BASE_URL=http://recipeat-fetcher:8000` — inside a container,
+`localhost` means that container.
+
+```sh
+docker compose -f docker/compose.fetcher.yaml ps
+docker stats recipeat-fetcher                                  # against the 1g cap
+docker compose -f docker/compose.fetcher.yaml up -d --build    # apply changes
+docker compose -f docker/compose.fetcher.yaml down
+```
+
 ## Configure
 
 Environment variables, or a `.env` file next to `pyproject.toml`. All are
