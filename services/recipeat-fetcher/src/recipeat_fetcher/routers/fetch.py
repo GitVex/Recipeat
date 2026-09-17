@@ -11,7 +11,14 @@ from recipe_scrapers import (
 )
 
 from ..config import Settings, get_settings
-from ..models import MAX_INGREDIENTS, FetchRequest, Ingredient, IngredientsRequest, Quantity, Recipe
+from ..models import (
+    MAX_INGREDIENTS,
+    FetchRequest,
+    Ingredient,
+    IngredientsRequest,
+    Quantity,
+    Recipe,
+)
 from ..page import fetch_page
 from ..units import read_amount
 
@@ -59,7 +66,9 @@ def _ingredient(line: str, parsed: ParsedIngredient) -> Ingredient:
         # one a step is most likely to mention, and the line keeps the rest.
         name=parsed.name[0].text if parsed.name else None,
         quantity=amount.text if amount is not None else None,
-        parsed_quantity=Quantity(value=read[0], max_value=read[1], unit=read[2]) if read else None,
+        parsed_quantity=Quantity(value=read[0], max_value=read[1], unit=read[2])
+        if read
+        else None,
         extra=_extra(parsed),
     )
 
@@ -74,7 +83,9 @@ def _parse(lines: list[str]) -> list[Ingredient]:
 
 
 @router.post("/fetch")
-def fetch(request: FetchRequest, settings: Annotated[Settings, Depends(get_settings)]) -> Recipe:
+def fetch(
+    request: FetchRequest, settings: Annotated[Settings, Depends(get_settings)]
+) -> Recipe:
     html, final_url = fetch_page(str(request.url), settings)
 
     try:
