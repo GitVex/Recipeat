@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { createServer } from 'node:http'
 import { createApp, defineEventHandler, readRawBody, toNodeListener, toWebHandler } from 'h3'
-import { extractText, isUnit, normalizeRecipe, parseExtraction, parseQuantity, readExtractionText, validateText } from '../server/utils/textExtraction.ts'
+import { extractText, isUnit, normalizeRecipe, parseExtraction, parseQuantity, readExtractionText, validateText } from '../server/utils/extraction.ts'
 
 const bread = { originalText: '1 slice bread', quantity: '1 slice', name: 'bread' }
 const recipe = { title: 'Toast', source_lang: 'en', portions: 1, ingredients: [bread], steps: ['Toast the bread.'] }

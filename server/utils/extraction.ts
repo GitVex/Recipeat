@@ -1,5 +1,6 @@
-// Public surface of the text extraction pipeline:
-// readExtractionText -> extractText -> parseExtraction -> normalizeRecipe.
+// Public surface of the extraction pipeline. Each modality reads its own
+// input and builds its own messages; validation and normalization are shared:
+// read -> extract -> parseExtraction -> normalizeRecipe.
 export { MAX_TEXT_LENGTH, readExtractionText, validateText } from '../extraction/text.ts'
 export { askOllama, extractText, type OllamaConfig, type OllamaMessage } from '../extraction/ollama.ts'
 export { normalizeRecipe } from '../extraction/normalize.ts'

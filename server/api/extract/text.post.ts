@@ -1,5 +1,5 @@
 import { requireUserSession } from 'nuxt-oidc-auth/runtime/server/utils/session.js'
-import { extractText, normalizeRecipe, readExtractionText } from '../../utils/textExtraction.ts'
+import { extractText, normalizeRecipe, readExtractionText } from '../../utils/extraction.ts'
 
 export default defineEventHandler(async (event) => {
   // Set before the session check, so the 401 carries it too.
