@@ -27,13 +27,12 @@ RUN uv sync --locked --no-dev --no-install-project
 COPY src ./src
 RUN uv sync --locked --no-dev
 
-# RapidOCR downloads its three models on first use, into its own package
-# directory. Building the engine here is what makes the image self-contained:
-# it keeps the first request from paying for the download, turns a missing
-# model into a build failure rather than a runtime one, and is what lets the
-# container run with no route off the host at all. Building it the way the
-# service does, rather than with RapidOCR's defaults, so the files fetched are
-# the ones the service will ask for.
+# The three default models come with the wheel, so nothing is downloaded here.
+# Building the engine anyway is a build-time check: it proves the models load
+# and the ONNX sessions construct — a missing libGL, a renamed config key or a
+# model pointed somewhere this image cannot reach all fail the build rather
+# than the first request. Built the way the service builds it, not with
+# RapidOCR's defaults, so it is the service's own configuration being checked.
 RUN python -c "from recipeat_ocr.engine import get_engine; get_engine()"
 
 RUN useradd --create-home --uid 10001 ocr

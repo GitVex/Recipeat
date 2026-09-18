@@ -21,7 +21,7 @@ url ─────────────▶ fetcher ┘
 | Import UI wired to the API | Not started — the dialog still shows samples |
 | Website import | Done; returns a recipe, stores nothing. No SSRF guard yet |
 | Photo import | Done; OCR then the model, returns a recipe, stores nothing. The image itself is discarded |
-| OCR service | Done; own Compose project, no egress, models baked into the image |
+| OCR service | Done; own Compose project, models in the wheel so it never calls out. Nothing stops it from calling out |
 
 ## Next: storage
 

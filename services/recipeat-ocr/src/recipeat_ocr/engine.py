@@ -10,10 +10,11 @@ flight would read each other's thresholds. Inference is CPU-bound and blocking
 besides, so the lock costs little that a thread pool would have given back: one
 image at a time, the same posture as `OLLAMA_NUM_PARALLEL`.
 
-The models are not in the wheel. RapidOCR downloads them on first use into its
-own package directory, which is why a container has to pull them at build time
-rather than on the first request — the same problem the fetcher has with its
-part-of-speech tagger.
+The three default models ship inside the rapidocr wheel, so building an engine
+opens no connection. That stops being true the moment `Det`, `Rec` or `Cls` is
+pointed at another language, size or OCR version: those are fetched from
+ModelScope on first use, and this service is deployed with nothing to fetch
+them over. Changing a model here means baking the new one into the image.
 """
 
 import asyncio

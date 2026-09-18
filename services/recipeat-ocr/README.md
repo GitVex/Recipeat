@@ -22,10 +22,10 @@ uv run recipeat-ocr                          # or serve with the settings below
 Needs Python 3.12; onnxruntime publishes no wheel below 3.11, which is why this
 service does not sit on the fetcher's 3.10.
 
-The three models are not in the wheel. RapidOCR downloads them (~31 MB) into
-its own package directory the first time an engine is built, so the first run
-of a fresh checkout needs the internet. A container does it at build time
-instead.
+The three default models (~31 MB) ship inside the rapidocr wheel, so a fresh
+`uv sync` needs nothing further and building an engine opens no connection.
+Pointing `Det`, `Rec` or `Cls` at another language, size or OCR version changes
+that: those are downloaded from ModelScope on first use.
 
 `GET /health` answers `{"status": "ok"}` once the models are loaded, not merely
 once the process is up.
@@ -131,14 +131,31 @@ published.
 
 It is a separate Compose project, for the opposite reason to the fetcher's. The
 fetcher must reach the internet and is kept away from anything private; this
-service needs no network at all beyond the requests the app sends it, so it is
-put on an `internal` network and given none. Publishing a port still works:
-what `internal` drops is the route out, not the host's route in.
+service never opens an outbound connection at all, because its models come with
+its wheel.
 
-That is only possible because the models are baked into the image. The build
-runs the service's own engine factory, so the files it downloads are exactly
-the ones the service will later ask for, and a model it cannot fetch fails the
-build rather than the first request.
+**That is a property of the image, not of the Compose file.** `internal: true`
+looks like the way to enforce it and is not — Docker drops every published port
+for a container on an internal network, so the app can no longer reach the
+service. This was tried, and the container came up healthy with `8001/tcp` bound
+to nothing. Compose has no way to say "ingress but no egress".
+
+Enforcing it needs a host rule. On the VPS, after the stack is up:
+
+```sh
+SUBNET=$(docker network inspect recipeat-ocr_default --format '{{(index .IPAM.Config 0).Subnet}}')
+iptables -I DOCKER-USER -s "$SUBNET" ! -d "$SUBNET" -j DROP
+```
+
+Untested — Docker Desktop on Windows has no DOCKER-USER chain to try it on.
+Verify with `docker exec recipeat-ocr python -c "import socket;
+socket.create_connection(('1.1.1.1', 53), 3)"`, which succeeds without the
+rule.
+
+The build runs the service's own engine factory rather than RapidOCR's
+defaults. Nothing is downloaded, so what it buys is a build-time check: the
+models load, the ONNX sessions construct, and the service's own configuration
+is the one proved to work.
 
 The build context is this directory, so the repository has to be on the host.
 
@@ -163,6 +180,10 @@ docker compose -f docker/compose.ocr.yaml ps
 docker stats recipeat-ocr                    # against the 2g cap
 docker compose -f docker/compose.ocr.yaml down
 ```
+
+Measured in the container: 164 MiB at rest with the models loaded, a 649 MiB
+peak reading a 3024x4032 photo, 3.5s for that photo and 1.0s for a 680x460
+one.
 
 ## Known rough edges
 
