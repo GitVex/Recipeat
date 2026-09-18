@@ -12,15 +12,25 @@ services:
     cpus: 4.0
     mem_limit: 8g
     memswap_limit: 8g
+    # Reaps the background pull once it finishes, and forwards stop signals.
     init: true
     environment:
       OLLAMA_HOST: "0.0.0.0:11434"
       OLLAMA_NUM_PARALLEL: "1"
       OLLAMA_MAX_LOADED_MODELS: "1"
+      # Sized for the 20 000-character upper bound the extraction API accepts,
+      # which is roughly 8 000 tokens of dense HTML plus the generated recipe.
       OLLAMA_CONTEXT_LENGTH: "16384"
       OLLAMA_NO_CLOUD: "1"
       OLLAMA_KEEP_ALIVE: "5m"
+      # Not read by Ollama. The model this deployment pulls and reports healthy
+      # on; must match runtimeConfig.ollamaModel, which is what requests name.
       RECIPEAT_MODEL: "qwen3.5:2b"
+    # Pull in the background once the server answers, then exec the server so it
+    # replaces the shell rather than running under one that would swallow a stop
+    # signal. With init: true, PID 1 is docker-init and the server is its direct
+    # child, which is what forwards SIGTERM. The pull is idempotent: on later
+    # starts the model is already in the volume.
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -45,5 +55,7 @@ services:
 
 volumes:
   ollama:
+    # Reuse the volume created by the original docker run command.
+    # External volumes are not deleted by docker compose down -v.
     external: true
     name: ollama

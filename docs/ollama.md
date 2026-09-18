@@ -21,8 +21,9 @@ short paste costs the same memory as a full page scrape. Watch it with
 
 The container pulls its own model. The entrypoint starts a background shell
 that waits for the server to answer, pulls `$RECIPEAT_MODEL` into the persistent
-volume, and exits; the server itself stays PID 1, so `docker stop` still reaches
-it. The pull is idempotent, so a restart with the model already in the volume
+volume, and exits; the server is `exec`ed rather than run under that shell, so
+`docker stop` reaches the server itself. `init: true` puts `docker-init` at PID 1
+to forward the signal and reap the finished pull. The pull is idempotent, so a restart with the model already in the volume
 costs one `list` call. Pulling a model does not make it an API default —
 requests still name the model, which the app supplies from
 `runtimeConfig.ollamaModel`.
@@ -63,6 +64,13 @@ docker inspect ollama --format '{{.State.Health.Status}}'
 If the pull fails, the container keeps serving without the model and never turns
 healthy. Read its logs, then retry the pull by hand with
 `docker exec ollama ollama pull qwen3.5:2b`, or restart the container.
+
+Measured on a developer machine, not the VPS: 5m43s from `up -d` to healthy,
+almost all of it the 2.7 GB model download, with the container reporting
+`starting` throughout and never `unhealthy`. A later start is 5s — the pull
+re-fetches a 473-byte manifest and stops there. `docker stop` returns in 0.8s
+with exit code 0, which is the `exec` doing its job; a shell holding the signal
+would take the full ten-second grace and exit 137.
 
 **Replacing an existing container.** The volume is declared `external`, so it
 survives. First confirm the old container really uses it:
@@ -106,6 +114,15 @@ container, `localhost` means that container, not Ollama.
 The [fetcher](../services/recipeat-fetcher/README.md) is a separate Compose
 project and deliberately not on this network. It opens connections to URLs a
 user supplies, and this API is unauthenticated.
+
+That separation is weaker on Docker Desktop than on the VPS, and it was measured
+rather than assumed. From inside the fetcher container, `ollama` does not resolve
+and `172.17.0.1:11434` — the gateway a Linux host would present — is refused, so
+the loopback publishing holds there. `host.docker.internal:11434` answers with
+the model list. Docker Desktop provides that name as a gateway that forwards to
+published ports, loopback-bound ones included; a Linux host has no such name
+unless `extra_hosts: host-gateway` adds it. So an SSRF through the fetcher
+reaches Ollama on a developer machine and not on the VPS.
 
 ## Manage
 

@@ -321,7 +321,18 @@ why neither of the other two modalities goes through the model as it stands:
 the same page read by `recipe-scrapers` and `ingredient-parser` is a matter of
 seconds, and a photo is now read by OCR before the model sees anything.
 
-The OCR hop has not been measured on the VPS yet. On a developer machine a
-680x460 rendering of a recipe card takes about 0.9s across all three models,
-capped at four times the pixels by `OCR_MAX_SIDE_LEN`; what follows it is the
-text path, over however much text the photo held.
+Those VPS figures predate the switch to `qwen3.5:2b` and were taken with the 4b;
+nothing has re-measured them since. What has been measured is the whole stack in
+containers on a developer machine, which is slower per token than the VPS and
+says nothing about it directly:
+
+| Source | Time |
+|---|---|
+| Short German recipe, pasted | 1m 29s |
+| The same recipe as a 3024x4032 photo | 1m 36s |
+| — of which OCR | 3.5s |
+| The same photo at 680x460 | 1.0s of OCR |
+
+The gap between the two rows is the whole cost of reading a photo. `OCR_MAX_SIDE_LEN`
+caps the longer side at 2000 pixels, so a bigger photo costs the downscale and
+not the pixels.
