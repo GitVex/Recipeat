@@ -53,7 +53,7 @@ a database. [Planning](docs/planning.md) covers what that needs.
 | [Fetcher](services/recipeat-fetcher/README.md) | The Python service behind website import |
 | [Extraction](docs/extraction.md) | The API, the pipeline, the recipe shape |
 | [Planning](docs/planning.md) | What is next, and what is still undecided |
-| [Backend infrastructure](docs/backend-infrastructure.svg) | Current components, authentication, extraction and storage flows |
+| [Architecture](docs/architecture.svg) | Components, and the login, text and website extraction flows |
 
 Photography comes from Unsplash and fonts from Google Fonts, so both need
 internet access.

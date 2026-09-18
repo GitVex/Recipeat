@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 1000" width="1240" height="1000" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 1100" width="1240" height="1100" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
   <title>Recipeat backend infrastructure and request flows</title>
 
   <defs>
@@ -11,12 +11,15 @@
     <marker id="a-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#3f8558"/>
     </marker>
+    <marker id="a-teal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2b7a8c"/>
+    </marker>
     <marker id="a-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#9b9488"/>
     </marker>
   </defs>
 
-  <rect x="0" y="0" width="1240" height="1000" fill="#fbfaf8"/>
+  <rect x="0" y="0" width="1240" height="1100" fill="#fbfaf8"/>
 
   <text x="60" y="48" font-size="25" font-weight="650" fill="#23201c">Recipeat backend</text>
   <text x="60" y="73" font-size="13.5" fill="#6f685e">Every request path through the Nitro server, as built today. Dashed grey is planned, not written.</text>
@@ -25,146 +28,185 @@
   <rect x="60" y="100" width="1120" height="80" rx="10" fill="#ffffff" stroke="#ddd8d0" stroke-width="1.5"/>
   <text x="84" y="127" font-size="13.5" font-weight="650" fill="#23201c">Browser</text>
   <text x="84" y="149" font-size="11.5" fill="#6f685e">Landing page and recipe demo. The collection lives in localStorage and the import dialog still shows labelled samples,</text>
-  <text x="84" y="167" font-size="11.5" fill="#6f685e">so nothing here calls the extraction API yet.</text>
+  <text x="84" y="167" font-size="11.5" fill="#6f685e">so nothing here calls either extraction API yet.</text>
 
   <!-- server -->
-  <rect x="60" y="214" width="1120" height="510" rx="12" fill="#ffffff" stroke="#cfc8bd" stroke-width="2"/>
+  <rect x="60" y="214" width="1120" height="580" rx="12" fill="#ffffff" stroke="#cfc8bd" stroke-width="2"/>
   <text x="84" y="244" font-size="14.5" font-weight="650" fill="#23201c">Nuxt 4 · Nitro server</text>
-  <text x="252" y="244" font-size="11.5" fill="#8d857a">runtimeConfig: ollamaBaseUrl · ollamaModel      env: NUXT_OIDC_*</text>
+  <text x="252" y="244" font-size="11.5" fill="#8d857a">runtimeConfig: ollamaBaseUrl · ollamaModel · fetcherBaseUrl      env: NUXT_OIDC_*</text>
 
   <!-- oidc module routes -->
-  <rect x="84" y="268" width="316" height="100" rx="8" fill="#f4eef7" stroke="#a98bbb" stroke-width="1.3"/>
-  <text x="102" y="292" font-size="12.5" font-weight="650" fill="#4a3356">nuxt-oidc-auth (module routes)</text>
-  <text x="102" y="313" font-size="11" fill="#6b5a78" font-family="ui-monospace, Consolas, monospace">/auth/zitadel/login · callback · logout</text>
-  <text x="102" y="333" font-size="11" fill="#6b5a78">Authorization Code + PKCE, state and nonce</text>
+  <rect x="84" y="268" width="292" height="100" rx="8" fill="#f4eef7" stroke="#a98bbb" stroke-width="1.3"/>
+  <text x="102" y="292" font-size="12.5" font-weight="650" fill="#4a3356">nuxt-oidc-auth (module)</text>
+  <text x="102" y="313" font-size="11" fill="#6b5a78" font-family="ui-monospace, Consolas, monospace">/auth/zitadel/login · callback</text>
+  <text x="102" y="333" font-size="11" fill="#6b5a78">Authorization Code + PKCE, state, nonce</text>
   <text x="102" y="352" font-size="11" fill="#6b5a78">Strict ID-token validation against JWKS</text>
 
   <!-- /api/me -->
-  <rect x="424" y="268" width="220" height="100" rx="8" fill="#e9f0f9" stroke="#7ba0cc" stroke-width="1.3"/>
-  <text x="442" y="292" font-size="12.5" font-weight="650" fill="#1f3b5c" font-family="ui-monospace, Consolas, monospace">GET /api/me</text>
-  <text x="442" y="313" font-size="11" fill="#3d5a7a">requireUserSession</text>
-  <text x="442" y="333" font-size="11" fill="#3d5a7a">provider · sub · profile</text>
-  <text x="442" y="352" font-size="11" fill="#3d5a7a">401 when signed out</text>
+  <rect x="396" y="268" width="184" height="100" rx="8" fill="#e9f0f9" stroke="#7ba0cc" stroke-width="1.3"/>
+  <text x="414" y="292" font-size="12" font-weight="650" fill="#1f3b5c" font-family="ui-monospace, Consolas, monospace">GET /api/me</text>
+  <text x="414" y="313" font-size="11" fill="#3d5a7a">requireUserSession</text>
+  <text x="414" y="333" font-size="11" fill="#3d5a7a">sub · profile</text>
+  <text x="414" y="352" font-size="11" fill="#3d5a7a">401 when signed out</text>
 
   <!-- /api/extract/text -->
-  <rect x="668" y="268" width="428" height="100" rx="8" fill="#e8f2ea" stroke="#77a889" stroke-width="1.3"/>
-  <text x="686" y="292" font-size="12.5" font-weight="650" fill="#1f4430" font-family="ui-monospace, Consolas, monospace">POST /api/extract/text</text>
-  <text x="686" y="313" font-size="11" fill="#3c6350">Cache-Control set first, so the 401 carries it too</text>
-  <text x="686" y="333" font-size="11" fill="#3c6350">Returns { recipe } · stores nothing</text>
-  <text x="686" y="352" font-size="11" fill="#3c6350" font-family="ui-monospace, Consolas, monospace">401 · 415 · 400 · 413 · 422 · 502 · 504</text>
+  <rect x="600" y="268" width="270" height="100" rx="8" fill="#e8f2ea" stroke="#77a889" stroke-width="1.3"/>
+  <text x="618" y="292" font-size="12" font-weight="650" fill="#1f4430" font-family="ui-monospace, Consolas, monospace">POST /api/extract/text</text>
+  <text x="618" y="313" font-size="11" fill="#3c6350">Pasted text, read by the model</text>
+  <text x="618" y="333" font-size="11" fill="#3c6350">Returns { recipe } · stores nothing</text>
+  <text x="618" y="352" font-size="10" fill="#3c6350" font-family="ui-monospace, Consolas, monospace">401 415 400 413 422 502 504</text>
+
+  <!-- /api/extract/website -->
+  <rect x="890" y="268" width="266" height="100" rx="8" fill="#e7f1f4" stroke="#74a5b2" stroke-width="1.3"/>
+  <text x="908" y="292" font-size="11.5" font-weight="650" fill="#174551" font-family="ui-monospace, Consolas, monospace">POST /api/extract/website</text>
+  <text x="908" y="313" font-size="11" fill="#35697a">A URL, read with no model at all</text>
+  <text x="908" y="333" font-size="11" fill="#35697a">Same shape · stores nothing</text>
+  <text x="908" y="352" font-size="10" fill="#35697a" font-family="ui-monospace, Consolas, monospace">401 415 400 413 422 502 504</text>
 
   <!-- session -->
-  <rect x="424" y="396" width="316" height="90" rx="8" fill="#f4eef7" stroke="#a98bbb" stroke-width="1.3"/>
-  <text x="442" y="420" font-size="12.5" font-weight="650" fill="#4a3356">Session</text>
-  <text x="442" y="441" font-size="11" fill="#6b5a78">Encrypted cookie in the browser</text>
-  <text x="442" y="460" font-size="11" fill="#6b5a78">Tokens server-side in <tspan font-family="ui-monospace, Consolas, monospace">.data/oidc</tspan></text>
-  <text x="442" y="478" font-size="11" fill="#6b5a78">Never exposed to browser JavaScript</text>
+  <rect x="396" y="396" width="292" height="90" rx="8" fill="#f4eef7" stroke="#a98bbb" stroke-width="1.3"/>
+  <text x="414" y="420" font-size="12.5" font-weight="650" fill="#4a3356">Session</text>
+  <text x="414" y="441" font-size="11" fill="#6b5a78">Encrypted cookie in the browser</text>
+  <text x="414" y="460" font-size="11" fill="#6b5a78">Tokens server-side in <tspan font-family="ui-monospace, Consolas, monospace">.data/oidc</tspan></text>
+  <text x="414" y="478" font-size="11" fill="#6b5a78">Never exposed to browser JavaScript</text>
 
-  <!-- extraction pipeline -->
-  <rect x="180" y="520" width="228" height="120" rx="8" fill="#e8f2ea" stroke="#77a889" stroke-width="1.3"/>
-  <text x="196" y="544" font-size="11.5" font-weight="650" fill="#1f4430" font-family="ui-monospace, Consolas, monospace">readExtractionText</text>
-  <text x="196" y="567" font-size="10.2" fill="#3c6350">Content type → JSON → validateText</text>
-  <text x="196" y="586" font-size="10.2" fill="#3c6350">Max 20 000 characters</text>
-  <text x="196" y="605" font-size="10.2" fill="#3c6350">Text passed on unmodified</text>
-  <text x="196" y="627" font-size="10.2" fill="#8d857a">415 · 400 · 413</text>
+  <!-- text lane -->
+  <rect x="180" y="506" width="236" height="100" rx="8" fill="#e8f2ea" stroke="#77a889" stroke-width="1.3"/>
+  <text x="196" y="529" font-size="11.5" font-weight="650" fill="#1f4430" font-family="ui-monospace, Consolas, monospace">readExtractionText</text>
+  <text x="196" y="551" font-size="10.2" fill="#3c6350">JSON envelope → validateText</text>
+  <text x="196" y="570" font-size="10.2" fill="#3c6350">Max 20 000 characters</text>
+  <text x="196" y="592" font-size="10.2" fill="#8d857a">415 · 400 · 413</text>
 
-  <rect x="424" y="520" width="228" height="120" rx="8" fill="#e8f2ea" stroke="#77a889" stroke-width="1.3"/>
-  <text x="440" y="544" font-size="11.5" font-weight="650" fill="#1f4430" font-family="ui-monospace, Consolas, monospace">extractText → askOllama</text>
-  <text x="440" y="567" font-size="10.2" fill="#3c6350">Source is its own user message</text>
-  <text x="440" y="586" font-size="10.2" fill="#3c6350">Schema grammar · temperature 0</text>
-  <text x="440" y="605" font-size="10.2" fill="#3c6350">Transport shared by all modalities</text>
-  <text x="440" y="627" font-size="10.2" fill="#8d857a">502 · 504 · 5 min timeout</text>
+  <rect x="436" y="506" width="236" height="100" rx="8" fill="#e8f2ea" stroke="#77a889" stroke-width="1.3"/>
+  <text x="452" y="529" font-size="11.5" font-weight="650" fill="#1f4430" font-family="ui-monospace, Consolas, monospace">extractText → askOllama</text>
+  <text x="452" y="551" font-size="10.2" fill="#3c6350">Schema grammar · temperature 0</text>
+  <text x="452" y="570" font-size="10.2" fill="#3c6350">Source is its own user message</text>
+  <text x="452" y="592" font-size="10.2" fill="#8d857a">502 · 504 · 5 min timeout</text>
 
-  <rect x="668" y="520" width="228" height="120" rx="8" fill="#e8f2ea" stroke="#77a889" stroke-width="1.3"/>
-  <text x="684" y="544" font-size="11.5" font-weight="650" fill="#1f4430" font-family="ui-monospace, Consolas, monospace">parseExtraction</text>
-  <text x="684" y="567" font-size="10.2" fill="#3c6350">Validates, clamps, assigns IDs</text>
-  <text x="684" y="586" font-size="10.2" fill="#3c6350">Recovers wherever it still reads</text>
-  <text x="684" y="605" font-size="10.2" fill="#3c6350">Records the RecipeSource</text>
-  <text x="684" y="627" font-size="10.2" fill="#8d857a">502 unusable · 422 nothing found</text>
+  <!-- website lane -->
+  <rect x="700" y="506" width="216" height="100" rx="8" fill="#e7f1f4" stroke="#74a5b2" stroke-width="1.3"/>
+  <text x="716" y="529" font-size="11.5" font-weight="650" fill="#174551" font-family="ui-monospace, Consolas, monospace">readExtractionUrl</text>
+  <text x="716" y="551" font-size="10.2" fill="#35697a">http or https only</text>
+  <text x="716" y="570" font-size="10.2" fill="#35697a">Max 2048 characters</text>
+  <text x="716" y="592" font-size="10.2" fill="#8d857a">415 · 400 · 413</text>
 
-  <rect x="912" y="520" width="228" height="120" rx="8" fill="#e8f2ea" stroke="#77a889" stroke-width="1.3"/>
-  <text x="928" y="544" font-size="11.5" font-weight="650" fill="#1f4430" font-family="ui-monospace, Consolas, monospace">normalizeRecipe</text>
-  <text x="928" y="567" font-size="10.2" fill="#3c6350">Fractions, ranges, units parsed</text>
-  <text x="928" y="586" font-size="10.2" fill="#3c6350">Measurements found in prose</text>
-  <text x="928" y="605" font-size="10.2" fill="#3c6350">Steps linked to ingredients</text>
-  <text x="928" y="627" font-size="10.2" fill="#8d857a">Deterministic · no model involved</text>
+  <rect x="936" y="506" width="216" height="100" rx="8" fill="#e7f1f4" stroke="#74a5b2" stroke-width="1.3"/>
+  <text x="952" y="529" font-size="11.5" font-weight="650" fill="#174551" font-family="ui-monospace, Consolas, monospace">extractWebsite</text>
+  <text x="952" y="551" font-size="10.2" fill="#35697a">Renames a page into a draft</text>
+  <text x="952" y="570" font-size="10.2" fill="#35697a">Checks the links it is given</text>
+  <text x="952" y="592" font-size="10.2" fill="#8d857a">422 · 502 · 504 · 60s</text>
 
-  <text x="600" y="666" font-size="10.5" fill="#8d857a">server/extraction, behind one barrel at</text>
-  <text x="600" y="684" font-size="10.5" fill="#8d857a">server/utils/textExtraction.ts. Every failure is</text>
-  <text x="600" y="702" font-size="10.5" fill="#8d857a">fail(status, message, cause) — the cause is logged, never sent.</text>
+  <!-- shared steps -->
+  <rect x="624" y="646" width="246" height="100" rx="8" fill="#f2f0ec" stroke="#b6afa4" stroke-width="1.5"/>
+  <text x="640" y="669" font-size="11.5" font-weight="650" fill="#3d382f" font-family="ui-monospace, Consolas, monospace">parseExtraction</text>
+  <text x="640" y="691" font-size="10.2" fill="#6f685e">Validates, clamps, assigns IDs</text>
+  <text x="640" y="710" font-size="10.2" fill="#6f685e">Recovers wherever it still reads</text>
+  <text x="640" y="732" font-size="10.2" fill="#8d857a">502 unusable · 422 nothing found</text>
+
+  <rect x="890" y="646" width="246" height="100" rx="8" fill="#f2f0ec" stroke="#b6afa4" stroke-width="1.5"/>
+  <text x="906" y="669" font-size="11.5" font-weight="650" fill="#3d382f" font-family="ui-monospace, Consolas, monospace">normalizeRecipe</text>
+  <text x="906" y="691" font-size="10.2" fill="#6f685e">A parsed amount is kept as given</text>
+  <text x="906" y="710" font-size="10.2" fill="#6f685e">Measurements found in prose</text>
+  <text x="906" y="732" font-size="10.2" fill="#8d857a">Deterministic · no model</text>
+
+  <text x="180" y="672" font-size="10.5" fill="#8d857a">A modality reads its own input and records its own</text>
+  <text x="180" y="690" font-size="10.5" fill="#8d857a">source; everything below that is shared. One barrel at</text>
+  <text x="180" y="708" font-size="10.5" fill="#8d857a">server/utils/extraction.ts, and every failure is</text>
+  <text x="180" y="726" font-size="10.5" fill="#8d857a">fail(status, message, cause) — cause is logged, never sent.</text>
 
   <!-- external services -->
-  <rect x="84" y="790" width="316" height="106" rx="10" fill="#fdf1e4" stroke="#d3a066" stroke-width="1.5"/>
-  <text x="102" y="815" font-size="13" font-weight="650" fill="#5c4222">Zitadel</text>
-  <text x="102" y="837" font-size="11" fill="#7d6238">Hosted login · discovery · JWKS</text>
-  <text x="102" y="856" font-size="11" fill="#7d6238">Token endpoint · userinfo · end_session</text>
-  <text x="102" y="876" font-size="11" fill="#7d6238">Identity is the verified <tspan font-family="ui-monospace, Consolas, monospace">sub</tspan> claim</text>
+  <rect x="84" y="860" width="236" height="106" rx="10" fill="#fdf1e4" stroke="#d3a066" stroke-width="1.5"/>
+  <text x="102" y="885" font-size="13" font-weight="650" fill="#5c4222">Zitadel</text>
+  <text x="102" y="907" font-size="11" fill="#7d6238">Hosted login · discovery · JWKS</text>
+  <text x="102" y="926" font-size="11" fill="#7d6238">Token endpoint · userinfo</text>
+  <text x="102" y="946" font-size="11" fill="#7d6238">Identity is the verified <tspan font-family="ui-monospace, Consolas, monospace">sub</tspan></text>
 
-  <rect x="440" y="790" width="380" height="106" rx="10" fill="#fdf1e4" stroke="#d3a066" stroke-width="1.5"/>
-  <text x="458" y="815" font-size="13" font-weight="650" fill="#5c4222">Ollama — CPU-only VPS</text>
-  <text x="458" y="837" font-size="11" fill="#7d6238" font-family="ui-monospace, Consolas, monospace">POST /api/chat · qwen3.5:4b</text>
-  <text x="458" y="856" font-size="11" fill="#7d6238">NUM_PARALLEL 1 · ctx 16384 · 4 CPU / 8 GB</text>
-  <text x="458" y="876" font-size="11" fill="#7d6238">Loopback only — SSH tunnel in development</text>
+  <rect x="344" y="860" width="236" height="106" rx="10" fill="#fdf1e4" stroke="#d3a066" stroke-width="1.5"/>
+  <text x="362" y="885" font-size="13" font-weight="650" fill="#5c4222">Ollama — CPU-only VPS</text>
+  <text x="362" y="907" font-size="11" fill="#7d6238" font-family="ui-monospace, Consolas, monospace">POST /api/chat · qwen3.5:4b</text>
+  <text x="362" y="926" font-size="11" fill="#7d6238">NUM_PARALLEL 1 · ctx 16384</text>
+  <text x="362" y="946" font-size="11" fill="#7d6238">4 CPU / 8 GB · loopback only</text>
 
-  <rect x="860" y="790" width="296" height="106" rx="10" fill="#f4f2ef" stroke="#b6afa4" stroke-width="1.5" stroke-dasharray="6 4"/>
-  <text x="878" y="815" font-size="13" font-weight="650" fill="#8d857a">Postgres — planned</text>
-  <text x="878" y="837" font-size="11" fill="#9b9488">recipes table, owner_sub from session</text>
-  <text x="878" y="856" font-size="11" fill="#9b9488">No service, driver or migration yet</text>
-  <text x="878" y="876" font-size="11" fill="#9b9488">Extraction output already fits it</text>
+  <rect x="604" y="860" width="236" height="106" rx="10" fill="#f4f2ef" stroke="#b6afa4" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="622" y="885" font-size="13" font-weight="650" fill="#8d857a">Postgres — planned</text>
+  <text x="622" y="907" font-size="11" fill="#9b9488">recipes table, owner_sub from</text>
+  <text x="622" y="926" font-size="11" fill="#9b9488">the session. No driver yet</text>
+  <text x="622" y="946" font-size="11" fill="#9b9488">Extraction output already fits</text>
+
+  <rect x="864" y="860" width="236" height="106" rx="10" fill="#e7f1f4" stroke="#74a5b2" stroke-width="1.5"/>
+  <text x="882" y="885" font-size="13" font-weight="650" fill="#174551">recipeat-fetcher</text>
+  <text x="882" y="907" font-size="11" fill="#35697a" font-family="ui-monospace, Consolas, monospace">POST /fetch · /ingredients</text>
+  <text x="882" y="926" font-size="10.5" fill="#35697a">recipe-scrapers · ingredient-parser</text>
+  <text x="882" y="946" font-size="10.5" fill="#35697a">Own Compose project · no SSRF guard</text>
 
   <!-- flow 1: login -->
   <polyline points="150,180 150,268" fill="none" stroke="#8a5fa8" stroke-width="2" marker-end="url(#a-purple)"/>
   <circle cx="132" cy="224" r="10" fill="#8a5fa8"/>
   <text x="132" y="228" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">1</text>
 
-  <polyline points="60,140 36,140 36,843 84,843" fill="none" stroke="#8a5fa8" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#a-purple)" marker-start="url(#a-purple)"/>
-  <text x="46" y="480" font-size="10.5" fill="#8a5fa8" transform="rotate(-90 46 480)" text-anchor="middle">browser redirect · PKCE</text>
+  <polyline points="60,140 36,140 36,913 84,913" fill="none" stroke="#8a5fa8" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#a-purple)" marker-start="url(#a-purple)"/>
+  <text x="46" y="520" font-size="10.5" fill="#8a5fa8" transform="rotate(-90 46 520)" text-anchor="middle">browser redirect · PKCE</text>
 
-  <polyline points="160,368 160,790" fill="none" stroke="#8a5fa8" stroke-width="2" marker-end="url(#a-purple)" marker-start="url(#a-purple)"/>
-  <text x="172" y="700" font-size="10.5" fill="#8a5fa8">code → tokens · JWKS</text>
+  <polyline points="140,368 140,860" fill="none" stroke="#8a5fa8" stroke-width="2" marker-end="url(#a-purple)" marker-start="url(#a-purple)"/>
+  <text x="152" y="800" font-size="10.5" fill="#8a5fa8">code → tokens · JWKS</text>
 
-  <polyline points="400,441 424,441" fill="none" stroke="#8a5fa8" stroke-width="2" marker-end="url(#a-purple)"/>
+  <polyline points="376,441 396,441" fill="none" stroke="#8a5fa8" stroke-width="2" marker-end="url(#a-purple)"/>
 
   <!-- flow 2: authenticated request -->
-  <polyline points="534,180 534,268" fill="none" stroke="#3d6fb0" stroke-width="2" marker-end="url(#a-blue)"/>
-  <circle cx="516" cy="224" r="10" fill="#3d6fb0"/>
-  <text x="516" y="228" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">2</text>
-  <polyline points="500,368 500,396" fill="none" stroke="#3d6fb0" stroke-width="2" marker-end="url(#a-blue)"/>
+  <polyline points="470,180 470,268" fill="none" stroke="#3d6fb0" stroke-width="2" marker-end="url(#a-blue)"/>
+  <circle cx="452" cy="224" r="10" fill="#3d6fb0"/>
+  <text x="452" y="228" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">2</text>
+  <polyline points="470,368 470,396" fill="none" stroke="#3d6fb0" stroke-width="2" marker-end="url(#a-blue)"/>
 
-  <!-- flow 3: extraction -->
-  <polyline points="820,180 820,268" fill="none" stroke="#3f8558" stroke-width="2" marker-end="url(#a-green)"/>
-  <circle cx="802" cy="224" r="10" fill="#3f8558"/>
-  <text x="802" y="228" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">3</text>
+  <!-- flow 3: text extraction -->
+  <polyline points="700,180 700,268" fill="none" stroke="#3f8558" stroke-width="2" marker-end="url(#a-green)"/>
+  <circle cx="682" cy="224" r="10" fill="#3f8558"/>
+  <text x="682" y="228" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">3</text>
 
-  <polyline points="700,368 700,382 660,382 660,396" fill="none" stroke="#3f8558" stroke-width="2" marker-end="url(#a-green)"/>
-  <text x="712" y="386" font-size="10.5" fill="#3f8558">requireUserSession</text>
+  <polyline points="640,368 640,396" fill="none" stroke="#3f8558" stroke-width="2" marker-end="url(#a-green)"/>
+  <text x="496" y="390" font-size="10.5" fill="#3f8558">requireUserSession</text>
 
-  <polyline points="900,368 900,500 294,500 294,520" fill="none" stroke="#3f8558" stroke-width="2" marker-end="url(#a-green)"/>
+  <polyline points="660,368 660,480 298,480 298,506" fill="none" stroke="#3f8558" stroke-width="2" marker-end="url(#a-green)"/>
+  <polyline points="416,556 436,556" fill="none" stroke="#3f8558" stroke-width="2" marker-end="url(#a-green)"/>
+  <polyline points="554,606 554,860" fill="none" stroke="#3f8558" stroke-width="2" marker-end="url(#a-green)" marker-start="url(#a-green)"/>
+  <text x="566" y="800" font-size="10.5" fill="#3f8558">recipe draft · 20s – 4m</text>
 
-  <polyline points="408,580 424,580" fill="none" stroke="#3f8558" stroke-width="2" marker-end="url(#a-green)"/>
-  <polyline points="652,580 668,580" fill="none" stroke="#3f8558" stroke-width="2" marker-end="url(#a-green)"/>
-  <polyline points="896,580 912,580" fill="none" stroke="#3f8558" stroke-width="2" marker-end="url(#a-green)"/>
+  <!-- flow 4: website extraction -->
+  <polyline points="1020,180 1020,268" fill="none" stroke="#2b7a8c" stroke-width="2" marker-end="url(#a-teal)"/>
+  <circle cx="1002" cy="224" r="10" fill="#2b7a8c"/>
+  <text x="1002" y="228" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">4</text>
 
-  <polyline points="538,640 538,790" fill="none" stroke="#3f8558" stroke-width="2" marker-end="url(#a-green)" marker-start="url(#a-green)"/>
-  <text x="330" y="716" font-size="10.5" fill="#3f8558">recipe draft · 20s – 4m</text>
+  <polyline points="920,368 920,420 688,420" fill="none" stroke="#2b7a8c" stroke-width="2" marker-end="url(#a-teal)"/>
+  <polyline points="1023,368 1023,480 808,480 808,506" fill="none" stroke="#2b7a8c" stroke-width="2" marker-end="url(#a-teal)"/>
+  <polyline points="916,556 936,556" fill="none" stroke="#2b7a8c" stroke-width="2" marker-end="url(#a-teal)"/>
+  <polyline points="1152,556 1166,556 1166,830 982,830 982,860" fill="none" stroke="#2b7a8c" stroke-width="2" marker-end="url(#a-teal)" marker-start="url(#a-teal)"/>
+  <text x="1012" y="822" font-size="10.5" fill="#2b7a8c">page + lines · seconds</text>
 
-  <polyline points="1140,580 1200,580 1200,150 1180,150" fill="none" stroke="#3f8558" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#a-green)"/>
-  <text x="1194" y="370" font-size="10.5" fill="#3f8558" transform="rotate(-90 1194 370)" text-anchor="middle">{ recipe }</text>
+  <!-- both lanes converge on the shared steps -->
+  <polyline points="672,606 672,626 1152,626 1152,606" fill="none" stroke="#9b9488" stroke-width="2"/>
+  <polyline points="747,626 747,646" fill="none" stroke="#9b9488" stroke-width="2" marker-end="url(#a-gray)"/>
+  <polyline points="870,696 890,696" fill="none" stroke="#9b9488" stroke-width="2" marker-end="url(#a-gray)"/>
+
+  <polyline points="1136,696 1200,696 1200,150 1180,150" fill="none" stroke="#9b9488" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#a-gray)"/>
+  <text x="1194" y="420" font-size="10.5" fill="#8d857a" transform="rotate(-90 1194 420)" text-anchor="middle">{ recipe }</text>
 
   <!-- planned storage -->
-  <polyline points="1026,640 1026,790" fill="none" stroke="#9b9488" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#a-gray)"/>
-  <text x="1036" y="716" font-size="10.5" fill="#9b9488">not built yet</text>
+  <polyline points="920,746 920,790 722,790 722,860" fill="none" stroke="#9b9488" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#a-gray)"/>
+  <text x="742" y="784" font-size="10.5" fill="#9b9488">not built yet</text>
 
   <!-- legend -->
-  <line x1="84" y1="940" x2="116" y2="940" stroke="#8a5fa8" stroke-width="2.5"/>
-  <text x="126" y="944" font-size="11.5" fill="#6f685e"><tspan font-weight="650" fill="#8a5fa8">1</tspan>  Login — redirect to Zitadel, code exchanged server-side, session written</text>
+  <line x1="84" y1="1010" x2="116" y2="1010" stroke="#8a5fa8" stroke-width="2.5"/>
+  <text x="126" y="1014" font-size="11.5" fill="#6f685e"><tspan font-weight="650" fill="#8a5fa8">1</tspan>  Login — redirect to Zitadel, code exchanged server-side, session written</text>
 
-  <line x1="84" y1="964" x2="116" y2="964" stroke="#3d6fb0" stroke-width="2.5"/>
-  <text x="126" y="968" font-size="11.5" fill="#6f685e"><tspan font-weight="650" fill="#3d6fb0">2</tspan>  Authenticated request — session required, identity returned</text>
+  <line x1="84" y1="1034" x2="116" y2="1034" stroke="#3d6fb0" stroke-width="2.5"/>
+  <text x="126" y="1038" font-size="11.5" fill="#6f685e"><tspan font-weight="650" fill="#3d6fb0">2</tspan>  Authenticated request — session required, identity returned</text>
 
-  <line x1="640" y1="940" x2="672" y2="940" stroke="#3f8558" stroke-width="2.5"/>
-  <text x="682" y="944" font-size="11.5" fill="#6f685e"><tspan font-weight="650" fill="#3f8558">3</tspan>  Extraction — read, ask the model, validate, normalize, return</text>
+  <line x1="640" y1="1010" x2="672" y2="1010" stroke="#3f8558" stroke-width="2.5"/>
+  <text x="682" y="1014" font-size="11.5" fill="#6f685e"><tspan font-weight="650" fill="#3f8558">3</tspan>  Text extraction — the model reads the paste, minutes</text>
 
-  <line x1="640" y1="964" x2="672" y2="964" stroke="#9b9488" stroke-width="2.5" stroke-dasharray="6 4"/>
-  <text x="682" y="968" font-size="11.5" fill="#6f685e">Planned — designed, not implemented</text>
+  <line x1="640" y1="1034" x2="672" y2="1034" stroke="#2b7a8c" stroke-width="2.5"/>
+  <text x="682" y="1038" font-size="11.5" fill="#6f685e"><tspan font-weight="650" fill="#2b7a8c">4</tspan>  Website import — the fetcher reads the page, seconds, no model</text>
+
+  <line x1="84" y1="1058" x2="116" y2="1058" stroke="#9b9488" stroke-width="2.5"/>
+  <text x="126" y="1062" font-size="11.5" fill="#6f685e">Shared — validate, normalize, return. Dashed is planned, not implemented</text>
 </svg>
