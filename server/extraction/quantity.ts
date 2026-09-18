@@ -66,6 +66,16 @@ export const unitInfo = (text: string): [Unit, QuantityKind] | null => UNITS[key
 // Derived, never stored: kind is a pure function of the unit.
 export const kindOf = (unit: Unit | null): QuantityKind => unit ? (KINDS.get(unit) ?? 'other') : 'count'
 
+// Every unit parseQuantity can produce, and nothing else — which is exactly
+// what a source that parsed an amount itself is allowed to send. The regional
+// variants are deliberately absent: they are resolved for display, and one
+// arriving here would never compare equal to the same amount read out of a
+// step, which is how an ingredient stops rescaling with the step that uses it.
+const PRODUCED = new Set<Unit>([...KINDS.keys(), 'count'])
+
+export const isUnit = (value: unknown): value is Unit =>
+  typeof value === 'string' && PRODUCED.has(value as Unit)
+
 function resolveUnit(text: string, value: number): Unit | null {
   const ambiguous = AMBIGUOUS[key(text)]
   if (ambiguous && !text.includes('°')) return value >= TEMPERATURE_FLOOR ? ambiguous[0] : ambiguous[1]

@@ -88,6 +88,10 @@ If Nuxt is containerized on the VPS, attach it to the `recipeat-ai_default`
 network and set `NUXT_OLLAMA_BASE_URL=http://ollama:11434`. Inside a separate
 container, `localhost` means that container, not Ollama.
 
+The [fetcher](../services/recipeat-fetcher/README.md) is a separate Compose
+project and deliberately not on this network. It opens connections to URLs a
+user supplies, and this API is unauthenticated.
+
 ## Manage
 
 ```sh

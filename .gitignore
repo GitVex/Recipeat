@@ -9,3 +9,7 @@ playwright-report
 !.env.example
 .zed
 .zed/
+
+# Python service
+.venv
+__pycache__

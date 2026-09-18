@@ -1,0 +1,29 @@
+# A separate Compose project from the Ollama one on purpose. The fetcher opens
+# connections to URLs a user supplies and has no SSRF guard yet, so it must not
+# share a network with anything private — its own project gives it its own
+# network, and Ollama publishes only on loopback, which a container cannot
+# reach through the host.
+name: recipeat-fetch
+
+services:
+  recipeat-fetcher:
+    build: ../services/recipeat-fetcher
+    image: recipeat-fetcher:latest
+    container_name: recipeat-fetcher
+    restart: unless-stopped
+    # Loopback only, like Ollama. Nothing off the host reaches it.
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      FETCHER_FETCH_TIMEOUT: "10.0"
+      FETCHER_FETCH_MAX_BYTES: "5000000"
+      FETCHER_FETCH_MAX_REDIRECTS: "3"
+    cpus: 1.0
+    # Holds the CRF model and a part-of-speech tagger; measure before trimming.
+    mem_limit: 1g
+    memswap_limit: 1g
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

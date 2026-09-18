@@ -1,0 +1,21 @@
+{
+  "gram": "g",
+  "kilogram": "kg",
+  "milligram": "mg",
+  "ounce": "oz",
+  "pound": "lb",
+  "milliliter": "ml",
+  "liter": "l",
+  "cup": "cup",
+  "tablespoon": "tbsp",
+  "teaspoon": "tsp",
+  "fluid_ounce": "fl_oz",
+  "millimeter": "mm",
+  "centimeter": "cm",
+  "inch": "inch",
+  "second": "second",
+  "minute": "minute",
+  "hour": "hour",
+  "degree_Celsius": "celsius",
+  "degree_Fahrenheit": "fahrenheit"
+}

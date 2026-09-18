@@ -1,8 +1,14 @@
 # Extraction
 
-`POST /api/extract/text` turns pasted recipe text into a structured recipe. It
-requires a session, calls [Ollama](./ollama.md), and returns the result without
-storing it, so an extraction can be previewed before it is kept.
+Two endpoints, one recipe shape. Both require a session and store nothing, so an
+extraction can be previewed before it is kept.
+
+| | |
+|---|---|
+| `POST /api/extract/text` | Pasted text, read by [Ollama](./ollama.md) |
+| `POST /api/extract/website` | A URL, read by the [fetcher](../services/recipeat-fetcher/README.md) with no model at all |
+
+## Text
 
 ```sh
 curl -X POST http://localhost:3000/api/extract/text \
@@ -28,10 +34,65 @@ Client-facing messages are sanitized. The detail — upstream response bodies,
 host names, stack traces — rides on the error's `cause`, which Nitro logs
 server-side and never serializes to the client.
 
+## Website
+
+```sh
+curl -X POST http://localhost:3000/api/extract/website \
+  -H 'Content-Type: application/json' \
+  -b 'your-session-cookie' \
+  -d '{"url":"https://www.seriouseats.com/..."}'
+```
+
+Request: `{ "url": string }`, http or https, at most 2048 characters.
+Response: the same `{ "recipe": { … } }` as above.
+
+| Status | Meaning |
+|---|---|
+| 401 | No session |
+| 415 | Content type is not JSON |
+| 400 | Body is not valid JSON, or `url` is missing, not a string, or not an http(s) address |
+| 413 | The URL is too long, or the page is too large to read |
+| 422 | No scraper supports that site, the page holds no recipe, or the URL serves something that is not a page |
+| 502 | The site failed or was unreachable, or the fetcher could not be reached |
+| 504 | The site did not answer in time |
+
+**No model runs on this path.** `recipe-scrapers` reads the page's structured
+data and `ingredient-parser` segments each ingredient line, both
+deterministically. A page that took 2m 17s through Ollama takes seconds, which
+is why this is an ordinary request and not a job and a poll.
+
+The fetcher's own 4xx messages name the host the caller asked for, so they are
+passed on rather than replaced with something vaguer. Its 415 arrives as a 422,
+since a URL serving a PDF is a problem with what was asked for, not with the
+content type of the request that asked.
+
+Two strings a page chooses for itself — its canonical link and its image — are
+stored and later rendered, so both are accepted only as http or https. The
+canonical link falls back to the URL that was requested.
+
+### Two parsers, one vocabulary
+
+The fetcher owns ingredient lines. It reads `1 lb 2 oz` as `1.125 lb`, which
+`parseQuantity` cannot: that one stops at the first number. `quantity.ts` keeps
+owning the measurements inside step prose, which a parser trained on ingredient
+sentences cannot read.
+
+So `Unit` spans two languages, and disagreement there is silent rather than
+loud — a unit one side produces and the other does not would never compare
+equal to the same amount found in a step, and the ingredient would quietly stop
+rescaling with it. Three things hold it together:
+
+- the fetcher may emit only units `parseQuantity` can also produce, which is
+  what `isUnit` is;
+- an amount arriving already parsed is validated like any other input, and
+  anything unusable falls back to reading the text;
+- `units.json` is a data file precisely so tests on both sides read it.
+
 ## The pipeline
 
 Four steps, in `server/extraction/`, behind the barrel at
-`server/utils/textExtraction.ts`.
+`server/utils/extraction.ts`. A modality reads its own input and builds its own
+source; everything below that is shared.
 
 1. **`readExtractionText`** — content type, JSON parse, then `validateText`
    for presence and length. The text is passed on unmodified; whitespace only
@@ -45,7 +106,9 @@ Four steps, in `server/extraction/`, behind the barrel at
    the instructions, and records a `RecipeSource` of `type: "text"`.
 3. **`parseExtraction`** — validates and clamps, then assigns IDs.
 4. **`normalizeRecipe`** — reads quantities into numbers and units, finds
-   measurements in step prose, and links steps back to ingredients.
+   measurements in step prose, and links steps back to ingredients. A source
+   that read an amount itself keeps its reading; everything else is read out of
+   the segmented text here.
 
 ### What the model is asked for, and what it is not
 
@@ -97,6 +160,8 @@ type Recipe = {
   title: string | null          // null when the source names no dish
   source_lang: string           // BCP-47, "und" when unknown
   portions: number | null
+  image: string | null          // a page's own; null for every other source
+  totalTime: number | null      // minutes, likewise
   ingredients: Ingredient[]
   steps: Step[]
   source: RecipeSource
@@ -104,15 +169,16 @@ type Recipe = {
 
 type RecipeSource =
   | { type: 'text', originalText: string }
-  | { type: 'website', url: string, author: string | null, retrievedAt: string }
+  | { type: 'website', url: string, author: string | null, siteName: string | null, retrievedAt: string }
   | { type: 'photo', objectKey: string, originalFilename: string | null }
 
 type Ingredient = {
   id: string                    // "ingredient_1", dense and stable
   originalText: string          // the line, verbatim
   name: string                  // the food alone; falls back to the line
-  quantityText: string | null   // the amount alone, as the model split it
+  quantityText: string | null   // the amount alone, as the source split it
   quantity: Quantity | null     // parsed; null when the line states no amount
+  extra: string | null          // "finely diced", "for the sauce"
 }
 
 type Step = {
@@ -160,10 +226,18 @@ measurement.
 npm run test:extraction
 ```
 
-Thirteen cases over the whole pipeline with no browser and no model: a fake
-`fetch` covers the Ollama contract and its failure modes, and quantity parsing
-and normalization are pure functions. One case asserts that every reference in
-a normalized recipe resolves — worth keeping as the matching rules change.
+Twenty-two cases over the whole pipeline with no browser, no model and no
+service running: a fake `fetch` covers both upstream contracts and their failure
+modes, and quantity parsing and normalization are pure functions. One case
+asserts that every reference in a normalized recipe resolves — worth keeping as
+the matching rules change. Another reads the fetcher's `units.json` and checks
+it against this side's table, which is the only guard against that drift.
+
+The fetcher has its own suite:
+
+```sh
+cd services/recipeat-fetcher && uv run pytest
+```
 
 The auth suite covers the endpoint's 401 and its validation.
 
@@ -188,6 +262,7 @@ Measured on the VPS, for sizing expectations:
 | Trimmed HTML page | 2m 17s |
 | Full-resolution photo | 4m 5s |
 
-Those numbers are why the request timeout is five minutes, and why photo and
-website import will need a job-and-poll design rather than one long POST — see
-[planning](./planning.md).
+Those numbers are why the text request timeout is five minutes. They are also
+why website import stopped going through the model: the same page read by
+`recipe-scrapers` and `ingredient-parser` is a matter of seconds. Photo import
+is still slow enough to want a job and a poll — see [planning](./planning.md).

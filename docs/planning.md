@@ -3,8 +3,10 @@
 Where Recipeat is, what comes next, and which decisions are still open.
 
 ```
-text ─▶ extract ─▶ validate ─▶ normalize ─▶ [ store ] ─▶ [ collection UI ]
-        ══════════ done ══════════════════   ▲ next
+text ─▶ model ──┐
+                ├─▶ validate ─▶ normalize ─▶ [ store ] ─▶ [ collection UI ]
+url ─▶ fetcher ─┘
+   ═══════════════ done ══════════════════   ▲ next
 ```
 
 ## State
@@ -17,7 +19,8 @@ text ─▶ extract ─▶ validate ─▶ normalize ─▶ [ store ] ─▶ [ c
 | `POST /api/extract/text` | Done; returns a recipe, stores nothing |
 | Storage | Not started — no database, driver, or migration |
 | Import UI wired to the API | Not started — the dialog still shows samples |
-| Photo and website import | Not started |
+| Website import | Done; returns a recipe, stores nothing. No SSRF guard yet |
+| Photo import | Not started |
 
 ## Next: storage
 
@@ -91,11 +94,9 @@ equivalent for. The app and the server should share one definition, and the
 table needs somewhere to put an image before a saved recipe can render like the
 demo does.
 
-**Photo and website import.** Both are slow enough (4m for a photo, 2m+ for a
-page) that a synchronous POST will hit proxy timeouts — these want a job and a
-poll, not a long request. Website import also needs HTML trimming before the
-model sees it, and SSRF protection on the URL. Photos need object storage and
-downsampling; full resolution is what makes them slow.
+**Photo import.** Still the slow one at 4m, so the job-and-poll argument stands
+there. Photos also need object storage and downsampling; full resolution is what
+makes them slow.
 
 **Translation.** `source_lang` is recorded but there is nowhere to put a
 translation. Either a `translations JSONB` keyed by language tag, or a
@@ -103,10 +104,21 @@ translation. Either a `translations JSONB` keyed by language tag, or a
 
 ## Known rough edges
 
-- **Timeout versus large sources.** The request timeout is five minutes; a
-  trimmed HTML page already takes 2m 17s. A full 20 000-character scrape may
-  exceed it. Raising the timeout makes it succeed but leaves a browser hanging
-  for ten minutes, which is the real argument for the job-and-poll design.
+- **Timeout versus large sources.** The request timeout is five minutes, and a
+  full 20 000-character paste may still exceed it. Raising the timeout makes it
+  succeed but leaves a browser hanging for ten minutes, which is the real
+  argument for the job-and-poll design. Website import no longer runs through
+  the model, so this is now about long text and photos.
+- **No SSRF guard.** The fetcher resolves no addresses and follows a redirect
+  wherever it points, so a URL given to it reaches anything its container can.
+  It runs as its own Compose project to keep that blast radius small, which is
+  a mitigation and not the fix. The fix is to resolve each hop and reject
+  private, loopback and link-local addresses before connecting.
+- **One `Unit`, two languages.** The fetcher emits `Unit` values directly, and
+  may only emit ones `parseQuantity` could also produce. Where the two
+  disagree nothing throws — `normalizeRecipe` simply stops linking a step's
+  amount to the ingredient it restates. A test reading the service's unit map
+  is what keeps them honest.
 - **Concurrency.** `OLLAMA_NUM_PARALLEL` is 1 and nothing queues in front of it,
   so a second user waits with no feedback. An in-process mutex should either
   queue or return 429.
@@ -118,7 +130,8 @@ translation. Either a `translations JSONB` keyed by language tag, or a
   ingredients sharing a noun and an amount — `"1 cup white sugar"` and
   `"1 cup brown sugar"` in one step — are separated only by proximity.
 - **Dedupe.** Re-importing the same URL will create a second row. A partial
-  unique index on `(owner_sub, (source->>'url'))` would catch it.
+  unique index on `(owner_sub, (source->>'url'))` would catch it, and the
+  canonical URL the fetcher returns is the better key to store there.
 - **Model tag.** `qwen3.5:4b` is pulled and requested by name in two places.
   Confirm a tag exists before changing it; a failed pull leaves a healthy server
   with no model.
