@@ -82,7 +82,9 @@ export type Step = {
 export type RecipeSource =
   | { type: 'text', originalText: string }
   | { type: 'website', url: string, author: string | null, siteName: string | null, retrievedAt: string }
-  | { type: 'photo', objectKey: string, originalFilename: string | null }
+  // objectKey is null until object storage lands: the photo is read and
+  // thrown away, so there is nothing yet to point at. See docs/planning.md.
+  | { type: 'photo', objectKey: string | null, originalFilename: string | null }
 
 export type ExtractedRecipe = {
   title: string | null

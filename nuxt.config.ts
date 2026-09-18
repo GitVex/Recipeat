@@ -4,6 +4,7 @@ export default defineNuxtConfig({
     ollamaBaseUrl: 'http://127.0.0.1:11434',
     ollamaModel: 'qwen3.5:2b',
     fetcherBaseUrl: 'http://127.0.0.1:8000',
+    ocrBaseUrl: 'http://127.0.0.1:8001',
   },
   modules: ['nuxt-oidc-auth'],
   oidc: {

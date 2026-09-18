@@ -18,7 +18,7 @@ const REQUEST_TIMEOUT_MS = 300_000
 
 export type OllamaConfig = { ollamaBaseUrl: string, ollamaModel: string }
 
-const SYSTEM_PROMPT = [
+export const SYSTEM_PROMPT = [
   'Extract the recipe in the user message into JSON.',
   'Preserve quantities exactly as written, including fractions, ranges and units.',
   'Use the name of the dish as the title, including when it is only a heading or the first line.',
@@ -33,7 +33,8 @@ const SYSTEM_PROMPT = [
 export type OllamaMessage = {
   role: 'system' | 'user'
   content: string
-  // Base64-encoded images for the model's vision modality, used by photo import.
+  // Base64-encoded images for a vision model. Unused: photo import reads the
+  // image with OCR first and sends the model the text, which is minutes faster.
   images?: string[]
 }
 

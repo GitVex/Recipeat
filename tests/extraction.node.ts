@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import { createServer } from 'node:http'
 import { readFileSync } from 'node:fs'
 import { createApp, defineEventHandler, readRawBody, toNodeListener, toWebHandler } from 'h3'
-import { extractText, extractWebsite, isUnit, normalizeRecipe, parseExtraction, parseQuantity, readExtractionText, unitInfo, validateText, validateUrl } from '../server/utils/extraction.ts'
+import { extractPhoto, extractText, extractWebsite, isUnit, normalizeRecipe, parseExtraction, parseQuantity, readExtractionPhoto, readExtractionText, unitInfo, validateText, validateUrl } from '../server/utils/extraction.ts'
 
 const bread = { originalText: '1 slice bread', quantity: '1 slice', name: 'bread' }
 const recipe = { title: 'Toast', source_lang: 'en', portions: 1, ingredients: [bread], steps: ['Toast the bread.'] }
@@ -420,6 +420,103 @@ test('body reader reuses a native request body already read by middleware', asyn
     })
     assert.equal(response.status, 200)
     assert.deepEqual(await response.json(), { text: 'Toast the bread.' })
+  } finally {
+    server.closeAllConnections()
+    await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
+  }
+})
+
+const ocrConfig = { ...config, ocrBaseUrl: 'http://recipeat-ocr:8001/' }
+const photo = { data: new Uint8Array([1, 2, 3]), filename: 'page.jpg', type: 'image/jpeg' }
+const reading = { text: '1 slice bread\n\nToast the bread.', lines: [{ text: '1 slice bread', confidence: 0.9 }], elapsed: 0.9 }
+// The model answers the OCR text, not the image.
+const modelled = (draft: unknown): typeof fetch => async (url) =>
+  String(url).includes('/ocr') ? Response.json(reading) : Response.json({ message: { content: JSON.stringify(draft) } })
+
+test('photo extraction reads the image, then the text, and records the filename', async () => {
+  const seen: { url: string, body: unknown }[] = []
+  const fetcher: typeof fetch = async (url, init) => {
+    seen.push({ url: String(url), body: init!.body })
+    if (String(url).includes('/ocr')) return Response.json(reading)
+    return Response.json({ message: { content: JSON.stringify(recipe) } })
+  }
+
+  const { recipe: result, text } = await extractPhoto(photo, ocrConfig, fetcher)
+
+  assert.equal(seen[0]!.url, 'http://recipeat-ocr:8001/ocr')
+  // The image goes to OCR as a multipart upload, and never to Ollama at all.
+  assert.ok(seen[0]!.body instanceof FormData)
+  const sent = (seen[0]!.body as FormData).get('file') as File
+  assert.equal(sent.name, 'page.jpg')
+  assert.equal(sent.type, 'image/jpeg')
+  assert.equal(sent.size, 3)
+
+  assert.equal(seen[1]!.url, 'http://ollama:11434/api/chat')
+  const messages = JSON.parse(seen[1]!.body as string).messages
+  assert.equal(messages.length, 2)
+  assert.equal(messages[1].content, reading.text)
+  assert.ok(!('images' in messages[1]), 'the photo is not sent to the model')
+  assert.match(messages[0].content, /read from a photograph by OCR/)
+
+  assert.equal(text, reading.text)
+  assert.equal(result.title, 'Toast')
+  assert.deepEqual(result.source, { type: 'photo', objectKey: null, originalFilename: 'page.jpg' })
+})
+
+test('a photo without a usable filename still extracts', async () => {
+  const { recipe: result } = await extractPhoto({ ...photo, filename: null, type: null }, ocrConfig, modelled(recipe))
+  assert.deepEqual(result.source, { type: 'photo', objectKey: null, originalFilename: null })
+})
+
+test('OCR failures become the status the caller should see', async () => {
+  const extract = (fetcher: typeof fetch) => extractPhoto(photo, ocrConfig, fetcher)
+
+  // A detail from the OCR service is a message we wrote about the caller's own
+  // upload, so it is passed on rather than replaced with something vaguer.
+  await assert.rejects(extract(served({ detail: 'No text could be read from that image.' }, { status: 422 })),
+    error => status(422)(error) && /No text could be read/.test((error as Error).message))
+  // Unlike the website path, 415 keeps its meaning: the body really is the photo.
+  await assert.rejects(extract(served({ detail: 'That file is not an image this service can read.' }, { status: 415 })),
+    error => status(415)(error) && /not an image/.test((error as Error).message))
+  await assert.rejects(extract(served({ detail: 'That image is too large to read.' }, { status: 413 })), status(413))
+  await assert.rejects(extract(async () => { throw new TypeError('fetch failed') }),
+    error => status(502)(error) && /Could not connect to the OCR service/.test((error as Error).message))
+  await assert.rejects(extract(async () => { throw Object.assign(new Error('slow'), { name: 'TimeoutError' }) }), status(504))
+  await assert.rejects(extract(async () => new Response('not json', { status: 200 })), status(502))
+  // A reading with no text in it is the service's problem, not the caller's.
+  await assert.rejects(extract(served({ ...reading, text: '   ' })), status(502))
+  // The model's own ceiling, reached by a photo of a stack of pages.
+  await assert.rejects(extract(served({ ...reading, text: 'x'.repeat(20_001) })), status(413))
+  // An unreadable photo is not an extraction failure, and says so in its terms.
+  await assert.rejects(extract(modelled({ ...recipe, ingredients: [], steps: [] })),
+    error => status(422)(error) && /in that photo/.test((error as Error).message))
+})
+
+test('photo upload reader enforces content type, the file part and its size', async () => {
+  const app = createApp().use(defineEventHandler(async event => {
+    const { data, filename, type } = await readExtractionPhoto(event)
+    return { bytes: data.length, filename, type }
+  }))
+  const server = createServer(toNodeListener(app))
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+  const url = `http://127.0.0.1:${(server.address() as { port: number }).port}`
+  try {
+    const send = (body: BodyInit, headers?: HeadersInit) => fetch(url, { method: 'POST', body, headers })
+    const form = (file: Blob, name = 'file', filename = 'page.jpg') => {
+      const data = new FormData()
+      data.append(name, file, filename)
+      return data
+    }
+    const jpeg = (bytes: number) => new Blob([new Uint8Array(bytes)], { type: 'image/jpeg' })
+
+    assert.equal((await send('{}', { 'Content-Type': 'application/json' })).status, 415)
+    assert.equal((await send(form(jpeg(8), 'photo'))).status, 400)
+    assert.equal((await send(form(jpeg(0)))).status, 400)
+    assert.equal((await send(form(jpeg(10_000_001)))).status, 413)
+
+    // A directory component in the name is dropped; the rest is kept as a label.
+    const response = await send(form(jpeg(8), 'file', '../../etc/passwd.jpg'))
+    assert.deepEqual(await response.json(), { bytes: 8, filename: 'passwd.jpg', type: 'image/jpeg' })
   } finally {
     server.closeAllConnections()
     await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
