@@ -1,0 +1,41 @@
+# A separate Compose project again, for the opposite reason to the fetcher's.
+# The fetcher must reach the internet and so is kept away from anything
+# private; this service needs no network at all beyond the requests the app
+# sends it, so it is put on an internal network and given none. Its models are
+# baked into the image, which is what makes that possible.
+name: recipeat-ocr
+
+services:
+  recipeat-ocr:
+    build: ../services/recipeat-ocr
+    image: recipeat-ocr:latest
+    container_name: recipeat-ocr
+    restart: unless-stopped
+    # Loopback only, like Ollama and the fetcher. Nothing off the host reaches
+    # it. Publishing still works on an internal network: what `internal` drops
+    # is the route out, not the host's route in.
+    ports:
+      - "127.0.0.1:8001:8001"
+    networks:
+      - isolated
+    environment:
+      OCR_MAX_BYTES: "10000000"
+      OCR_MAX_SIDE_LEN: "2000"
+      OCR_TEXT_SCORE: "0.5"
+      # Match this to `cpus` below: ONNX Runtime otherwise takes every core on
+      # the host, and Ollama is already capped at four of six.
+      OCR_INTRA_OP_THREADS: "2"
+    cpus: 2.0
+    # Three ONNX models and one decoded image at a time. A 2000-pixel image is
+    # a few hundred megabytes of intermediate tensors; measure before trimming.
+    mem_limit: 2g
+    memswap_limit: 2g
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  isolated:
+    internal: true
