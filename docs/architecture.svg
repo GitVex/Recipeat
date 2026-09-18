@@ -123,7 +123,7 @@
 
   <rect x="344" y="860" width="236" height="106" rx="10" fill="#fdf1e4" stroke="#d3a066" stroke-width="1.5"/>
   <text x="362" y="885" font-size="13" font-weight="650" fill="#5c4222">Ollama — CPU-only VPS</text>
-  <text x="362" y="907" font-size="11" fill="#7d6238" font-family="ui-monospace, Consolas, monospace">POST /api/chat · qwen3.5:4b</text>
+  <text x="362" y="907" font-size="11" fill="#7d6238" font-family="ui-monospace, Consolas, monospace">POST /api/chat · qwen3.5:2b</text>
   <text x="362" y="926" font-size="11" fill="#7d6238">NUM_PARALLEL 1 · ctx 16384</text>
   <text x="362" y="946" font-size="11" fill="#7d6238">4 CPU / 8 GB · loopback only</text>
 

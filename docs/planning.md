@@ -132,6 +132,7 @@ translation. Either a `translations JSONB` keyed by language tag, or a
 - **Dedupe.** Re-importing the same URL will create a second row. A partial
   unique index on `(owner_sub, (source->>'url'))` would catch it, and the
   canonical URL the fetcher returns is the better key to store there.
-- **Model tag.** `qwen3.5:4b` is pulled and requested by name in two places.
-  Confirm a tag exists before changing it; a failed pull leaves a healthy server
-  with no model.
+- **Model tag.** `qwen3.5:2b` is pulled and requested by name in two places,
+  `RECIPEAT_MODEL` in the Compose file and `runtimeConfig.ollamaModel`. Confirm
+  a tag exists before changing it; a failed pull now leaves the container
+  serving but never healthy, which is visible but still not blocking.

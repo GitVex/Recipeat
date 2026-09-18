@@ -19,14 +19,22 @@ The KV cache for the context window is allocated in full on every request, so a
 short paste costs the same memory as a full page scrape. Watch it with
 `docker stats ollama` against the 8 GB limit.
 
-The `ollama-init` service declares the model in its `command`. It waits for the
-server to be healthy, asks it to pull `qwen3.5:4b` into the persistent volume,
-and exits 0. It is a CLI client, not a second server. Pulling a model does not
-make it an API default — requests still name the model, which the app supplies
-from `runtimeConfig.ollamaModel`.
+The container pulls its own model. The entrypoint starts a background shell
+that waits for the server to answer, pulls `$RECIPEAT_MODEL` into the persistent
+volume, and exits; the server itself stays PID 1, so `docker stop` still reaches
+it. The pull is idempotent, so a restart with the model already in the volume
+costs one `list` call. Pulling a model does not make it an API default —
+requests still name the model, which the app supplies from
+`runtimeConfig.ollamaModel`.
 
-The health check only proves Ollama responds. It does not prove the model is
-installed or that inference completes.
+`RECIPEAT_MODEL` is not read by Ollama. It is what this deployment pulls and
+reports healthy on, and it has to match `runtimeConfig.ollamaModel`.
+
+The health check greps `ollama list` for that tag, so healthy means the model is
+installed, not merely that the server answers. It still does not prove inference
+completes. The first pull happens inside `start_period` (10 minutes), during
+which the container reports `starting` rather than unhealthy — raise it if the
+VPS pulls slowly.
 
 ## Deploy
 
@@ -42,12 +50,19 @@ Then over SSH in `/root`:
 docker compose -f compose.ollama.yaml config --quiet
 docker volume create ollama          # only if it does not exist yet
 docker compose -f compose.ollama.yaml up -d
-docker compose -f compose.ollama.yaml logs -f ollama-init
+docker compose -f compose.ollama.yaml logs -f ollama
 ```
 
-Wait for `ollama-init` to exit 0 before sending any request. If the pull fails,
-read its logs and retry with
-`docker compose -f compose.ollama.yaml run --rm ollama-init`.
+The pull is logged by the `ollama` container itself. Wait for the container to
+report healthy before sending any request:
+
+```sh
+docker inspect ollama --format '{{.State.Health.Status}}'
+```
+
+If the pull fails, the container keeps serving without the model and never turns
+healthy. Read its logs, then retry the pull by hand with
+`docker exec ollama ollama pull qwen3.5:2b`, or restart the container.
 
 **Replacing an existing container.** The volume is declared `external`, so it
 survives. First confirm the old container really uses it:
@@ -66,7 +81,7 @@ and bring Compose up as above. Matching layers are reused.
 ```sh
 curl http://127.0.0.1:11434/api/chat \
   -H 'Content-Type: application/json' \
-  -d '{"model":"qwen3.5:4b","stream":false,"think":false,
+  -d '{"model":"qwen3.5:2b","stream":false,"think":false,
        "messages":[{"role":"user","content":"Reply with: Recipeat is ready."}],
        "options":{"num_predict":64}}'
 ```
@@ -103,12 +118,12 @@ docker compose -f compose.ollama.yaml pull       # update Ollama, interrupts inf
 docker compose -f compose.ollama.yaml down       # keeps the external volume
 ```
 
-Both services track `latest`. Pin a version tag or digest once you need
+The image tracks `latest`. Pin a version tag or digest once you need
 reproducible deployments.
 
-Changing models means editing the initializer's `command` and
-`runtimeConfig.ollamaModel`. Old models stay on disk; delete the volume only if
-you mean to lose them.
+Changing models means editing `RECIPEAT_MODEL` and `runtimeConfig.ollamaModel`,
+then recreating the container so the new tag is pulled. Old models stay on
+disk; delete the volume only if you mean to lose them.
 
 References: [Ollama Docker](https://docs.ollama.com/docker),
 [configuration](https://docs.ollama.com/faq),
