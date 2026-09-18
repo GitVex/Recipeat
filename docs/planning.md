@@ -3,10 +3,10 @@
 Where Recipeat is, what comes next, and which decisions are still open.
 
 ```
-text ─▶ model ──┐
-                ├─▶ validate ─▶ normalize ─▶ [ store ] ─▶ [ collection UI ]
-url ─▶ fetcher ─┘
-   ═══════════════ done ══════════════════   ▲ next
+text ────────────▶ model ──┐
+photo ─▶ OCR ─────▶ model ─┼─▶ validate ─▶ normalize ─▶ [ store ] ─▶ [ collection UI ]
+url ─────────────▶ fetcher ┘
+   ══════════════════ done ════════════════════════════   ▲ next
 ```
 
 ## State
@@ -20,7 +20,8 @@ url ─▶ fetcher ─┘
 | Storage | Not started — no database, driver, or migration |
 | Import UI wired to the API | Not started — the dialog still shows samples |
 | Website import | Done; returns a recipe, stores nothing. No SSRF guard yet |
-| Photo import | Not started |
+| Photo import | Done; OCR then the model, returns a recipe, stores nothing. The image itself is discarded |
+| OCR service | Done; own Compose project, no egress, models baked into the image |
 
 ## Next: storage
 
@@ -94,9 +95,15 @@ equivalent for. The app and the server should share one definition, and the
 table needs somewhere to put an image before a saved recipe can render like the
 demo does.
 
-**Photo import.** Still the slow one at 4m, so the job-and-poll argument stands
-there. Photos also need object storage and downsampling; full resolution is what
-makes them slow.
+**Photo import: the image itself.** Extraction works, but nothing keeps the
+photo. `source.objectKey` is null because there is nowhere to put it, and a
+recipe imported from a photo therefore cannot show the photo. That needs object
+storage and a downsampled derivative — the OCR service already scales to 2000
+pixels for its own reading, but it returns text, not an image.
+
+The 4m argument for a job and a poll is gone with the vision model: OCR reads a
+photo in about a second and the model then sees text, so the path costs what the
+text path costs.
 
 **Translation.** `source_lang` is recorded but there is nowhere to put a
 translation. Either a `translations JSONB` keyed by language tag, or a
@@ -107,8 +114,18 @@ translation. Either a `translations JSONB` keyed by language tag, or a
 - **Timeout versus large sources.** The request timeout is five minutes, and a
   full 20 000-character paste may still exceed it. Raising the timeout makes it
   succeed but leaves a browser hanging for ten minutes, which is the real
-  argument for the job-and-poll design. Website import no longer runs through
-  the model, so this is now about long text and photos.
+  argument for the job-and-poll design. Only the text a source yields decides
+  this now: neither website nor photo import sends the model anything but text,
+  and a photo's reading is capped at the same 20 000 characters.
+- **A photo of several pages.** The reading is rejected at 413 over 20 000
+  characters, which is the model's ceiling rather than the photographer's
+  mistake. Splitting a long reading across requests, or paging through it, is
+  the same problem as long pasted text and wants the same answer.
+- **OCR quality is invisible to the app.** Every line comes back with a
+  confidence, and `POST /api/extract/photo` drops all of it: only the recipe is
+  returned. A blurry scan and a clean one are indistinguishable downstream,
+  where showing the reading beside the result would make a bad extraction
+  obvious. `extractPhoto` already returns the text for this.
 - **No SSRF guard.** The fetcher resolves no addresses and follows a redirect
   wherever it points, so a URL given to it reaches anything its container can.
   It runs as its own Compose project to keep that blast radius small, which is
