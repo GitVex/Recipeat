@@ -1,0 +1,26 @@
+{
+  "type": "object",
+  "properties": {
+    "title": { "type": ["string", "null"] },
+    "source_lang": { "type": "string" },
+    "portions": { "type": ["number", "null"] },
+    "totalTime": { "type": ["number", "null"] },
+    "ingredients": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "originalText": { "type": "string" },
+          "quantity": { "type": ["string", "null"] },
+          "name": { "type": "string" },
+          "extra": { "type": ["string", "null"] }
+        },
+        "required": ["originalText", "quantity", "name", "extra"],
+        "additionalProperties": false
+      }
+    },
+    "steps": { "type": "array", "items": { "type": "string" } }
+  },
+  "required": ["title", "source_lang", "portions", "totalTime", "ingredients", "steps"],
+  "additionalProperties": false
+}

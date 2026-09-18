@@ -211,6 +211,15 @@ test('Ollama request uses server config, structured output and separate source m
     // Bounded string/array repetitions can prevent llama.cpp from compiling
     // the grammar at all. These limits belong in response validation.
     assert.doesNotMatch(JSON.stringify(body.format), /"(?:maxLength|minLength|maxItems|minItems)"/)
+    // Property order is generation order under a grammar: the line is copied
+    // verbatim before anything is taken out of it.
+    assert.deepEqual(Object.keys(body.format.properties.ingredients.items.properties), ['originalText', 'quantity', 'name', 'extra'])
+    assert.ok('totalTime' in body.format.properties)
+    // Nothing only a page can supply. The model is not asked to invent one,
+    // and a parsed amount is the fetcher's to send, never the model's.
+    for (const absent of ['image', 'parsedQuantity', 'canonicalUrl', 'siteName']) {
+      assert.doesNotMatch(JSON.stringify(body.format), new RegExp(absent), absent)
+    }
     assert.deepEqual(body.messages[1], { role: 'user', content: 'original source' })
     assert.ok(init?.signal)
     return Response.json({ done: true, message: { content: JSON.stringify(recipe) } })

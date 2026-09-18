@@ -112,9 +112,16 @@ source; everything below that is shared.
 
 ### What the model is asked for, and what it is not
 
-The schema constrains generation to a recipe object and to splitting each
-ingredient line into an amount and a food, with the line copied verbatim first —
-property order is generation order under a grammar.
+The schema lives in `server/extraction/recipe-draft.schema.json`, its own file
+because that is what it is — the artifact Ollama compiles into a llama.cpp
+grammar. It constrains generation to a recipe object and to taking each
+ingredient line apart into an amount, a food and whatever else the line says,
+with the line copied verbatim first: property order is generation order under a
+grammar.
+
+What a page supplies but a paste cannot — an image, a canonical link, a site
+name — is deliberately absent from it, and so is `parsedQuantity`, which is the
+fetcher's to send. The model is never asked to invent one.
 
 It carries **no** `minLength`, `maxLength`, `minItems` or `maxItems`. Bounded
 repetitions can stop llama.cpp compiling the grammar at all, so the equivalent

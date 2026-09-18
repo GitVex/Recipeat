@@ -1,5 +1,16 @@
 import { fail } from './errors.ts'
 import { parseExtraction, type ExtractedRecipe } from './recipe.ts'
+// The wire form of RecipeDraft, which Ollama compiles into a llama.cpp
+// grammar. It lives in its own file so it can be read and diffed as the
+// artifact it is, and so this module stays about the transport.
+//
+// Length and item bounds are deliberately absent from it: bounded repetitions
+// can stop that grammar compiling at all, so parseExtraction applies the
+// equivalent limits afterwards instead. Property order is generation order
+// under a grammar, which is why a line is copied verbatim before it is taken
+// apart. Nothing a page supplies but a paste cannot — an image, a canonical
+// link — appears here; the model is never asked to invent one.
+import RESPONSE_FORMAT from './recipe-draft.schema.json' with { type: 'json' }
 
 // Well beyond the 20s-4m extractions measured in docs/extraction.md, since
 // Ollama runs one request at a time and a queued caller waits behind it.
@@ -11,41 +22,13 @@ const SYSTEM_PROMPT = [
   'Extract the recipe in the user message into JSON.',
   'Preserve quantities exactly as written, including fractions, ranges and units.',
   'Use the name of the dish as the title, including when it is only a heading or the first line.',
-  'Do not invent missing information: use null only when the source genuinely has no title or portion count.',
+  'Do not invent missing information: use null whenever the source genuinely does not state it.',
   'For each ingredient, copy the whole line into originalText, put only the amount in quantity ("1 1/2 cups", null when the line states none), and put only the food in name.',
+  'Put whatever else the line says about that ingredient — how it is prepared, what it is for — in extra ("finely diced", "for the sauce"), and null when it says nothing more.',
+  'Set totalTime to the total time in whole minutes when the source states one, and null otherwise.',
   'Keep each step as one string, in the language of the source.',
   'Set source_lang to the BCP-47 tag of that language.',
 ].join(' ')
-
-// The wire form of RecipeDraft. Ollama compiles this into a llama.cpp grammar,
-// so length and item bounds are deliberately absent: they can stop that grammar
-// from compiling at all. parseExtraction applies the equivalent limits instead.
-const RESPONSE_FORMAT = {
-  type: 'object',
-  properties: {
-    title: { type: ['string', 'null'] },
-    source_lang: { type: 'string' },
-    portions: { type: ['number', 'null'] },
-    ingredients: {
-      type: 'array',
-      items: {
-        type: 'object',
-        // Property order is generation order under a grammar: the line is
-        // copied verbatim first, then segmented.
-        properties: {
-          originalText: { type: 'string' },
-          quantity: { type: ['string', 'null'] },
-          name: { type: 'string' },
-        },
-        required: ['originalText', 'quantity', 'name'],
-        additionalProperties: false,
-      },
-    },
-    steps: { type: 'array', items: { type: 'string' } },
-  },
-  required: ['title', 'source_lang', 'portions', 'ingredients', 'steps'],
-  additionalProperties: false,
-}
 
 export type OllamaMessage = {
   role: 'system' | 'user'
