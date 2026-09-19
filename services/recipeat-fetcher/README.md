@@ -200,9 +200,28 @@ the build rather than the first request.
 
 The app finds the service at `NUXT_FETCHER_BASE_URL`, which defaults to
 `http://127.0.0.1:8103`. If Nuxt is containerized on the same host, attach it to
-`recipeat-fetch_default` and set
+`recipeat-fetch-net` and set
 `NUXT_FETCHER_BASE_URL=http://recipeat-fetcher:8103` — inside a container,
-`localhost` means that container.
+`localhost` means that container. `recipeat-fetcher` is a network alias the
+Compose file declares, not the container name, because Coolify renames
+containers.
+
+That network exists to be created by hand, once:
+
+```sh
+docker network create recipeat-fetch-net
+```
+
+Ollama and the OCR service need no such thing — they sit on Coolify's shared
+`coolify` network, which costs them little because neither ever opens an
+outbound connection. **This service does, to URLs a user supplies, with no SSRF
+guard.** On `coolify` an SSRF through it would reach every resource in the
+install; on a network shared with the app alone it reaches the app's API and
+stops there, because Docker does not route between networks.
+
+Which means: **"Connect To Predefined Network" must stay off for this resource
+in Coolify.** Turning it on puts the container on `coolify` and undoes all of
+the above, silently.
 
 ```sh
 docker compose -f docker/compose.fetcher.yaml ps

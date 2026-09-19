@@ -22,8 +22,33 @@ services:
     # Holds the CRF model and a part-of-speech tagger; measure before trimming.
     mem_limit: 1g
     memswap_limit: 1g
+    # Deliberately NOT on Coolify's shared `coolify` network, unlike Ollama and
+    # the OCR service. This one opens connections to URLs a user supplies and
+    # has no SSRF guard, so it gets a network shared with the app and nothing
+    # else. The alias is declared here rather than relying on container_name,
+    # because Coolify renames containers.
+    #
+    # If this resource has "Connect To Predefined Network" enabled in Coolify,
+    # turn it off — that setting puts it on `coolify` and undoes this.
+    networks:
+      default: {}
+      fetch:
+        aliases:
+          - recipeat-fetcher
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
+
+networks:
+  # The one network this project asks you to create, and the only one left:
+  #
+  #   docker network create recipeat-fetch-net
+  #
+  # Not a <project>_default network: Coolify runs Compose with
+  # --project-name <resource-uuid>, which overrides the `name:` above, so the
+  # generated network names are neither stable nor knowable from this file.
+  fetch:
+    external: true
+    name: recipeat-fetch-net

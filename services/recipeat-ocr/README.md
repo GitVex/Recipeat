@@ -151,9 +151,25 @@ to nothing. Compose has no way to say "ingress but no egress".
 Enforcing it needs a host rule. On the VPS, after the stack is up:
 
 ```sh
-SUBNET=$(docker network inspect recipeat-ocr_default --format '{{(index .IPAM.Config 0).Subnet}}')
-iptables -I DOCKER-USER -s "$SUBNET" ! -d "$SUBNET" -j DROP
+for NET in recipeat-ocr_default coolify; do
+  IP=$(docker inspect recipeat-ocr --format "{{(index .NetworkSettings.Networks \"$NET\").IPAddress}}")
+  SUBNET=$(docker network inspect "$NET" --format '{{(index .IPAM.Config 0).Subnet}}')
+  iptables -I DOCKER-USER -s "$IP" ! -d "$SUBNET" -j DROP
+done
 ```
+
+Both networks, because the container is on two and egress can leave by either:
+its own project default, and `coolify`, which it shares with the app. And the
+container's own address rather than the whole subnet — a subnet-wide rule on
+`coolify` would cut off every other resource there along with this one.
+
+Note what this does and does not buy on the `coolify` leg. `! -d "$SUBNET"`
+exempts the network itself, so the service can still reach anything else on
+`coolify`. What the rule stops is egress to the internet, which is all this
+service should ever have been able to do anyway.
+
+The addresses are assigned at container start, so this has to run after every
+recreate, not once.
 
 Untested — Docker Desktop on Windows has no DOCKER-USER chain to try it on.
 Verify with `docker exec recipeat-ocr python -c "import socket;
@@ -180,7 +196,7 @@ at startup.
 
 The app finds the service at `NUXT_OCR_BASE_URL`, which defaults to
 `http://127.0.0.1:8102`. If Nuxt is containerized on the same host, attach it to
-`recipeat-ocr_default` and set `NUXT_OCR_BASE_URL=http://recipeat-ocr:8102` —
+the `coolify` network and set `NUXT_OCR_BASE_URL=http://recipeat-ocr:8102` —
 inside a container, `localhost` means that container.
 
 ```sh

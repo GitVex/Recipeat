@@ -31,8 +31,31 @@ services:
     # for a 3024x4032 photo; the rest is headroom for a larger one.
     mem_limit: 2g
     memswap_limit: 2g
+    # The shared network the app reaches this on. The alias is declared here
+    # rather than relying on container_name, because Coolify renames containers
+    # and would otherwise take the DNS name with it.
+    networks:
+      default: {}
+      coolify:
+        aliases:
+          - recipeat-ocr
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
+
+networks:
+  # Coolify's shared network, which every resource with "Connect To Predefined
+  # Network" enabled already joins. Declared external so nothing here creates
+  # it, and referenced by its real name: a <project>_default network would not
+  # do, because Coolify runs Compose with --project-name <resource-uuid> and
+  # overrides the `name:` above.
+  #
+  # Outside Coolify, create it once: docker network create coolify
+  #
+  # This service only ever receives connections, so sharing a network with
+  # every other Coolify resource costs it little. The fetcher is the exception
+  # and keeps a network of its own; see compose.fetcher.yaml.
+  coolify:
+    external: true

@@ -1,14 +1,18 @@
 # The app is the only one of the four that faces a user, and the only one that
 # has to reach all three services. They publish on loopback, which a container
-# cannot reach, so this joins their networks and addresses them by container
-# name instead. Those networks belong to the other three Compose projects and
-# have to exist first.
+# cannot reach, so this joins them over shared networks and addresses each by
+# the alias that service declares.
 #
-# The cost is stated rather than hidden: being on recipeat-fetch_default means
-# the fetcher can now open connections to this app, which is the exposure that
-# giving the fetcher its own project was avoiding. Docker does not route between
-# networks, so the fetcher still cannot reach Ollama or the OCR service through
-# this container — only the app's own API.
+# Ollama and the OCR service sit on Coolify's own `coolify` network, which they
+# already join; neither ever opens an outbound connection, so sharing it with
+# the rest of the install costs them little. The fetcher does not: it opens
+# connections to URLs a user supplies and has no SSRF guard, so it gets one
+# network of its own, shared with this app alone.
+#
+# The remaining cost is stated rather than hidden: on recipeat-fetch-net the
+# fetcher can open connections to this app. Docker does not route between
+# networks, so that is as far as it gets — an SSRF through the fetcher reaches
+# this app's API and nothing else on the host.
 name: recipeat-app
 
 services:
@@ -29,8 +33,11 @@ services:
     ports:
       - "127.0.0.1:8100:8100"
     environment:
-      # Container ports, not the host ones. Ollama keeps its own 11434 inside
-      # the container; the other two listen on the port they publish.
+      # Container ports, not the host ones: Ollama keeps its own 11434 inside
+      # the container, the other two listen on the port they publish. The names
+      # are aliases the service files declare — ollama and recipeat-ocr on the
+      # coolify network, recipeat-fetcher on recipeat-fetch-net — so Coolify
+      # renaming containers does not break them.
       NUXT_OLLAMA_BASE_URL: "http://ollama:11434"
       NUXT_OCR_BASE_URL: "http://recipeat-ocr:8102"
       NUXT_FETCHER_BASE_URL: "http://recipeat-fetcher:8103"
@@ -55,8 +62,7 @@ services:
     memswap_limit: 512m
     networks:
       - default
-      - ai
-      - ocr
+      - coolify
       - fetch
     logging:
       driver: json-file
@@ -65,15 +71,21 @@ services:
         max-file: "3"
 
 networks:
-  ai:
+  # Coolify's shared network, which every resource with "Connect To Predefined
+  # Network" enabled already joins. Outside Coolify, create it once:
+  # docker network create coolify
+  coolify:
     external: true
-    name: recipeat-ai_default
-  ocr:
-    external: true
-    name: recipeat-ocr_default
+  # The only network these files ask you to create:
+  #
+  #   docker network create recipeat-fetch-net
+  #
+  # Not <project>_default: Coolify runs Compose with --project-name
+  # <resource-uuid>, which overrides every `name:` in these files, so the
+  # generated network names are neither stable nor knowable from here.
   fetch:
     external: true
-    name: recipeat-fetch_default
+    name: recipeat-fetch-net
 
 volumes:
   app-data:

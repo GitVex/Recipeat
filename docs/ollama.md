@@ -107,9 +107,21 @@ ssh -N -L 8101:127.0.0.1:8101 root@YOUR_VPS_IP
 The app's default `ollamaBaseUrl` is `http://127.0.0.1:8101`, so nothing else
 needs configuring while the tunnel runs.
 
-If Nuxt is containerized on the VPS, attach it to the `recipeat-ai_default`
-network and set `NUXT_OLLAMA_BASE_URL=http://ollama:11434`. Inside a separate
-container, `localhost` means that container, not Ollama.
+If Nuxt is containerized on the VPS, both sit on the `coolify` network — the
+shared one every resource with "Connect To Predefined Network" enabled joins —
+and `NUXT_OLLAMA_BASE_URL=http://ollama:11434` finds it there. Inside a separate
+container, `localhost` means that container, not Ollama. Outside Coolify,
+`docker network create coolify` once is all the setup there is.
+
+`ollama` is a network alias this file declares, not the container name. Coolify
+renames containers, which would otherwise take the DNS name with it. The
+project's own `<project>_default` network is no use either: Coolify runs Compose
+with `--project-name <resource-uuid>`, overriding the `name:` above, so that
+network's name is neither stable nor knowable from the repository.
+
+Sharing a network with the rest of the install costs Ollama little — it only
+ever receives connections. The [fetcher](../services/recipeat-fetcher/README.md)
+is the exception and stays off it.
 
 The [fetcher](../services/recipeat-fetcher/README.md) is a separate Compose
 project and deliberately not on this network. It opens connections to URLs a
