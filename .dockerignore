@@ -1,0 +1,20 @@
+node_modules
+.nuxt
+.output
+.data
+.git
+.env
+.env.*
+!.env.example
+
+# Nothing the server needs, and services/ carries two virtualenvs.
+services
+docker
+docs
+tests
+test-results
+playwright-report
+playwright.config.ts
+playwright.auth.config.ts
+.zed
+127.0.0.1

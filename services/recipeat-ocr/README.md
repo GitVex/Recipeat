@@ -180,7 +180,7 @@ at startup.
 
 The app finds the service at `NUXT_OCR_BASE_URL`, which defaults to
 `http://127.0.0.1:8102`. If Nuxt is containerized on the same host, attach it to
-`recipeat-ocr_isolated` and set `NUXT_OCR_BASE_URL=http://recipeat-ocr:8102` —
+`recipeat-ocr_default` and set `NUXT_OCR_BASE_URL=http://recipeat-ocr:8102` —
 inside a container, `localhost` means that container.
 
 ```sh

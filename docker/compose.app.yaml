@@ -1,0 +1,79 @@
+# The app is the only one of the four that faces a user, and the only one that
+# has to reach all three services. They publish on loopback, which a container
+# cannot reach, so this joins their networks and addresses them by container
+# name instead. Those networks belong to the other three Compose projects and
+# have to exist first.
+#
+# The cost is stated rather than hidden: being on recipeat-fetch_default means
+# the fetcher can now open connections to this app, which is the exposure that
+# giving the fetcher its own project was avoiding. Docker does not route between
+# networks, so the fetcher still cannot reach Ollama or the OCR service through
+# this container — only the app's own API.
+name: recipeat-app
+
+services:
+  recipeat-app:
+    # Relative to the Compose file's directory. Coolify passes
+    # --project-directory, so a resource deploying this file needs Base
+    # Directory /docker and Docker Compose Location /compose.app.yaml, the same
+    # as the fetcher and OCR resources.
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: recipeat-app:latest
+    container_name: recipeat-app
+    restart: unless-stopped
+    # Loopback, like the services: a reverse proxy on the host terminates TLS
+    # and forwards here. Coolify's proxy reaches the container over its own
+    # network and does not need this published at all.
+    ports:
+      - "127.0.0.1:8100:8100"
+    environment:
+      # Container ports, not the host ones. Ollama keeps its own 11434 inside
+      # the container; the other two listen on the port they publish.
+      NUXT_OLLAMA_BASE_URL: "http://ollama:11434"
+      NUXT_OCR_BASE_URL: "http://recipeat-ocr:8102"
+      NUXT_FETCHER_BASE_URL: "http://recipeat-fetcher:8103"
+      # Zitadel. The redirect URIs must be this deployment's public URL, not the
+      # localhost:8100 a checkout defaults to, and must match the application
+      # registered in Zitadel character for character.
+      NUXT_OIDC_PROVIDERS_ZITADEL_BASE_URL: ${NUXT_OIDC_PROVIDERS_ZITADEL_BASE_URL:?required}
+      NUXT_OIDC_PROVIDERS_ZITADEL_CLIENT_ID: ${NUXT_OIDC_PROVIDERS_ZITADEL_CLIENT_ID:?required}
+      NUXT_OIDC_PROVIDERS_ZITADEL_REDIRECT_URI: ${NUXT_OIDC_PROVIDERS_ZITADEL_REDIRECT_URI:?required}
+      NUXT_OIDC_PROVIDERS_ZITADEL_LOGOUT_REDIRECT_URI: ${NUXT_OIDC_PROVIDERS_ZITADEL_LOGOUT_REDIRECT_URI:?required}
+      # Generated separately; see docs/authentication.md.
+      NUXT_OIDC_SESSION_SECRET: ${NUXT_OIDC_SESSION_SECRET:?required}
+      NUXT_OIDC_AUTH_SESSION_SECRET: ${NUXT_OIDC_AUTH_SESSION_SECRET:?required}
+      NUXT_OIDC_TOKEN_KEY: ${NUXT_OIDC_TOKEN_KEY:?required}
+    volumes:
+      # The OIDC session store. Without it every restart signs everyone out.
+      - app-data:/app/.data
+    cpus: 1.0
+    # SSR and the extraction handlers, which stream rather than buffer. The
+    # photo route holds one upload in memory, capped at the OCR service's 10 MB.
+    mem_limit: 512m
+    memswap_limit: 512m
+    networks:
+      - default
+      - ai
+      - ocr
+      - fetch
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  ai:
+    external: true
+    name: recipeat-ai_default
+  ocr:
+    external: true
+    name: recipeat-ocr_default
+  fetch:
+    external: true
+    name: recipeat-fetch_default
+
+volumes:
+  app-data:
