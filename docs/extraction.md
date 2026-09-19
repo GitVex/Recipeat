@@ -12,7 +12,7 @@ an extraction can be previewed before it is kept.
 ## Text
 
 ```sh
-curl -X POST http://localhost:3000/api/extract/text \
+curl -X POST http://localhost:8100/api/extract/text \
   -H 'Content-Type: application/json' \
   -b 'your-session-cookie' \
   -d '{"text":"2 eggs, beaten.\nFry them in butter."}'
@@ -38,7 +38,7 @@ server-side and never serializes to the client.
 ## Website
 
 ```sh
-curl -X POST http://localhost:3000/api/extract/website \
+curl -X POST http://localhost:8100/api/extract/website \
   -H 'Content-Type: application/json' \
   -b 'your-session-cookie' \
   -d '{"url":"https://www.seriouseats.com/..."}'
@@ -92,7 +92,7 @@ rescaling with it. Three things hold it together:
 ## Photo
 
 ```sh
-curl -X POST http://localhost:3000/api/extract/photo   -b 'your-session-cookie'   -F 'file=@page.jpg'
+curl -X POST http://localhost:8100/api/extract/photo   -b 'your-session-cookie'   -F 'file=@page.jpg'
 ```
 
 Request: `multipart/form-data` with a `file` part, at most 10 000 000 bytes.

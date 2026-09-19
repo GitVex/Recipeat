@@ -6,7 +6,9 @@ services:
     container_name: ollama
     restart: unless-stopped
     ports:
-      - "127.0.0.1:11434:11434"
+      # 8101 on the host, in the 8100-8103 block this project reserves. The
+      # container keeps Ollama's own 11434, which is what its clients expect.
+      - "127.0.0.1:8101:11434"
     volumes:
       - ollama:/root/.ollama
     cpus: 4.0

@@ -9,8 +9,9 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="OCR_", env_file=".env")
 
     host: str = "127.0.0.1"
-    # 8000 is the fetcher's, and both publish on loopback on the same host.
-    port: int = 8001
+    # 8102 in the 8100-8103 block: 8100 the app, 8101 Ollama, 8103 the
+    # fetcher, all published on loopback on the same host.
+    port: int = 8102
     reload: bool = False
 
     # The upload, counted while reading rather than trusted from Content-Length.

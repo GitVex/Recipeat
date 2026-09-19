@@ -17,8 +17,8 @@ so sessions can refresh).
 
 Register these URLs for development, exactly:
 
-- Redirect: `http://localhost:3000/auth/zitadel/callback`
-- Post-logout: `http://localhost:3000/`
+- Redirect: `http://localhost:8100/auth/zitadel/callback`
+- Post-logout: `http://localhost:8100/`
 
 Zitadel may need development mode enabled for HTTP on localhost. For production,
 register the HTTPS equivalents on your domain, and prefer a separate application
@@ -39,7 +39,7 @@ These encrypt the app's own sessions; they are not Zitadel credentials. Keep
 them stable across restarts and out of version control. Without them the module
 generates temporary defaults and no session survives a restart.
 
-Then `npm run dev`, open `http://localhost:3000`, and select **Sign in** (inside
+Then `npm run dev`, open `http://localhost:8100`, and select **Sign in** (inside
 the menu on mobile).
 
 ## Deployment

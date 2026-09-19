@@ -46,7 +46,7 @@ mistakes come back.
 `POST /ocr` takes one multipart upload and returns what it read.
 
 ```sh
-curl -X POST http://localhost:8001/ocr -F 'file=@page.jpg'
+curl -X POST http://localhost:8102/ocr -F 'file=@page.jpg'
 ```
 
 ```jsonc
@@ -115,7 +115,7 @@ Read from the environment with an `OCR_` prefix, or from a local `.env`.
 | `OCR_TEXT_SCORE` | 0.5 | Recognitions below this are dropped rather than guessed at |
 | `OCR_INTRA_OP_THREADS` | 2 | ONNX Runtime takes every core at its own default of -1, and Ollama already has four of six |
 | `OCR_WARM_START` | true | Build the engine during startup, so `/health` means ready |
-| `OCR_HOST` / `OCR_PORT` | 127.0.0.1 / 8001 | 8000 is the fetcher's, and both run on the same host |
+| `OCR_HOST` / `OCR_PORT` | 127.0.0.1 / 8102 | In the 8100-8103 block: 8100 the app, 8101 Ollama, 8103 the fetcher, all on the same host |
 
 One image is recognised at a time. `RapidOCR.__call__` writes its per-call
 overrides onto the engine before running, so a shared engine with two requests
@@ -129,6 +129,14 @@ CPU-bound inference from competing with itself, the same posture as
 and publishes the service on loopback, the way Ollama and the fetcher are
 published.
 
+`build:` in that file is `../services/recipeat-ocr`, relative to the Compose
+file's own directory. Compose only resolves it that way when no
+`--project-directory` is passed. Coolify always passes one, so a resource
+deploying this file must set **Base Directory** to `/docker` and **Docker
+Compose Location** to `/compose.ocr.yaml`. With Base Directory left at `/`, the
+context resolves one level above the checkout and the build fails with
+`unable to prepare context: path "/artifacts/services/recipeat-ocr" not found`.
+
 It is a separate Compose project, for the opposite reason to the fetcher's. The
 fetcher must reach the internet and is kept away from anything private; this
 service never opens an outbound connection at all, because its models come with
@@ -137,7 +145,7 @@ its wheel.
 **That is a property of the image, not of the Compose file.** `internal: true`
 looks like the way to enforce it and is not — Docker drops every published port
 for a container on an internal network, so the app can no longer reach the
-service. This was tried, and the container came up healthy with `8001/tcp` bound
+service. This was tried, and the container came up healthy with `8102/tcp` bound
 to nothing. Compose has no way to say "ingress but no egress".
 
 Enforcing it needs a host rule. On the VPS, after the stack is up:
@@ -171,8 +179,8 @@ adds `libgl1` and `libglib2.0-0`; without them the import fails on `libGL.so.1`
 at startup.
 
 The app finds the service at `NUXT_OCR_BASE_URL`, which defaults to
-`http://127.0.0.1:8001`. If Nuxt is containerized on the same host, attach it to
-`recipeat-ocr_isolated` and set `NUXT_OCR_BASE_URL=http://recipeat-ocr:8001` —
+`http://127.0.0.1:8102`. If Nuxt is containerized on the same host, attach it to
+`recipeat-ocr_isolated` and set `NUXT_OCR_BASE_URL=http://recipeat-ocr:8102` —
 inside a container, `localhost` means that container.
 
 ```sh

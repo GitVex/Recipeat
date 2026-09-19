@@ -38,11 +38,11 @@ RUN python -c "from recipeat_ocr.engine import get_engine; get_engine()"
 RUN useradd --create-home --uid 10001 ocr
 USER ocr
 
-EXPOSE 8001
+EXPOSE 8102
 
 # Answers, rather than merely running: the app loads the models during startup,
 # so this stays unhealthy until an image could actually be read.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
-  CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health').read()"]
+  CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8102/health').read()"]
 
-CMD ["uvicorn", "recipeat_ocr.app:app", "--host", "0.0.0.0", "--port", "8001"]
+CMD ["uvicorn", "recipeat_ocr.app:app", "--host", "0.0.0.0", "--port", "8102"]

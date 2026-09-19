@@ -1,10 +1,13 @@
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
+  // 8100 is the app; 8101-8103 are the three services it calls. The block is
+  // kept contiguous so a port clash on the host is one range to check.
+  devServer: { port: 8100 },
   runtimeConfig: {
-    ollamaBaseUrl: 'http://127.0.0.1:11434',
+    ollamaBaseUrl: 'http://127.0.0.1:8101',
     ollamaModel: 'qwen3.5:2b',
-    fetcherBaseUrl: 'http://127.0.0.1:8000',
-    ocrBaseUrl: 'http://127.0.0.1:8001',
+    fetcherBaseUrl: 'http://127.0.0.1:8103',
+    ocrBaseUrl: 'http://127.0.0.1:8102',
   },
   modules: ['nuxt-oidc-auth'],
   oidc: {
@@ -15,8 +18,8 @@ export default defineNuxtConfig({
         baseUrl: '',
         clientId: '',
         authenticationScheme: 'none',
-        redirectUri: 'http://localhost:3000/auth/zitadel/callback',
-        logoutRedirectUri: 'http://localhost:3000/',
+        redirectUri: 'http://localhost:8100/auth/zitadel/callback',
+        logoutRedirectUri: 'http://localhost:8100/',
         scope: ['openid', 'profile', 'email', 'offline_access'],
         tokenValidationMode: 'strict',
         optionalClaims: ['sub'],
