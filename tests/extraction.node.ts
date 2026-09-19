@@ -275,7 +275,7 @@ const page = {
   ingredients: [{ originalText: '1 lb 2 oz potatoes', name: 'potatoes', quantity: '1 lb 2 oz', parsedQuantity: { value: 1.125, maxValue: null, unit: 'lb' }, extra: 'peeled' }],
   steps: ['Boil them.'],
 }
-const fetcherConfig = { fetcherBaseUrl: 'http://recipeat-fetcher:8000/' }
+const fetcherConfig = { fetcherBaseUrl: 'http://recipeat-fetcher:8103/' }
 const served = (body: unknown, init?: ResponseInit): typeof fetch => async () => Response.json(body, init)
 const sourceOf = (recipe: { source: unknown }) => recipe.source as { type: string, url: string, author: string | null, siteName: string | null, retrievedAt: string }
 
@@ -289,7 +289,7 @@ test('URL validation accepts web addresses and rejects everything else', () => {
 
 test('website extraction sends the URL onward and records where the recipe came from', async () => {
   const fetcher: typeof fetch = async (url, init) => {
-    assert.equal(url, 'http://recipeat-fetcher:8000/fetch')
+    assert.equal(url, 'http://recipeat-fetcher:8103/fetch')
     assert.deepEqual(JSON.parse(init!.body as string), { url: 'https://example.com/pancakes' })
     assert.ok(init?.signal)
     return Response.json(page)
@@ -426,7 +426,7 @@ test('body reader reuses a native request body already read by middleware', asyn
   }
 })
 
-const ocrConfig = { ...config, ocrBaseUrl: 'http://recipeat-ocr:8001/' }
+const ocrConfig = { ...config, ocrBaseUrl: 'http://recipeat-ocr:8102/' }
 const photo = { data: new Uint8Array([1, 2, 3]), filename: 'page.jpg', type: 'image/jpeg' }
 const reading = { text: '1 slice bread\n\nToast the bread.', lines: [{ text: '1 slice bread', confidence: 0.9 }], elapsed: 0.9 }
 // The model answers the OCR text, not the image.
@@ -443,7 +443,7 @@ test('photo extraction reads the image, then the text, and records the filename'
 
   const { recipe: result, text } = await extractPhoto(photo, ocrConfig, fetcher)
 
-  assert.equal(seen[0]!.url, 'http://recipeat-ocr:8001/ocr')
+  assert.equal(seen[0]!.url, 'http://recipeat-ocr:8102/ocr')
   // The image goes to OCR as a multipart upload, and never to Ollama at all.
   assert.ok(seen[0]!.body instanceof FormData)
   const sent = (seen[0]!.body as FormData).get('file') as File

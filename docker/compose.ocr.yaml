@@ -18,7 +18,7 @@ services:
     restart: unless-stopped
     # Loopback only, like Ollama and the fetcher. Nothing off the host reaches it.
     ports:
-      - "127.0.0.1:8001:8001"
+      - "127.0.0.1:8102:8102"
     environment:
       OCR_MAX_BYTES: "10000000"
       OCR_MAX_SIDE_LEN: "2000"

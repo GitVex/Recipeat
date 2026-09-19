@@ -39,7 +39,7 @@ has its own suite. `units.json` is checked from both sides — here, and by
 lines in the same call.
 
 ```sh
-curl -X POST http://localhost:8000/fetch \
+curl -X POST http://localhost:8103/fetch \
   -H 'Content-Type: application/json' \
   -d '{"url":"https://www.seriouseats.com/..."}'
 ```
@@ -90,7 +90,7 @@ with anything private.
 It takes the same lines `/fetch` reads, so the text pipeline can use it too.
 
 ```sh
-curl -X POST http://localhost:8000/ingredients \
+curl -X POST http://localhost:8103/ingredients \
   -H 'Content-Type: application/json' \
   -d '{"ingredients":["1 1/2 cups milk","2-3 tbsp olive oil"]}'
 ```
@@ -177,6 +177,15 @@ another container.
 The build context is this directory, so the repository has to be on the host —
 unlike the Ollama file, this one cannot be copied across on its own.
 
+`build:` in that file is `../services/recipeat-fetcher`, relative to the
+Compose file's own directory. Compose only resolves it that way when no
+`--project-directory` is passed. Coolify always passes one, so a resource
+deploying this file must set **Base Directory** to `/docker` and **Docker
+Compose Location** to `/compose.fetcher.yaml`. With Base Directory left at `/`,
+the context resolves one level above the checkout and the build fails with
+`unable to prepare context: path "/artifacts/services/recipeat-fetcher" not
+found`.
+
 ```sh
 git clone https://github.com/GitVex/Recipeat.git
 cd Recipeat
@@ -190,9 +199,9 @@ cold container answers without reaching out, and a tagger it cannot get fails
 the build rather than the first request.
 
 The app finds the service at `NUXT_FETCHER_BASE_URL`, which defaults to
-`http://127.0.0.1:8000`. If Nuxt is containerized on the same host, attach it to
+`http://127.0.0.1:8103`. If Nuxt is containerized on the same host, attach it to
 `recipeat-fetch_default` and set
-`NUXT_FETCHER_BASE_URL=http://recipeat-fetcher:8000` — inside a container,
+`NUXT_FETCHER_BASE_URL=http://recipeat-fetcher:8103` — inside a container,
 `localhost` means that container.
 
 ```sh
@@ -210,7 +219,7 @@ optional.
 | | | |
 |---|---|---|
 | `FETCHER_HOST` | `127.0.0.1` | Interface to bind |
-| `FETCHER_PORT` | `8000` | Port to bind |
+| `FETCHER_PORT` | `8103` | Port to bind, in the 8100-8103 block: 8100 the app, 8101 Ollama, 8102 the OCR service |
 | `FETCHER_RELOAD` | `false` | Reload on source changes |
 | `FETCHER_FETCH_TIMEOUT` | `10.0` | Seconds to wait on a recipe site |
 | `FETCHER_FETCH_MAX_BYTES` | `5000000` | Largest page to read |

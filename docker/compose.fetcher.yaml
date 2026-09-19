@@ -13,7 +13,7 @@ services:
     restart: unless-stopped
     # Loopback only, like Ollama. Nothing off the host reaches it.
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:8103:8103"
     environment:
       FETCHER_FETCH_TIMEOUT: "10.0"
       FETCHER_FETCH_MAX_BYTES: "5000000"

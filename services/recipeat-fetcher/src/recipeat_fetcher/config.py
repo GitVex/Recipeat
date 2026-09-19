@@ -9,7 +9,9 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="FETCHER_", env_file=".env")
 
     host: str = "127.0.0.1"
-    port: int = 8000
+    # 8103 in the 8100-8103 block: 8100 the app, 8101 Ollama, 8102 the OCR
+    # service, all published on loopback on the same host.
+    port: int = 8103
     reload: bool = False
 
     # The page fetch. recipe-scrapers' own urllib call has none of these.

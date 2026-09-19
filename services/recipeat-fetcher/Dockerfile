@@ -29,10 +29,10 @@ RUN python -c "import ingredient_parser"
 RUN useradd --create-home --uid 10001 fetcher
 USER fetcher
 
-EXPOSE 8000
+EXPOSE 8103
 
 # Answers, rather than merely running: the CRF model loads on first import.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-  CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health').read()"]
+  CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8103/health').read()"]
 
-CMD ["uvicorn", "recipeat_fetcher.app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "recipeat_fetcher.app:app", "--host", "0.0.0.0", "--port", "8103"]

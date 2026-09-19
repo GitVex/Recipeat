@@ -87,7 +87,7 @@ and bring Compose up as above. Matching layers are reused.
 ## Check it works
 
 ```sh
-curl http://127.0.0.1:11434/api/chat \
+curl http://127.0.0.1:8101/api/chat \
   -H 'Content-Type: application/json' \
   -d '{"model":"qwen3.5:2b","stream":false,"think":false,
        "messages":[{"role":"user","content":"Reply with: Recipeat is ready."}],
@@ -101,10 +101,10 @@ The first request is slow while the model loads.
 Keep a tunnel open:
 
 ```sh
-ssh -N -L 11434:127.0.0.1:11434 root@YOUR_VPS_IP
+ssh -N -L 8101:127.0.0.1:8101 root@YOUR_VPS_IP
 ```
 
-The app's default `ollamaBaseUrl` is `http://127.0.0.1:11434`, so nothing else
+The app's default `ollamaBaseUrl` is `http://127.0.0.1:8101`, so nothing else
 needs configuring while the tunnel runs.
 
 If Nuxt is containerized on the VPS, attach it to the `recipeat-ai_default`
@@ -117,8 +117,8 @@ user supplies, and this API is unauthenticated.
 
 That separation is weaker on Docker Desktop than on the VPS, and it was measured
 rather than assumed. From inside the fetcher container, `ollama` does not resolve
-and `172.17.0.1:11434` — the gateway a Linux host would present — is refused, so
-the loopback publishing holds there. `host.docker.internal:11434` answers with
+and `172.17.0.1:8101` — the gateway a Linux host would present — is refused, so
+the loopback publishing holds there. `host.docker.internal:8101` answers with
 the model list. Docker Desktop provides that name as a gateway that forwards to
 published ports, loopback-bound ones included; a Linux host has no such name
 unless `extra_hosts: host-gateway` adds it. So an SSRF through the fetcher
