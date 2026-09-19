@@ -13,3 +13,4 @@ playwright-report
 # Python service
 .venv
 __pycache__
+tests/imges/IMG_5239.JPEG
