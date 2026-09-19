@@ -1,0 +1,32 @@
+[project]
+name = "recipeat-ocr"
+version = "0.1.0"
+description = "Reads text out of recipe photos."
+readme = "README.md"
+authors = [
+    { name = "Paul", email = "Paul.krahn1903@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]>=0.141.1",
+    "onnxruntime>=1.24.3",
+    "pillow>=12.3.0",
+    "pillow-heif>=1.7.0",
+    "pydantic-settings>=2.15.0",
+    "rapidocr>=3.9.2",
+]
+
+[project.scripts]
+recipeat-ocr = "recipeat_ocr:main"
+
+[build-system]
+requires = ["uv_build>=0.12.6,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]

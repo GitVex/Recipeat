@@ -1,12 +1,13 @@
 # Extraction
 
-Two endpoints, one recipe shape. Both require a session and store nothing, so an
-extraction can be previewed before it is kept.
+Three endpoints, one recipe shape. All require a session and store nothing, so
+an extraction can be previewed before it is kept.
 
 | | |
 |---|---|
 | `POST /api/extract/text` | Pasted text, read by [Ollama](./ollama.md) |
 | `POST /api/extract/website` | A URL, read by the [fetcher](../services/recipeat-fetcher/README.md) with no model at all |
+| `POST /api/extract/photo` | A photo, read by the [OCR service](../services/recipeat-ocr/README.md) and then by Ollama |
 
 ## Text
 
@@ -88,6 +89,48 @@ rescaling with it. Three things hold it together:
   anything unusable falls back to reading the text;
 - `units.json` is a data file precisely so tests on both sides read it.
 
+## Photo
+
+```sh
+curl -X POST http://localhost:3000/api/extract/photo   -b 'your-session-cookie'   -F 'file=@page.jpg'
+```
+
+Request: `multipart/form-data` with a `file` part, at most 10 000 000 bytes.
+Response: the same `{ "recipe": { … } }` as above.
+
+| Status | Meaning |
+|---|---|
+| 401 | No session |
+| 415 | Body is not multipart, or the file is not an image this service can read |
+| 400 | Body is malformed multipart, or the `file` part is missing or empty |
+| 413 | The upload is over the byte limit, or its reading exceeds 20 000 characters |
+| 422 | No text could be read from the image, or the model found no recipe in it |
+| 502 | Either service was unreachable, failed, or answered with something unusable |
+| 504 | The OCR service took over two minutes, or Ollama over five |
+
+**Two services, in order.** The OCR service turns the image into text and the
+same model the text pipeline uses turns that text into a recipe. No image ever
+reaches Ollama — sending the photo to a vision model is what took 4m 5s, and
+reading it first costs about a second.
+
+This is why photo import is an ordinary request rather than a job and a poll:
+it now costs what the text path costs, which is the argument that already
+retired the poll for websites.
+
+Unlike the website path, the OCR service's 415 is passed through as a 415. A URL
+serving a PDF is a problem with what the caller asked for; an upload that is not
+an image is a problem with the body they sent.
+
+The prompt adds two lines to the text pipeline's, saying what is true of a
+photograph: that line breaks may fall mid-sentence, and that a page number or a
+caption is neither an ingredient nor a step. It does not ask the model to
+correct the reading. An OCR slip left visible is better than one invented into
+something plausible.
+
+Nothing stores the image, so `source.objectKey` is null and only the filename
+the browser sent is recorded. Object storage is what fills it in; see
+[planning](./planning.md).
+
 ## The pipeline
 
 Four steps, in `server/extraction/`, behind the barrel at
@@ -104,6 +147,9 @@ source; everything below that is shared.
    **`extractText`** is the text modality on top of it — it builds the messages,
    keeping the source as its own user message rather than interpolating it into
    the instructions, and records a `RecipeSource` of `type: "text"`.
+   **`extractPhoto`** is the same shape with a hop in front: `askOcr` posts the
+   upload to the OCR service, and the reading it returns becomes the user
+   message. The prompt and the source differ; the transport does not.
 3. **`parseExtraction`** — validates and clamps, then assigns IDs.
 4. **`normalizeRecipe`** — reads quantities into numbers and units, finds
    measurements in step prose, and links steps back to ingredients. A source
@@ -177,7 +223,7 @@ type Recipe = {
 type RecipeSource =
   | { type: 'text', originalText: string }
   | { type: 'website', url: string, author: string | null, siteName: string | null, retrievedAt: string }
-  | { type: 'photo', objectKey: string, originalFilename: string | null }
+  | { type: 'photo', objectKey: string | null, originalFilename: string | null }
 
 type Ingredient = {
   id: string                    // "ingredient_1", dense and stable
@@ -233,17 +279,18 @@ measurement.
 npm run test:extraction
 ```
 
-Twenty-two cases over the whole pipeline with no browser, no model and no
-service running: a fake `fetch` covers both upstream contracts and their failure
-modes, and quantity parsing and normalization are pure functions. One case
+Twenty-six cases over the whole pipeline with no browser, no model and no
+service running: a fake `fetch` covers all three upstream contracts and their
+failure modes, and quantity parsing and normalization are pure functions. One case
 asserts that every reference in a normalized recipe resolves — worth keeping as
 the matching rules change. Another reads the fetcher's `units.json` and checks
 it against this side's table, which is the only guard against that drift.
 
-The fetcher has its own suite:
+Each service has its own suite:
 
 ```sh
 cd services/recipeat-fetcher && uv run pytest
+cd services/recipeat-ocr && uv run pytest      # no model is loaded
 ```
 
 The auth suite covers the endpoint's 401 and its validation.
@@ -267,9 +314,25 @@ Measured on the VPS, for sizing expectations:
 |---|---|
 | Short text | 20s |
 | Trimmed HTML page | 2m 17s |
-| Full-resolution photo | 4m 5s |
+| Full-resolution photo, through a vision model | 4m 5s |
 
 Those numbers are why the text request timeout is five minutes. They are also
-why website import stopped going through the model: the same page read by
-`recipe-scrapers` and `ingredient-parser` is a matter of seconds. Photo import
-is still slow enough to want a job and a poll — see [planning](./planning.md).
+why neither of the other two modalities goes through the model as it stands:
+the same page read by `recipe-scrapers` and `ingredient-parser` is a matter of
+seconds, and a photo is now read by OCR before the model sees anything.
+
+Those VPS figures predate the switch to `qwen3.5:2b` and were taken with the 4b;
+nothing has re-measured them since. What has been measured is the whole stack in
+containers on a developer machine, which is slower per token than the VPS and
+says nothing about it directly:
+
+| Source | Time |
+|---|---|
+| Short German recipe, pasted | 1m 29s |
+| The same recipe as a 3024x4032 photo | 1m 36s |
+| — of which OCR | 3.5s |
+| The same photo at 680x460 | 1.0s of OCR |
+
+The gap between the two rows is the whole cost of reading a photo. `OCR_MAX_SIDE_LEN`
+caps the longer side at 2000 pixels, so a bigger photo costs the downscale and
+not the pixels.

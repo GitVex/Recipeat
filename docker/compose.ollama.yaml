@@ -12,6 +12,8 @@ services:
     cpus: 4.0
     mem_limit: 8g
     memswap_limit: 8g
+    # Reaps the background pull once it finishes, and forwards stop signals.
+    init: true
     environment:
       OLLAMA_HOST: "0.0.0.0:11434"
       OLLAMA_NUM_PARALLEL: "1"
@@ -21,29 +23,35 @@ services:
       OLLAMA_CONTEXT_LENGTH: "16384"
       OLLAMA_NO_CLOUD: "1"
       OLLAMA_KEEP_ALIVE: "5m"
+      # Not read by Ollama. The model this deployment pulls and reports healthy
+      # on; must match runtimeConfig.ollamaModel, which is what requests name.
+      RECIPEAT_MODEL: "qwen3.5:2b"
+    # Pull in the background once the server answers, then exec the server so it
+    # replaces the shell rather than running under one that would swallow a stop
+    # signal. With init: true, PID 1 is docker-init and the server is its direct
+    # child, which is what forwards SIGTERM. The pull is idempotent: on later
+    # starts the model is already in the volume.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        (
+          until /bin/ollama list >/dev/null 2>&1; do sleep 1; done
+          /bin/ollama pull "$$RECIPEAT_MODEL"
+        ) &
+        exec /bin/ollama serve
+    # Healthy means the model is installed, not just that the server answers,
+    # so start_period has to cover the first pull.
     healthcheck:
-      test: ["CMD", "ollama", "list"]
+      test: ["CMD-SHELL", "/bin/ollama list | grep -q \"$$RECIPEAT_MODEL\""]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
+      start_period: 600s
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
-
-  ollama-init:
-    image: ollama/ollama:latest
-    restart: "no"
-    depends_on:
-      ollama:
-        condition: service_healthy
-    environment:
-      OLLAMA_HOST: "http://ollama:11434"
-    # The CLI asks the main server to download into its persistent volume.
-    entrypoint: ["/bin/ollama"]
-    command: ["pull", "qwen3.5:4b"]
 
 volumes:
   ollama:
