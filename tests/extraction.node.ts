@@ -468,6 +468,25 @@ test('a photo without a usable filename still extracts', async () => {
   assert.deepEqual(result.source, { type: 'photo', objectKey: null, originalFilename: null })
 })
 
+test('a reading the OCR service could not lay out asks the model to find the seam', async () => {
+  const promptFor = async (reading: unknown) => {
+    let system = ''
+    await extractPhoto(photo, ocrConfig, async (url, init) => {
+      if (String(url).includes('/ocr')) return Response.json(reading)
+      system = JSON.parse(init!.body as string).messages[0].content
+      return Response.json({ message: { content: JSON.stringify(recipe) } })
+    })
+    return system
+  }
+
+  const warned = /columns on this page could not be separated/
+  assert.match(await promptFor({ ...reading, layoutUncertain: true }), warned)
+  // Withheld on a page the service was sure about, and on one from a service
+  // too old to have an opinion — both of which laid the page out confidently.
+  assert.doesNotMatch(await promptFor({ ...reading, layoutUncertain: false }), warned)
+  assert.doesNotMatch(await promptFor(reading), warned)
+})
+
 test('OCR failures become the status the caller should see', async () => {
   const extract = (fetcher: typeof fetch) => extractPhoto(photo, ocrConfig, fetcher)
 

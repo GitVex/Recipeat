@@ -27,12 +27,26 @@ RUN uv sync --locked --no-dev --no-install-project
 COPY src ./src
 RUN uv sync --locked --no-dev
 
-# The three default models come with the wheel, so nothing is downloaded here.
-# Building the engine anyway is a build-time check: it proves the models load
-# and the ONNX sessions construct — a missing libGL, a renamed config key or a
-# model pointed somewhere this image cannot reach all fail the build rather
-# than the first request. Built the way the service builds it, not with
-# RapidOCR's defaults, so it is the service's own configuration being checked.
+# Which PP-OCRv6 models this image carries. Build args rather than settings the
+# container is given at runtime, because only `small` ships inside the rapidocr
+# wheel: any other size is fetched from ModelScope the first time an engine is
+# built, and this service is deployed with no egress. Fetching it here is what
+# makes the choice real, and the ENV below is what makes the running service
+# ask for the one that was baked in.
+#
+#   docker compose -f docker/compose.ocr.yaml build #     --build-arg OCR_REC_MODEL_TYPE=medium
+#
+# See the service README for what the sizes cost and buy.
+ARG OCR_DET_MODEL_TYPE=small
+ARG OCR_REC_MODEL_TYPE=small
+ENV OCR_DET_MODEL_TYPE=${OCR_DET_MODEL_TYPE}     OCR_REC_MODEL_TYPE=${OCR_REC_MODEL_TYPE}
+
+# With the default sizes nothing is downloaded here. Building the engine anyway
+# is a build-time check: it proves the models load and the ONNX sessions
+# construct — a missing libGL, a renamed config key or a model pointed
+# somewhere this image cannot reach all fail the build rather than the first
+# request. Built the way the service builds it, not with RapidOCR's defaults,
+# so it is the service's own configuration being checked.
 RUN python -c "from recipeat_ocr.engine import get_engine; get_engine()"
 
 RUN useradd --create-home --uid 10001 ocr

@@ -12,7 +12,17 @@ name: recipeat-ocr
 
 services:
   recipeat-ocr:
-    build: ../services/recipeat-ocr
+    build:
+      context: ../services/recipeat-ocr
+      # Which PP-OCRv6 models the image carries. Only `small` ships in the
+      # wheel; anything else is downloaded at build time, because this service
+      # has no egress at run time. `medium` recognition is markedly better on
+      # handwritten quantities and roughly twelve times slower — the service
+      # README has the measurements. Detection already finds every line, so
+      # there is nothing to buy there.
+      args:
+        OCR_DET_MODEL_TYPE: "small"
+        OCR_REC_MODEL_TYPE: "small"
     image: recipeat-ocr:latest
     container_name: recipeat-ocr
     restart: unless-stopped

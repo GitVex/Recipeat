@@ -57,7 +57,8 @@ curl -X POST http://localhost:8102/ocr -F 'file=@page.jpg'
     { "text": "Pfannkuchen", "confidence": 0.99 },
     { "text": "250 g Mehl", "confidence": 0.99 }
   ],
-  "elapsed": 0.9    // seconds across all three models
+  "elapsed": 0.9,   // seconds across all three models
+  "layoutUncertain": false
 }
 ```
 
@@ -68,10 +69,23 @@ curl -X POST http://localhost:8102/ocr -F 'file=@page.jpg'
 | 422 | The `file` part is missing or empty, or no text could be read |
 | 502 | — (nothing upstream to fail; this service reaches nothing) |
 
-`text` is grouped into lines by where the boxes fell, with a blank line where
-the photo leaves a vertical gap. Detection order would give the same words with
-the recipe's shape thrown away, and the shape of a recipe — which lines are the
-ingredient list, which are the steps — is most of what it says.
+`text` is the page laid out the way it was written: one block per region, a
+blank line between them, boxes joined into rows inside each. Detection order
+would give the same words with the recipe's shape thrown away, and the shape of
+a recipe — which lines are the ingredient list, which are the steps — is most
+of what it says. [`layout.py`](./src/recipeat_ocr/layout.py) does that, and its
+docstring covers why RapidOCR's own `to_markdown` could not: it groups boxes
+into rows across the full page width, so a two-column recipe comes back with
+each ingredient welded to whichever step happened to sit beside it.
+
+`layoutUncertain` says the layout found a left-edge boundary it could not tell
+from an indent — a gutter too tight to cut on, or two columns that run beside
+each other too briefly. The block is returned whole in that case, which is the
+recoverable half of the choice: two columns merged into one line can be pulled
+apart again by sense, where a block wrongly torn in two cannot be put back. The
+app turns this into one extra sentence of prompt, so the model knows to look
+for the seam; on a page that is plainly one column it stays false, which is
+what keeps the warning worth reading.
 
 `lines` is the same reading, unjoined. The confidence per line is the only
 signal the app has for telling a clean scan from a blurry one.
@@ -115,6 +129,8 @@ Read from the environment with an `OCR_` prefix, or from a local `.env`.
 | `OCR_TEXT_SCORE` | 0.5 | Recognitions below this are dropped rather than guessed at |
 | `OCR_INTRA_OP_THREADS` | 2 | ONNX Runtime takes every core at its own default of -1, and Ollama already has four of six |
 | `OCR_WARM_START` | true | Build the engine during startup, so `/health` means ready |
+| `OCR_DET_MODEL_TYPE` | small | Which PP-OCRv6 detector. Build-time; see below |
+| `OCR_REC_MODEL_TYPE` | small | Which PP-OCRv6 recogniser. Build-time; see below |
 | `OCR_HOST` / `OCR_PORT` | 127.0.0.1 / 8102 | In the 8100-8103 block: 8100 the app, 8101 Ollama, 8103 the fetcher, all on the same host |
 
 One image is recognised at a time. `RapidOCR.__call__` writes its per-call
@@ -122,6 +138,43 @@ overrides onto the engine before running, so a shared engine with two requests
 in flight would have them reading each other's thresholds; a lock also keeps
 CPU-bound inference from competing with itself, the same posture as
 `OLLAMA_NUM_PARALLEL`.
+
+### Model size
+
+PP-OCRv6 comes in `tiny`, `small` and `medium`. Only `small` ships inside the
+rapidocr wheel; the others are fetched from ModelScope the first time an engine
+is built, and this service is deployed with no egress. So the two settings
+above are really build-time choices, and the Dockerfile takes them as build
+args to fetch the model while the network is still available:
+
+```sh
+docker compose -f docker/compose.ocr.yaml build --build-arg OCR_REC_MODEL_TYPE=medium
+```
+
+Measured on one handwritten German page, 1536x2048, at two threads:
+
+| | Wall | What changes |
+|---|---|---|
+| det small, rec small | 4.0s | The default |
+| det small, rec **medium** | 50s | The quantities come out right |
+| det **medium**, rec small | 32s | One more box out of 54 |
+
+Detection already finds every line on that page, so a larger detector buys
+essentially nothing for twelve times the time. The recogniser is the real
+choice, and it is not free either way. `medium` fixes what `small` gets wrong
+about **amounts** — `AEL` becomes `1EL`, `MEL` becomes `1EL`, `2Zmiebeln`
+becomes `2 Zwiebeln`, and `Vinoblanch` becomes `Knoblauch` — and those are the
+errors that matter, because a misread quantity becomes a wrong recipe while a
+misread word stays a typo the model repairs from context.
+
+It is worse in one specific way: it truncates the three longest instruction
+lines on that page, where `small` reads them through. Those are prose, so the
+model recovers them. The trade is twelve times the OCR time for correct amounts
+and slightly worse prose, and it is left off by default because the photo path
+is already the slow one.
+
+One page is not a benchmark. Re-measure before trusting any of this on a
+different hand.
 
 ## Deploy
 

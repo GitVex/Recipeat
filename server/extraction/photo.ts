@@ -15,6 +15,10 @@ const MAX_FILENAME_LENGTH = 255
 const FIELD = 'file'
 
 export type OcrConfig = { ocrBaseUrl: string }
+// What the OCR service read, and whether it trusts its own layout. The flag
+// is separate from the text because it changes the instructions rather than
+// the source: see UNCERTAIN_LAYOUT_PROMPT.
+export type Reading = { text: string, layoutUncertain: boolean }
 export type Photo = { data: Uint8Array, filename: string | null, type: string | null }
 
 // A detail from the OCR service is a message we wrote about the caller's own
@@ -74,7 +78,7 @@ async function askOcr(
   photo: Photo,
   config: OcrConfig,
   fetcher: typeof globalThis.fetch,
-): Promise<string> {
+): Promise<Reading> {
   // Trailing slashes are trimmed rather than resolved away, so a base URL
   // carrying a path prefix survives.
   const url = `${config.ocrBaseUrl.replace(/[/]+$/, '')}/ocr`
@@ -102,7 +106,7 @@ async function askOcr(
     throw fail(STATUS.get(response.status) ?? 502, message, detail ?? `HTTP ${response.status}`)
   }
 
-  let payload: { text?: unknown }
+  let payload: { text?: unknown, layoutUncertain?: unknown }
   try {
     payload = await response.json()
   } catch (error) {
@@ -119,7 +123,11 @@ async function askOcr(
   if (text.length > MAX_TEXT_LENGTH) {
     throw fail(413, `That photo holds more than the ${MAX_TEXT_LENGTH} characters an extraction can read.`)
   }
-  return text
+  // Compared to true rather than coerced, so an OCR service too old to send
+  // the field reads as confident rather than as uncertain. That is the right
+  // way round during a deploy: the two containers are released separately, and
+  // the older one laid the page out the way it always did.
+  return { text, layoutUncertain: payload?.layoutUncertain === true }
 }
 
 // What the text pipeline asks for, plus what is true of a photograph. It says
@@ -129,6 +137,20 @@ const PHOTO_PROMPT = [
   SYSTEM_PROMPT,
   'The text was read from a photograph by OCR, so line breaks may fall mid-sentence, and columns may be interleaved.',
   'Anything that is not part of the recipe — a page number, a caption, a headline from the facing page — is neither an ingredient nor a step.',
+].join(' ')
+
+// Added only when the OCR service reports that it could not tell a column
+// boundary from an indent. It leaves the page whole in that case, which is the
+// half of the choice that can still be repaired — two columns merged into one
+// line are separable by sense, where a block wrongly torn in two is gone. This
+// is the sentence that asks for the repair.
+//
+// Withheld otherwise on purpose. A page that really is one column does not
+// need the model hunting for seams that are not there, and this prompt already
+// spends its length telling it not to invent things.
+const UNCERTAIN_LAYOUT_PROMPT = [
+  PHOTO_PROMPT,
+  'The columns on this page could not be separated, so a single line may hold an ingredient and part of a step side by side; read each half as whichever it belongs to.',
 ].join(' ')
 
 /**
@@ -141,9 +163,9 @@ export async function extractPhoto(
   config: OllamaConfig & OcrConfig,
   fetcher: typeof globalThis.fetch = globalThis.fetch,
 ): Promise<{ recipe: ExtractedRecipe, text: string }> {
-  const text = await askOcr(photo, config, fetcher)
+  const { text, layoutUncertain } = await askOcr(photo, config, fetcher)
   const draft = await askOllama([
-    { role: 'system', content: PHOTO_PROMPT },
+    { role: 'system', content: layoutUncertain ? UNCERTAIN_LAYOUT_PROMPT : PHOTO_PROMPT },
     // The reading is its own message, never interpolated into the instructions.
     { role: 'user', content: text },
   ], config, fetcher)

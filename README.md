@@ -57,8 +57,9 @@ a database. [Planning](docs/planning.md) covers what that needs.
 | [Fetcher](services/recipeat-fetcher/README.md) | The Python service behind website import |
 | [OCR](services/recipeat-ocr/README.md) | The Python service behind photo import |
 | [Extraction](docs/extraction.md) | The API, the pipeline, the recipe shape |
+| [API map](docs/api-map.md) | Every route, arranged for testing by hand in Postman |
 | [Planning](docs/planning.md) | What is next, and what is still undecided |
-| [Architecture](docs/architecture.svg) | Components, and the login, text and website extraction flows |
+| [Architecture](docs/architecture.svg) | The four containers, their networks, and every request path |
 
 Photography comes from Unsplash and fonts from Google Fonts, so both need
 internet access.

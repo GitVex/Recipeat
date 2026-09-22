@@ -7,7 +7,9 @@ it is TypeScript, the same as the fetcher.
 extraction pipeline, so it is laid out the way the photo was rather than
 concatenated in detection order. `lines` is the same reading broken up, kept
 because a confidence per line is the only signal the Nuxt side has for telling
-a clean scan from a blurry one.
+a clean scan from a blurry one. `layoutUncertain` is the other signal: it says
+the reading may have columns merged into it, which is the one OCR failure the
+model downstream can undo and only if it is told to look.
 
 Nothing here is a RapidOCR type. Boxes, word boxes, the cropped images and the
 per-stage timings all stay in this service; narrowing to these fields is what
@@ -32,6 +34,13 @@ class Line(Wire):
 class Reading(Wire):
     text: str
     lines: list[Line]
+    # Whether `text` may have two columns merged into single lines. The layout
+    # found a boundary it could not tell from an indent, so it left the block
+    # whole — the safe half of the choice, and the half the caller can repair,
+    # because the model reading this can separate an ingredient from a step by
+    # sense where geometry could not by position. False on a page that is
+    # plainly one column, so that the warning stays worth something.
+    layout_uncertain: bool
     # Seconds the three models spent on this image. The photo import path is the
     # slow one; this is what makes it measurable without a stopwatch.
     elapsed: float

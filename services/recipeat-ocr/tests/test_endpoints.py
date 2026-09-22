@@ -43,6 +43,7 @@ def test_reads_lines_in_the_order_the_photo_has_them(client, engine):
     ]
     # Summed across detection, classification and recognition.
     assert body["elapsed"] == pytest.approx(0.3)
+    assert body["layoutUncertain"] is False
 
 
 def test_keeps_boxes_on_one_row_on_one_line(client, engine):
@@ -133,3 +134,25 @@ def test_the_file_field_is_required(client):
     response = client.post("/ocr")
 
     assert response.status_code == 422
+
+
+def test_a_page_whose_columns_could_not_be_separated_says_so(client, engine):
+    """Two columns 12 apart at the left edge: too tight to cut on, close enough
+    that the reading should not be handed on as though it were one column.
+    `layout.py` owns the decision; what is asserted here is that it reaches the
+    wire, because a flag the caller never sees changes no prompt."""
+    engine.answer = output(
+        ("1 Zwiebel", 0.9, box(0, 0, 100, 10)),
+        ("2 Eier", 0.9, box(0, 20, 100, 30)),
+        ("1. Schneiden", 0.9, box(12, 0, 112, 10)),
+        ("2. Braten", 0.9, box(12, 20, 112, 30)),
+    )
+
+    response = client.post("/ocr", files=upload())
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["layoutUncertain"] is True
+    # Left whole rather than guessed at, which is what makes the flag the
+    # caller's problem to solve and not a silent one.
+    assert body["text"] == "1 Zwiebel 1. Schneiden\n2 Eier 2. Braten"
