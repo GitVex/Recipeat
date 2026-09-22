@@ -1,18 +1,18 @@
-# The app is the only one of the four that faces a user, and the only one that
-# has to reach all three services. They publish on loopback, which a container
-# cannot reach, so this joins them over shared networks and addresses each by
-# the alias that service declares.
+# The app faces the user and reaches one service of its own: the fetcher, which
+# publishes on loopback, which a container cannot reach. So they share a network
+# and it is addressed by the alias the fetcher declares.
 #
-# Ollama and the OCR service sit on Coolify's own `coolify` network, which they
-# already join; neither ever opens an outbound connection, so sharing it with
-# the rest of the install costs them little. The fetcher does not: it opens
-# connections to URLs a user supplies and has no SSRF guard, so it gets one
-# network of its own, shared with this app alone.
+# That network is the fetcher's alone rather than Coolify's shared one, because
+# the fetcher opens connections to URLs a user supplies and has no SSRF guard.
 #
 # The remaining cost is stated rather than hidden: on recipeat-fetch-net the
 # fetcher can open connections to this app. Docker does not route between
 # networks, so that is as far as it gets — an SSRF through the fetcher reaches
 # this app's API and nothing else on the host.
+#
+# Extraction itself no longer runs here. The model is Gemini, reached over the
+# internet with NUXT_GEMINI_API_KEY, which is why this is the first of these
+# files to carry a secret.
 name: recipeat-app
 
 services:
@@ -20,7 +20,7 @@ services:
     # Relative to the Compose file's directory. Coolify passes
     # --project-directory, so a resource deploying this file needs Base
     # Directory /docker and Docker Compose Location /compose.app.yaml, the same
-    # as the fetcher and OCR resources.
+    # as the fetcher resource.
     build:
       context: ..
       dockerfile: Dockerfile
@@ -33,14 +33,14 @@ services:
     ports:
       - "127.0.0.1:8100:8100"
     environment:
-      # Container ports, not the host ones: Ollama keeps its own 11434 inside
-      # the container, the other two listen on the port they publish. The names
-      # are aliases the service files declare — ollama and recipeat-ocr on the
-      # coolify network, recipeat-fetcher on recipeat-fetch-net — so Coolify
-      # renaming containers does not break them.
-      NUXT_OLLAMA_BASE_URL: "http://ollama:11434"
-      NUXT_OCR_BASE_URL: "http://recipeat-ocr:8102"
+      # The container port, not the host one, and the alias the fetcher file
+      # declares on recipeat-fetch-net — so Coolify renaming containers does
+      # not break it.
       NUXT_FETCHER_BASE_URL: "http://recipeat-fetcher:8103"
+      # Extraction for both the text and photo routes. Billing must be enabled
+      # on the Google project: the free tier is not licensed for an API client
+      # serving users in the EEA, and its quota would not carry this anyway.
+      NUXT_GEMINI_API_KEY: ${NUXT_GEMINI_API_KEY:?required}
       # Zitadel. The redirect URIs must be this deployment's public URL, not the
       # localhost:8100 a checkout defaults to, and must match the application
       # registered in Zitadel character for character.
@@ -57,12 +57,12 @@ services:
       - app-data:/app/.data
     cpus: 1.0
     # SSR and the extraction handlers, which stream rather than buffer. The
-    # photo route holds one upload in memory, capped at the OCR service's 10 MB.
+    # photo route holds one upload in memory at MAX_PHOTO_BYTES, plus its base64
+    # copy on the way out to the model.
     mem_limit: 512m
     memswap_limit: 512m
     networks:
       - default
-      - coolify
       - fetch
     logging:
       driver: json-file
@@ -71,11 +71,6 @@ services:
         max-file: "3"
 
 networks:
-  # Coolify's shared network, which every resource with "Connect To Predefined
-  # Network" enabled already joins. Outside Coolify, create it once:
-  # docker network create coolify
-  coolify:
-    external: true
   # The only network these files ask you to create:
   #
   #   docker network create recipeat-fetch-net

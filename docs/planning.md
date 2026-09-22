@@ -3,9 +3,9 @@
 Where Recipeat is, what comes next, and which decisions are still open.
 
 ```
-text ────────────▶ model ──┐
-photo ─▶ OCR ─────▶ model ─┼─▶ validate ─▶ normalize ─▶ [ store ] ─▶ [ collection UI ]
-url ─────────────▶ fetcher ┘
+text ──────▶ model ──┐
+photo ─────▶ model ──┼─▶ validate ─▶ normalize ─▶ [ store ] ─▶ [ collection UI ]
+url ──────▶ fetcher ─┘
    ══════════════════ done ════════════════════════════   ▲ next
 ```
 
@@ -15,13 +15,12 @@ url ─────────────▶ fetcher ┘
 |---|---|
 | Landing page, recipe demo | Done; collection is browser-local, not per account |
 | Zitadel login | Done |
-| Ollama on the VPS | Done |
+| Extraction model | Done; Gemini, billed per page. Was a self-hosted Ollama until the photo path needed a model that could read a page |
 | `POST /api/extract/text` | Done; returns a recipe, stores nothing |
 | Storage | Not started — no database, driver, or migration |
 | Import UI wired to the API | Not started — the dialog still shows samples |
 | Website import | Done; returns a recipe, stores nothing. No SSRF guard yet |
-| Photo import | Done; OCR then the model, returns a recipe, stores nothing. The image itself is discarded |
-| OCR service | Done; own Compose project, models in the wheel so it never calls out. Nothing stops it from calling out |
+| Photo import | Done; the model reads the photo directly, returns a recipe, stores nothing. The image itself is discarded |
 
 ## Next: storage
 
@@ -63,7 +62,7 @@ retrieval time, and a photo import its object key. The `RecipeSource` union
 already exists in code; each extraction modality builds its own, since only it
 knows where the recipe came from.
 
-Work involved: a Postgres service alongside the Ollama compose file, a
+Work involved: a Postgres service of its own under `docker/`, a
 connection URL in `runtimeConfig`, a driver (`postgres` handles JSONB natively
 and needs no query builder here), a real `.sql` migration, and `owner_sub` read
 from the session.
@@ -98,12 +97,11 @@ demo does.
 **Photo import: the image itself.** Extraction works, but nothing keeps the
 photo. `source.objectKey` is null because there is nowhere to put it, and a
 recipe imported from a photo therefore cannot show the photo. That needs object
-storage and a downsampled derivative — the OCR service already scales to 2000
-pixels for its own reading, but it returns text, not an image.
+storage and a downsampled derivative. Nothing downsamples today: the upload is
+forwarded to the model as it arrived.
 
-The 4m argument for a job and a poll is gone with the vision model: OCR reads a
-photo in about a second and the model then sees text, so the path costs what the
-text path costs.
+The argument for a job and a poll is gone either way — a photo is read in five
+to nine seconds, which is the whole request.
 
 **Translation.** `source_lang` is recorded but there is nowhere to put a
 translation. Either a `translations JSONB` keyed by language tag, or a
@@ -111,21 +109,16 @@ translation. Either a `translations JSONB` keyed by language tag, or a
 
 ## Known rough edges
 
-- **Timeout versus large sources.** The request timeout is five minutes, and a
-  full 20 000-character paste may still exceed it. Raising the timeout makes it
-  succeed but leaves a browser hanging for ten minutes, which is the real
-  argument for the job-and-poll design. Only the text a source yields decides
-  this now: neither website nor photo import sends the model anything but text,
-  and a photo's reading is capped at the same 20 000 characters.
-- **A photo of several pages.** The reading is rejected at 413 over 20 000
-  characters, which is the model's ceiling rather than the photographer's
-  mistake. Splitting a long reading across requests, or paging through it, is
-  the same problem as long pasted text and wants the same answer.
-- **OCR quality is invisible to the app.** Every line comes back with a
-  confidence, and `POST /api/extract/photo` drops all of it: only the recipe is
-  returned. A blurry scan and a clean one are indistinguishable downstream,
-  where showing the reading beside the result would make a bad extraction
-  obvious. `extractPhoto` already returns the text for this.
+- **A photo of several pages.** `MAX_PHOTO_BYTES` is a size limit, not a page
+  count, and nothing rejects a photograph of a spread. What comes back is one
+  recipe assembled out of two, which is worse than a refusal because it looks
+  like a result.
+- **How well the page was read is invisible to the app.** The model returns a
+  recipe and nothing about its own confidence, so a blurry photo and a clean
+  one are indistinguishable downstream. The OCR service used to give a
+  per-line confidence that was also dropped; now there is nothing to drop.
+  Showing the source line beside each ingredient is the affordance that
+  survives — `originalText` is already stored for exactly that.
 - **No SSRF guard.** The fetcher resolves no addresses and follows a redirect
   wherever it points, so a URL given to it reaches anything its container can.
   It runs as its own Compose project to keep that blast radius small, which is
@@ -136,9 +129,10 @@ translation. Either a `translations JSONB` keyed by language tag, or a
   disagree nothing throws — `normalizeRecipe` simply stops linking a step's
   amount to the ingredient it restates. A test reading the service's unit map
   is what keeps them honest.
-- **Concurrency.** `OLLAMA_NUM_PARALLEL` is 1 and nothing queues in front of it,
-  so a second user waits with no feedback. An in-process mutex should either
-  queue or return 429.
+- **Rate limits are someone else's now.** Nothing queues in front of the model,
+  and a burst answers 503 from `gemini.ts` rather than waiting. That is better
+  than the single-slot Ollama it replaced, but the app still shows the user a
+  failure where a retry would do.
 - **Unit ambiguity.** `cup`, `tbsp`, `tsp` and `fl_oz` are stored unresolved
   because a line cannot say whether it means US or metric. Display has to pick,
   probably from `source_lang`. `c` is disambiguated by magnitude: below 90 it is
@@ -149,7 +143,13 @@ translation. Either a `translations JSONB` keyed by language tag, or a
 - **Dedupe.** Re-importing the same URL will create a second row. A partial
   unique index on `(owner_sub, (source->>'url'))` would catch it, and the
   canonical URL the fetcher returns is the better key to store there.
-- **Model tag.** `qwen3.5:2b` is pulled and requested by name in two places,
-  `RECIPEAT_MODEL` in the Compose file and `runtimeConfig.ollamaModel`. Confirm
-  a tag exists before changing it; a failed pull now leaves the container
-  serving but never healthy, which is visible but still not blocking.
+- **Extraction leaves the host.** Every text and photo import is a request to
+  Google. The fetcher already reaches the internet, but it reaches a page the
+  user named; this sends the user's own recipes. Billing is required rather
+  than optional: the free tier is not licensed for an API client serving users
+  in the EEA.
+- **Step numbering comes back inside the step.** The model returns
+  `"1. Gurken längsweise vierteln."`, numbering included, and at least one page
+  folded two steps into one and left a gap in the sequence. Worth deciding
+  whether the prompt should strip the numbers or the UI should stop adding
+  its own.

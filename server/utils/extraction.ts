@@ -2,22 +2,17 @@
 // input and builds its own messages; validation and normalization are shared:
 // read -> extract -> parseExtraction -> normalizeRecipe.
 export { MAX_TEXT_LENGTH, readExtractionText, validateText } from '../extraction/text.ts'
-export { askOllama, extractText, SYSTEM_PROMPT, type OllamaConfig, type OllamaMessage } from '../extraction/ollama.ts'
-export { extractPhoto, MAX_PHOTO_BYTES, readExtractionPhoto, type OcrConfig, type Photo } from '../extraction/photo.ts'
+export { MAX_PHOTO_BYTES, readExtractionPhoto, type Photo } from '../extraction/photo.ts'
 export { extractWebsite, readExtractionUrl, validateUrl, type FetcherConfig } from '../extraction/website.ts'
-// The replacements for the `ollama.ts` and `photo.ts` lines above, standing
-// alongside rather than over the top while both are measurable. Gemini reads a
-// photograph itself, so
-// its photo path needs no OCR service and no layout of ours; its text path
-// differs from Ollama's only in transport. The `ViaGemini` names exist so the
-// two can be compared in one process — when Ollama and the OCR service go, the
-// aliases go with them and these become `extractText` and `extractPhoto`.
+// Both model-backed modalities. The photo path sends the photograph itself, so
+// there is no reading step between the page and the recipe and nothing that has
+// to decide the page's layout first.
 export {
   askGemini,
-  extractPhoto as extractPhotoViaGemini,
-  extractText as extractTextViaGemini,
+  extractPhoto,
+  extractText,
   PHOTO_PROMPT,
-  SYSTEM_PROMPT as GEMINI_SYSTEM_PROMPT,
+  SYSTEM_PROMPT,
   type GeminiConfig,
   type Part,
 } from '../extraction/gemini.ts'

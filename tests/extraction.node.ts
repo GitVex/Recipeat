@@ -3,11 +3,10 @@ import { test } from 'node:test'
 import { createServer } from 'node:http'
 import { readFileSync } from 'node:fs'
 import { createApp, defineEventHandler, readRawBody, toNodeListener, toWebHandler } from 'h3'
-import { extractPhoto, extractPhotoViaGemini, extractText, extractTextViaGemini, extractWebsite, isUnit, normalizeRecipe, parseExtraction, parseQuantity, readExtractionPhoto, readExtractionText, unitInfo, validateText, validateUrl } from '../server/utils/extraction.ts'
+import { extractPhoto, extractText, extractWebsite, isUnit, normalizeRecipe, parseExtraction, parseQuantity, readExtractionPhoto, readExtractionText, unitInfo, validateText, validateUrl } from '../server/utils/extraction.ts'
 
 const bread = { originalText: '1 slice bread', quantity: '1 slice', name: 'bread' }
 const recipe = { title: 'Toast', source_lang: 'en', portions: 1, ingredients: [bread], steps: ['Toast the bread.'] }
-const config = { ollamaBaseUrl: 'http://ollama:11434/', ollamaModel: 'test-model' }
 const textSource = { type: 'text', originalText: 'source' } as const
 const status = (statusCode: number) => (error: unknown) => (error as { statusCode: number }).statusCode === statusCode
 
@@ -200,34 +199,6 @@ test('a parsed amount wins over the text and still links to the step restating i
   assert.deepEqual(fromText.ingredients[0]!.quantity, { value: 2, maxValue: null, unit: 'cup' })
 })
 
-test('Ollama request uses server config, structured output and separate source message', async () => {
-  const fetcher: typeof fetch = async (url, init) => {
-    assert.equal(url, 'http://ollama:11434/api/chat')
-    const body = JSON.parse(init!.body as string)
-    assert.equal(body.model, 'test-model')
-    assert.equal(body.stream, false)
-    assert.equal(body.think, false)
-    assert.equal(body.format.type, 'object')
-    // Bounded string/array repetitions can prevent llama.cpp from compiling
-    // the grammar at all. These limits belong in response validation.
-    assert.doesNotMatch(JSON.stringify(body.format), /"(?:maxLength|minLength|maxItems|minItems)"/)
-    // Property order is generation order under a grammar: the line is copied
-    // verbatim before anything is taken out of it.
-    assert.deepEqual(Object.keys(body.format.properties.ingredients.items.properties), ['originalText', 'quantity', 'name', 'extra'])
-    assert.ok('totalTime' in body.format.properties)
-    // Nothing only a page can supply. The model is not asked to invent one,
-    // and a parsed amount is the fetcher's to send, never the model's.
-    for (const absent of ['image', 'parsedQuantity', 'canonicalUrl', 'siteName']) {
-      assert.doesNotMatch(JSON.stringify(body.format), new RegExp(absent), absent)
-    }
-    assert.deepEqual(body.messages[1], { role: 'user', content: 'original source' })
-    assert.ok(init?.signal)
-    return Response.json({ done: true, message: { content: JSON.stringify(recipe) } })
-  }
-  const result = await extractText('original source', config, fetcher)
-  assert.equal(result.recipe.title, 'Toast')
-})
-
 test('oversized fields are clamped to storage limits instead of failing', () => {
   const long = parseExtraction({
     ...recipe,
@@ -245,21 +216,6 @@ test('oversized fields are clamped to storage limits instead of failing', () => 
   const exact = parseExtraction({ ...recipe, ingredients: [{ ...bread, originalText: 'x'.repeat(2000) }], steps: ['x'.repeat(5000)] }, textSource)
   assert.equal(exact.ingredients[0].originalText.length, 2000)
   assert.equal(exact.steps[0].originalText.length, 5000)
-})
-
-test('upstream failures, malformed JSON and truncated answers become sanitized errors', async () => {
-  const responses = [new Response('private upstream details', { status: 500 }), Response.json({ done: true, message: { content: '{' } }), Response.json({ done: true, done_reason: 'length', message: { content: JSON.stringify(recipe) } })]
-  for (const response of responses) {
-    await assert.rejects(extractText('source', config, async () => response), status(502))
-  }
-  await assert.rejects(extractText('source', config, async () => { throw new Error('secret host') }), status(502))
-})
-
-test('connection failures and upstream HTTP errors provide distinct diagnostics', async () => {
-  await assert.rejects(extractText('source', config, async () => { throw new TypeError('fetch failed') }),
-    error => status(502)(error) && /Could not connect to Ollama/.test((error as Error).message))
-  await assert.rejects(extractText('source', config, async () => new Response('private upstream details', { status: 404 })),
-    error => status(502)(error) && /Ollama returned HTTP 404/.test((error as Error).message) && !/private/.test((error as Error).message))
 })
 
 const page = {
@@ -426,91 +382,6 @@ test('body reader reuses a native request body already read by middleware', asyn
   }
 })
 
-const ocrConfig = { ...config, ocrBaseUrl: 'http://recipeat-ocr:8102/' }
-const photo = { data: new Uint8Array([1, 2, 3]), filename: 'page.jpg', type: 'image/jpeg' }
-const reading = { text: '1 slice bread\n\nToast the bread.', lines: [{ text: '1 slice bread', confidence: 0.9 }], elapsed: 0.9 }
-// The model answers the OCR text, not the image.
-const modelled = (draft: unknown): typeof fetch => async (url) =>
-  String(url).includes('/ocr') ? Response.json(reading) : Response.json({ message: { content: JSON.stringify(draft) } })
-
-test('photo extraction reads the image, then the text, and records the filename', async () => {
-  const seen: { url: string, body: unknown }[] = []
-  const fetcher: typeof fetch = async (url, init) => {
-    seen.push({ url: String(url), body: init!.body })
-    if (String(url).includes('/ocr')) return Response.json(reading)
-    return Response.json({ message: { content: JSON.stringify(recipe) } })
-  }
-
-  const { recipe: result, text } = await extractPhoto(photo, ocrConfig, fetcher)
-
-  assert.equal(seen[0]!.url, 'http://recipeat-ocr:8102/ocr')
-  // The image goes to OCR as a multipart upload, and never to Ollama at all.
-  assert.ok(seen[0]!.body instanceof FormData)
-  const sent = (seen[0]!.body as FormData).get('file') as File
-  assert.equal(sent.name, 'page.jpg')
-  assert.equal(sent.type, 'image/jpeg')
-  assert.equal(sent.size, 3)
-
-  assert.equal(seen[1]!.url, 'http://ollama:11434/api/chat')
-  const messages = JSON.parse(seen[1]!.body as string).messages
-  assert.equal(messages.length, 2)
-  assert.equal(messages[1].content, reading.text)
-  assert.ok(!('images' in messages[1]), 'the photo is not sent to the model')
-  assert.match(messages[0].content, /read from a photograph by OCR/)
-
-  assert.equal(text, reading.text)
-  assert.equal(result.title, 'Toast')
-  assert.deepEqual(result.source, { type: 'photo', objectKey: null, originalFilename: 'page.jpg' })
-})
-
-test('a photo without a usable filename still extracts', async () => {
-  const { recipe: result } = await extractPhoto({ ...photo, filename: null, type: null }, ocrConfig, modelled(recipe))
-  assert.deepEqual(result.source, { type: 'photo', objectKey: null, originalFilename: null })
-})
-
-test('a reading the OCR service could not lay out asks the model to find the seam', async () => {
-  const promptFor = async (reading: unknown) => {
-    let system = ''
-    await extractPhoto(photo, ocrConfig, async (url, init) => {
-      if (String(url).includes('/ocr')) return Response.json(reading)
-      system = JSON.parse(init!.body as string).messages[0].content
-      return Response.json({ message: { content: JSON.stringify(recipe) } })
-    })
-    return system
-  }
-
-  const warned = /columns on this page could not be separated/
-  assert.match(await promptFor({ ...reading, layoutUncertain: true }), warned)
-  // Withheld on a page the service was sure about, and on one from a service
-  // too old to have an opinion — both of which laid the page out confidently.
-  assert.doesNotMatch(await promptFor({ ...reading, layoutUncertain: false }), warned)
-  assert.doesNotMatch(await promptFor(reading), warned)
-})
-
-test('OCR failures become the status the caller should see', async () => {
-  const extract = (fetcher: typeof fetch) => extractPhoto(photo, ocrConfig, fetcher)
-
-  // A detail from the OCR service is a message we wrote about the caller's own
-  // upload, so it is passed on rather than replaced with something vaguer.
-  await assert.rejects(extract(served({ detail: 'No text could be read from that image.' }, { status: 422 })),
-    error => status(422)(error) && /No text could be read/.test((error as Error).message))
-  // Unlike the website path, 415 keeps its meaning: the body really is the photo.
-  await assert.rejects(extract(served({ detail: 'That file is not an image this service can read.' }, { status: 415 })),
-    error => status(415)(error) && /not an image/.test((error as Error).message))
-  await assert.rejects(extract(served({ detail: 'That image is too large to read.' }, { status: 413 })), status(413))
-  await assert.rejects(extract(async () => { throw new TypeError('fetch failed') }),
-    error => status(502)(error) && /Could not connect to the OCR service/.test((error as Error).message))
-  await assert.rejects(extract(async () => { throw Object.assign(new Error('slow'), { name: 'TimeoutError' }) }), status(504))
-  await assert.rejects(extract(async () => new Response('not json', { status: 200 })), status(502))
-  // A reading with no text in it is the service's problem, not the caller's.
-  await assert.rejects(extract(served({ ...reading, text: '   ' })), status(502))
-  // The model's own ceiling, reached by a photo of a stack of pages.
-  await assert.rejects(extract(served({ ...reading, text: 'x'.repeat(20_001) })), status(413))
-  // An unreadable photo is not an extraction failure, and says so in its terms.
-  await assert.rejects(extract(modelled({ ...recipe, ingredients: [], steps: [] })),
-    error => status(422)(error) && /in that photo/.test((error as Error).message))
-})
-
 test('photo upload reader enforces content type, the file part and its size', async () => {
   const app = createApp().use(defineEventHandler(async event => {
     const { data, filename, type } = await readExtractionPhoto(event)
@@ -542,12 +413,12 @@ test('photo upload reader enforces content type, the file part and its size', as
   }
 })
 
-// --- Gemini -----------------------------------------------------------------
-// The transport that replaces Ollama and the OCR service both. Nothing here
-// reaches Google: what is asserted is the request this builds and how someone
-// else's failure is turned into a status the caller should see.
+// --- The model ---------------------------------------------------------------
+// Nothing here reaches Google: what is asserted is the request this builds and
+// how someone else's failure is turned into a status the caller should see.
 
 const geminiConfig = { geminiApiKey: 'test-key', geminiModel: 'gemini-3.8-flash' }
+const photo = { data: new Uint8Array([1, 2, 3]), filename: 'page.jpg', type: 'image/jpeg' }
 const interaction = (draft: unknown, status = 'completed') => ({
   status,
   steps: [
@@ -558,14 +429,14 @@ const interaction = (draft: unknown, status = 'completed') => ({
 })
 const answered = (draft: unknown): typeof fetch => async () => Response.json(interaction(draft))
 
-test('gemini text extraction sends the source as its own part, under the schema', async () => {
+test('text extraction sends the source as its own part, under the schema', async () => {
   let seen: { url: string, headers: Headers, body: any } | null = null
   const fetcher: typeof fetch = async (url, init) => {
     seen = { url: String(url), headers: new Headers(init!.headers), body: JSON.parse(init!.body as string) }
     return Response.json(interaction(recipe))
   }
 
-  const { recipe: result } = await extractTextViaGemini('1 slice bread', geminiConfig, fetcher)
+  const { recipe: result } = await extractText('1 slice bread', geminiConfig, fetcher)
 
   assert.equal(seen!.url, 'https://generativelanguage.googleapis.com/v1beta/interactions')
   assert.equal(seen!.headers.get('x-goog-api-key'), 'test-key')
@@ -586,7 +457,7 @@ test('gemini text extraction sends the source as its own part, under the schema'
   assert.deepEqual(result.source, { type: 'text', originalText: '1 slice bread' })
 })
 
-test('gemini photo extraction sends the image itself and calls nothing else', async () => {
+test('photo extraction sends the image itself and calls nothing else', async () => {
   const calls: string[] = []
   const fetcher: typeof fetch = async (url, init) => {
     calls.push(String(url))
@@ -597,7 +468,7 @@ test('gemini photo extraction sends the image itself and calls nothing else', as
     return Response.json(interaction(recipe))
   }
 
-  const { recipe: result } = await extractPhotoViaGemini(photo, geminiConfig, fetcher)
+  const { recipe: result } = await extractPhoto(photo, geminiConfig, fetcher)
 
   // One call, to Gemini. No OCR service exists on this path.
   assert.deepEqual(calls, ['https://generativelanguage.googleapis.com/v1beta/interactions'])
@@ -606,15 +477,15 @@ test('gemini photo extraction sends the image itself and calls nothing else', as
 
 test('a photo with no declared type is still sent with a mime type', async () => {
   let mime = ''
-  await extractPhotoViaGemini({ ...photo, type: null }, geminiConfig, async (_url, init) => {
+  await extractPhoto({ ...photo, type: null }, geminiConfig, async (_url, init) => {
     mime = JSON.parse(init!.body as string).input[0].mime_type
     return Response.json(interaction(recipe))
   })
   assert.equal(mime, 'image/jpeg')
 })
 
-test('gemini failures become the status the caller should see', async () => {
-  const extract = (fetcher: typeof fetch) => extractTextViaGemini('source', geminiConfig, fetcher)
+test('failures become the status the caller should see', async () => {
+  const extract = (fetcher: typeof fetch) => extractText('source', geminiConfig, fetcher)
 
   // Our credentials, not the caller's problem — and the body never reaches them.
   await assert.rejects(extract(served({ error: { message: 'API key not valid' } }, { status: 403 })),

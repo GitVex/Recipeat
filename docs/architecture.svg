@@ -25,19 +25,19 @@
   <rect x="0" y="0" width="1240" height="1240" fill="#fbfaf8"/>
 
   <text x="44" y="48" font-size="25" font-weight="650" fill="#23201c">Recipeat backend</text>
-  <text x="44" y="73" font-size="13.5" fill="#6f685e">Four containers, and every request path through them, as deployed today. Ports are host-side. Dashed grey is planned, not written.</text>
+  <text x="44" y="73" font-size="13.5" fill="#6f685e">Two containers, and every request path through them, as deployed today. Ports are host-side. Dashed grey is planned, not written.</text>
 
   <!-- ============================ clients ============================ -->
   <rect x="44" y="100" width="1152" height="76" rx="10" fill="#ffffff" stroke="#ddd8d0" stroke-width="1.5"/>
   <text x="68" y="126" font-size="13.5" font-weight="650" fill="#23201c">Browser · Postman</text>
   <text x="68" y="147" font-size="11.5" fill="#6f685e">The five app routes are the whole public surface. Four of them need the session cookie, and only the OIDC login flow can mint one.</text>
-  <text x="68" y="165" font-size="11.5" fill="#6f685e">The three services underneath are unauthenticated and published on loopback only — an SSH tunnel is the sole way in from outside.</text>
+  <text x="68" y="165" font-size="11.5" fill="#6f685e">The fetcher underneath is unauthenticated and published on loopback only — an SSH tunnel is the sole way in from outside.</text>
 
   <!-- ============================ server ============================= -->
   <rect x="44" y="206" width="1152" height="656" rx="12" fill="#ffffff" stroke="#cfc8bd" stroke-width="2"/>
   <text x="68" y="238" font-size="14.5" font-weight="650" fill="#23201c">Nuxt 4 · Nitro server</text>
   <text x="228" y="238" font-size="11.5" fill="#8d857a">recipeat-app · listens on 8100 · published 127.0.0.1:8100</text>
-  <text x="68" y="256" font-size="11" fill="#a39a8d" font-family="ui-monospace, Consolas, monospace">runtimeConfig: ollamaBaseUrl · ollamaModel · ocrBaseUrl · fetcherBaseUrl        env: NUXT_OIDC_*</text>
+  <text x="68" y="256" font-size="11" fill="#a39a8d" font-family="ui-monospace, Consolas, monospace">runtimeConfig: geminiApiKey · geminiModel · fetcherBaseUrl        env: NUXT_GEMINI_API_KEY · NUXT_OIDC_*</text>
 
   <!-- auth module -->
   <rect x="68" y="274" width="286" height="102" rx="8" fill="#f4eef7" stroke="#a98bbb" stroke-width="1.3"/>
@@ -58,14 +58,14 @@
   <text x="562" y="298" font-size="10.5" font-weight="650" fill="#1f4430" font-family="ui-monospace, Consolas, monospace">POST /api/extract/text</text>
   <text x="562" y="320" font-size="11" fill="#3c6350">Pasted text, read by the model</text>
   <text x="562" y="339" font-size="11" fill="#3c6350">{ text } · max 20 000 chars</text>
-  <text x="562" y="360" font-size="10" fill="#3c6350" font-family="ui-monospace, Consolas, monospace">401 415 400 413 422 502 504</text>
+  <text x="562" y="360" font-size="9.5" fill="#3c6350" font-family="ui-monospace, Consolas, monospace">401 415 400 413 422 502 503 504</text>
 
   <!-- extract photo -->
   <rect x="760" y="274" width="200" height="102" rx="8" fill="#fbf0e6" stroke="#d4a373" stroke-width="1.3"/>
   <text x="778" y="298" font-size="10.5" font-weight="650" fill="#6b4423" font-family="ui-monospace, Consolas, monospace">POST /api/extract/photo</text>
-  <text x="778" y="320" font-size="11" fill="#8a5a2b">A photo, read by OCR then the model</text>
+  <text x="778" y="320" font-size="11" fill="#8a5a2b">A photo, read by the model</text>
   <text x="778" y="339" font-size="11" fill="#8a5a2b">multipart file · max 10 MB</text>
-  <text x="778" y="360" font-size="10" fill="#8a5a2b" font-family="ui-monospace, Consolas, monospace">401 415 400 413 422 502 504</text>
+  <text x="778" y="360" font-size="9.5" fill="#8a5a2b" font-family="ui-monospace, Consolas, monospace">401 415 400 413 422 502 503 504</text>
 
   <!-- extract website -->
   <rect x="976" y="274" width="196" height="102" rx="8" fill="#e7f1f4" stroke="#74a5b2" stroke-width="1.3"/>
@@ -105,10 +105,10 @@
   <text x="562" y="592" font-size="10.5" fill="#3c6350">source: type "text"</text>
 
   <rect x="760" y="510" width="200" height="94" rx="8" fill="#fbf0e6" stroke="#d4a373" stroke-width="1.3"/>
-  <text x="778" y="533" font-size="11" font-weight="650" fill="#6b4423" font-family="ui-monospace, Consolas, monospace">extractPhoto → askOcr</text>
-  <text x="778" y="554" font-size="10.5" fill="#8a5a2b">The reading becomes the user</text>
-  <text x="778" y="572" font-size="10.5" fill="#8a5a2b">message. No image reaches Ollama.</text>
-  <text x="778" y="592" font-size="10.5" fill="#8a5a2b" font-family="ui-monospace, Consolas, monospace">→ recipeat-ocr · 2 min</text>
+  <text x="778" y="533" font-size="11" font-weight="650" fill="#6b4423" font-family="ui-monospace, Consolas, monospace">extractPhoto</text>
+  <text x="778" y="554" font-size="10.5" fill="#8a5a2b">The photograph is the user part.</text>
+  <text x="778" y="572" font-size="10.5" fill="#8a5a2b">Nothing on this side decodes it.</text>
+  <text x="778" y="592" font-size="10.5" fill="#8a5a2b">source: type "photo"</text>
 
   <rect x="976" y="510" width="196" height="94" rx="8" fill="#e7f1f4" stroke="#74a5b2" stroke-width="1.3"/>
   <text x="994" y="533" font-size="11" font-weight="650" fill="#1b4551" font-family="ui-monospace, Consolas, monospace">extractWebsite</text>
@@ -116,12 +116,12 @@
   <text x="994" y="572" font-size="10.5" fill="#35707f">checks the links it is given</text>
   <text x="994" y="592" font-size="10.5" fill="#35707f" font-family="ui-monospace, Consolas, monospace">→ recipeat-fetcher · 60s</text>
 
-  <!-- askOllama, shared by text and photo -->
+  <!-- askGemini, shared by text and photo -->
   <rect x="544" y="634" width="416" height="80" rx="8" fill="#dfeee5" stroke="#5f9a78" stroke-width="1.4"/>
-  <text x="562" y="658" font-size="11.5" font-weight="650" fill="#1f4430" font-family="ui-monospace, Consolas, monospace">askOllama</text>
-  <text x="656" y="658" font-size="10.5" fill="#3c6350">— the transport, shared by both modalities above</text>
-  <text x="562" y="679" font-size="10.5" fill="#3c6350">One /api/chat call: stream false, think false, temperature 0, schema in format.</text>
-  <text x="562" y="697" font-size="10.5" fill="#3c6350">A truncated answer is rejected even when it parses. 502 · 504 · 5 min timeout</text>
+  <text x="562" y="658" font-size="11.5" font-weight="650" fill="#1f4430" font-family="ui-monospace, Consolas, monospace">askGemini</text>
+  <text x="652" y="658" font-size="10.5" fill="#3c6350">— the transport, shared by both modalities above</text>
+  <text x="562" y="679" font-size="10.5" fill="#3c6350">One /v1beta/interactions call: temperature 0, thinking low, store false.</text>
+  <text x="562" y="697" font-size="10.5" fill="#3c6350">Schema in response_format. A status that is not completed is rejected. 60s.</text>
 
   <!-- shared tail -->
   <rect x="544" y="744" width="304" height="88" rx="8" fill="#f6f4f1" stroke="#c6bdb0" stroke-width="1.2"/>
@@ -141,61 +141,53 @@
   <text x="68" y="546" font-size="11" fill="#6f685e">A modality reads its own input and records its own source;</text>
   <text x="68" y="564" font-size="11" fill="#6f685e">everything below that is shared. One barrel, at</text>
   <text x="68" y="582" font-size="11" fill="#6f685e" font-family="ui-monospace, Consolas, monospace">server/utils/extraction.ts</text>
-  <text x="68" y="612" font-size="11" fill="#6f685e">The website path never reaches the model. recipe-scrapers</text>
-  <text x="68" y="630" font-size="11" fill="#6f685e">and ingredient-parser read the page deterministically,</text>
-  <text x="68" y="648" font-size="11" fill="#6f685e">which is why it costs seconds where the others cost minutes.</text>
-  <text x="68" y="678" font-size="11" fill="#6f685e">Nothing is stored. An extraction can be previewed before it</text>
-  <text x="68" y="696" font-size="11" fill="#6f685e">is kept, and a photo is never written to disk.</text>
-  <text x="68" y="726" font-size="11" fill="#6f685e">Every failure is fail(status, message, cause). The cause —</text>
-  <text x="68" y="744" font-size="11" fill="#6f685e">upstream bodies, host names, stack traces — is logged by</text>
-  <text x="68" y="762" font-size="11" fill="#6f685e">Nitro and never serialized to the client.</text>
-  <text x="68" y="792" font-size="11" fill="#8d857a">Measured containerized on a developer machine: a pasted</text>
-  <text x="68" y="810" font-size="11" fill="#8d857a">recipe 1m 29s, the same page as a photo 1m 36s, of which</text>
-  <text x="68" y="828" font-size="11" fill="#8d857a">OCR is 3.5s. The model is very nearly the whole cost.</text>
+  <text x="68" y="610" font-size="11" fill="#6f685e">The website path never reaches the model. recipe-scrapers</text>
+  <text x="68" y="628" font-size="11" fill="#6f685e">and ingredient-parser read the page deterministically,</text>
+  <text x="68" y="646" font-size="11" fill="#6f685e">in milliseconds rather than seconds, and always the same way.</text>
+  <text x="68" y="674" font-size="11" fill="#6f685e">Nothing is stored. An extraction can be previewed before it</text>
+  <text x="68" y="692" font-size="11" fill="#6f685e">is kept, and a photo is never written to disk.</text>
+  <text x="68" y="720" font-size="11" fill="#6f685e">Every failure is fail(status, message, cause). The cause —</text>
+  <text x="68" y="738" font-size="11" fill="#6f685e">upstream bodies, host names, stack traces — is logged by</text>
+  <text x="68" y="756" font-size="11" fill="#6f685e">Nitro and never serialized to the client.</text>
+  <text x="68" y="784" font-size="11" fill="#8d857a">Measured over ten photographs of handwritten cards: 4.5–9.0s</text>
+  <text x="68" y="802" font-size="11" fill="#8d857a">each, about $4.66 per 1 000 pages. The self-hosted pipeline</text>
+  <text x="68" y="820" font-size="11" fill="#8d857a">this replaced — an OCR container plus qwen3.5:2b — took 22 to</text>
+  <text x="68" y="838" font-size="11" fill="#8d857a">88s a page and returned no quantities at all.</text>
 
   <!-- ========================== infrastructure ======================== -->
-  <rect x="44" y="916" width="264" height="172" rx="10" fill="#f4eef7" stroke="#a98bbb" stroke-width="1.4"/>
+  <rect x="44" y="916" width="360" height="172" rx="10" fill="#f4eef7" stroke="#a98bbb" stroke-width="1.4"/>
   <text x="62" y="940" font-size="12.5" font-weight="650" fill="#4a3356">Zitadel</text>
   <text x="62" y="960" font-size="10.5" fill="#6b5a78" font-family="ui-monospace, Consolas, monospace">auth.bardicinspiration.cc</text>
   <text x="62" y="981" font-size="11" fill="#6b5a78">Hosted login · discovery · JWKS</text>
   <text x="62" y="999" font-size="11" fill="#6b5a78">Token endpoint · userinfo</text>
-  <text x="62" y="1026" font-size="11" fill="#8a7a96">Not ours, and not a container.</text>
-  <text x="62" y="1044" font-size="11" fill="#8a7a96">Reached over the internet, and the</text>
-  <text x="62" y="1062" font-size="11" fill="#8a7a96">only upstream the browser also sees.</text>
+  <text x="62" y="1026" font-size="11" fill="#8a7a96">Not ours, and not a container. Reached over</text>
+  <text x="62" y="1044" font-size="11" fill="#8a7a96">the internet, and the only upstream the</text>
+  <text x="62" y="1062" font-size="11" fill="#8a7a96">browser also sees.</text>
 
-  <rect x="324" y="916" width="264" height="172" rx="10" fill="#e8f2ea" stroke="#77a889" stroke-width="1.4"/>
-  <text x="342" y="940" font-size="12.5" font-weight="650" fill="#1f4430">ollama</text>
-  <text x="342" y="960" font-size="10.5" fill="#3c6350" font-family="ui-monospace, Consolas, monospace">127.0.0.1:8101 → 11434</text>
-  <text x="342" y="981" font-size="11" fill="#3c6350">POST /api/chat · GET /api/tags</text>
-  <text x="342" y="999" font-size="11" fill="#3c6350">qwen3.5:2b · ctx 16384 · parallel 1</text>
-  <text x="342" y="1017" font-size="11" fill="#3c6350">4 CPU / 8 GB · keep-alive 5m</text>
-  <text x="342" y="1044" font-size="11" fill="#6f9a80">The upstream image keeps its own</text>
-  <text x="342" y="1062" font-size="11" fill="#6f9a80">11434 inside; only the host port moved.</text>
+  <rect x="428" y="916" width="360" height="172" rx="10" fill="#e8f2ea" stroke="#77a889" stroke-width="1.4"/>
+  <text x="446" y="940" font-size="12.5" font-weight="650" fill="#1f4430">Gemini</text>
+  <text x="446" y="960" font-size="10" fill="#3c6350" font-family="ui-monospace, Consolas, monospace">generativelanguage.googleapis.com</text>
+  <text x="446" y="981" font-size="11" fill="#3c6350">POST /v1beta/interactions</text>
+  <text x="446" y="999" font-size="11" fill="#3c6350">gemini-3.8-flash · text and photo both</text>
+  <text x="446" y="1017" font-size="11" fill="#3c6350">~1 060 image tokens a page · $4.66 / 1 000</text>
+  <text x="446" y="1044" font-size="11" font-weight="650" fill="#a8542f">Not ours, not a container, and the one</text>
+  <text x="446" y="1062" font-size="11" font-weight="650" fill="#a8542f">upstream a recipe itself is sent to.</text>
 
-  <rect x="604" y="916" width="264" height="172" rx="10" fill="#fbf0e6" stroke="#d4a373" stroke-width="1.4"/>
-  <text x="622" y="940" font-size="12.5" font-weight="650" fill="#6b4423">recipeat-ocr</text>
-  <text x="622" y="960" font-size="10.5" fill="#8a5a2b" font-family="ui-monospace, Consolas, monospace">127.0.0.1:8102 → 8102</text>
-  <text x="622" y="981" font-size="11" fill="#8a5a2b">POST /ocr · GET /health · /docs</text>
-  <text x="622" y="999" font-size="11" fill="#8a5a2b">RapidOCR · three ONNX models</text>
-  <text x="622" y="1017" font-size="11" fill="#8a5a2b">2 CPU / 2 GB · models ship in the wheel</text>
-  <text x="622" y="1044" font-size="11" fill="#b08a5f">Opens no outbound connection at</text>
-  <text x="622" y="1062" font-size="11" fill="#b08a5f">all. It receives; it never initiates.</text>
-
-  <rect x="884" y="916" width="312" height="172" rx="10" fill="#e7f1f4" stroke="#74a5b2" stroke-width="1.4"/>
-  <text x="902" y="940" font-size="12.5" font-weight="650" fill="#1b4551">recipeat-fetcher</text>
-  <text x="902" y="960" font-size="10.5" fill="#35707f" font-family="ui-monospace, Consolas, monospace">127.0.0.1:8103 → 8103</text>
-  <text x="902" y="981" font-size="11" fill="#35707f">POST /fetch · POST /ingredients</text>
-  <text x="902" y="999" font-size="11" fill="#35707f">GET /health · /docs</text>
-  <text x="902" y="1017" font-size="11" fill="#35707f">recipe-scrapers · ingredient-parser · 1 CPU / 1 GB</text>
-  <text x="902" y="1044" font-size="11" font-weight="650" fill="#a8542f">No SSRF guard. It opens connections to</text>
-  <text x="902" y="1062" font-size="11" font-weight="650" fill="#a8542f">URLs a user supplies, so it is kept alone.</text>
+  <rect x="812" y="916" width="384" height="172" rx="10" fill="#e7f1f4" stroke="#74a5b2" stroke-width="1.4"/>
+  <text x="830" y="940" font-size="12.5" font-weight="650" fill="#1b4551">recipeat-fetcher</text>
+  <text x="830" y="960" font-size="10.5" fill="#35707f" font-family="ui-monospace, Consolas, monospace">127.0.0.1:8103 → 8103</text>
+  <text x="830" y="981" font-size="11" fill="#35707f">POST /fetch · POST /ingredients</text>
+  <text x="830" y="999" font-size="11" fill="#35707f">GET /health · /docs</text>
+  <text x="830" y="1017" font-size="11" fill="#35707f">recipe-scrapers · ingredient-parser · 1 CPU / 1 GB</text>
+  <text x="830" y="1044" font-size="11" font-weight="650" fill="#a8542f">No SSRF guard. It opens connections to</text>
+  <text x="830" y="1062" font-size="11" font-weight="650" fill="#a8542f">URLs a user supplies, so it is kept alone.</text>
 
   <!-- ============================ networks ============================ -->
   <rect x="44" y="1120" width="812" height="94" rx="10" fill="#ffffff" stroke="#ddd8d0" stroke-width="1.5"/>
   <text x="68" y="1144" font-size="12" font-weight="650" fill="#23201c">Networks</text>
-  <text x="68" y="1165" font-size="11" fill="#6f685e"><tspan font-family="ui-monospace, Consolas, monospace">coolify</tspan> — the app, Ollama and the OCR service. The shared network every resource with "Connect To Predefined</text>
-  <text x="68" y="1183" font-size="11" fill="#6f685e">Network" already joins. Neither service ever initiates a connection, so sharing it with the install costs them little.</text>
-  <text x="68" y="1204" font-size="11" fill="#6f685e"><tspan font-family="ui-monospace, Consolas, monospace">recipeat-fetch-net</tspan> — the app and the fetcher, nothing else. An SSRF there reaches this app's API, and stops.</text>
+  <text x="68" y="1165" font-size="11" fill="#6f685e"><tspan font-family="ui-monospace, Consolas, monospace">recipeat-fetch-net</tspan> — the app and the fetcher, nothing else, and the only network these files ask you to create.</text>
+  <text x="68" y="1183" font-size="11" fill="#6f685e">An SSRF through the fetcher reaches this app's API and stops: Docker does not route between networks.</text>
+  <text x="68" y="1204" font-size="11" fill="#6f685e">Extraction no longer runs on this host at all: the app calls Gemini over the internet, with the only secret here.</text>
 
   <rect x="884" y="1120" width="312" height="94" rx="10" fill="#f6f4f1" stroke="#c6bdb0" stroke-width="1.4" stroke-dasharray="6 4"/>
   <text x="902" y="1144" font-size="12" font-weight="650" fill="#8d857a">Postgres — planned</text>
@@ -221,7 +213,7 @@
   <path d="M 860 480 L 860 506" fill="none" stroke="#b5762f" stroke-width="1.6" marker-end="url(#a-amber)"/>
   <path d="M 1074 480 L 1074 506" fill="none" stroke="#2b7a8c" stroke-width="1.6" marker-end="url(#a-teal)"/>
 
-  <!-- modality to askOllama -->
+  <!-- modality to askGemini -->
   <path d="M 644 604 L 644 630" fill="none" stroke="#3f8558" stroke-width="1.6" marker-end="url(#a-green)"/>
   <path d="M 860 604 L 860 630" fill="none" stroke="#b5762f" stroke-width="1.6" marker-end="url(#a-amber)"/>
 
@@ -231,13 +223,11 @@
   <path d="M 848 788 L 860 788" fill="none" stroke="#9b9488" stroke-width="1.6" marker-end="url(#a-gray)"/>
 
   <!-- out of the server box, straight down to each upstream -->
-  <path d="M 176 862 L 176 912" fill="none" stroke="#8a5fa8" stroke-width="1.8" marker-end="url(#a-purple)"/>
-  <path d="M 456 862 L 456 912" fill="none" stroke="#3f8558" stroke-width="1.8" marker-end="url(#a-green)"/>
-  <path d="M 736 862 L 736 912" fill="none" stroke="#b5762f" stroke-width="1.8" marker-end="url(#a-amber)"/>
-  <path d="M 1040 862 L 1040 912" fill="none" stroke="#2b7a8c" stroke-width="1.8" marker-end="url(#a-teal)"/>
+  <path d="M 224 862 L 224 912" fill="none" stroke="#8a5fa8" stroke-width="1.8" marker-end="url(#a-purple)"/>
+  <path d="M 608 862 L 608 912" fill="none" stroke="#3f8558" stroke-width="1.8" marker-end="url(#a-green)"/>
+  <path d="M 1004 862 L 1004 912" fill="none" stroke="#2b7a8c" stroke-width="1.8" marker-end="url(#a-teal)"/>
 
-  <text x="176" y="884" font-size="10" fill="#8a7a96" text-anchor="middle">code → tokens · JWKS</text>
-  <text x="456" y="884" font-size="10" fill="#5c8a70" text-anchor="middle">recipe draft · 20s – 5m</text>
-  <text x="736" y="884" font-size="10" fill="#a8813f" text-anchor="middle">the reading · ~1–4s</text>
-  <text x="1040" y="884" font-size="10" fill="#35707f" text-anchor="middle">page + parsed lines · seconds</text>
+  <text x="224" y="884" font-size="10" fill="#8a7a96" text-anchor="middle">code → tokens · JWKS</text>
+  <text x="608" y="884" font-size="10" fill="#5c8a70" text-anchor="middle">text or photo in, recipe draft out · 2–9s</text>
+  <text x="1004" y="884" font-size="10" fill="#35707f" text-anchor="middle">page + parsed lines · milliseconds</text>
 </svg>

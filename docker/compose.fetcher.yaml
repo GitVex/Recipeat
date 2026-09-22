@@ -1,8 +1,8 @@
-# A separate Compose project from the Ollama one on purpose. The fetcher opens
+# A separate Compose project from the app on purpose. The fetcher opens
 # connections to URLs a user supplies and has no SSRF guard yet, so it must not
 # share a network with anything private — its own project gives it its own
-# network, and Ollama publishes only on loopback, which a container cannot
-# reach through the host.
+# network, and it publishes only on loopback, which a container cannot reach
+# through the host.
 name: recipeat-fetch
 
 services:
@@ -11,7 +11,7 @@ services:
     image: recipeat-fetcher:latest
     container_name: recipeat-fetcher
     restart: unless-stopped
-    # Loopback only, like Ollama. Nothing off the host reaches it.
+    # Loopback only. Nothing off the host reaches it.
     ports:
       - "127.0.0.1:8103:8103"
     environment:
@@ -22,11 +22,11 @@ services:
     # Holds the CRF model and a part-of-speech tagger; measure before trimming.
     mem_limit: 1g
     memswap_limit: 1g
-    # Deliberately NOT on Coolify's shared `coolify` network, unlike Ollama and
-    # the OCR service. This one opens connections to URLs a user supplies and
-    # has no SSRF guard, so it gets a network shared with the app and nothing
-    # else. The alias is declared here rather than relying on container_name,
-    # because Coolify renames containers.
+    # Deliberately NOT on Coolify's shared `coolify` network. This opens
+    # connections to URLs a user supplies and has no SSRF guard, so it gets a
+    # network shared with the app and nothing else. The alias is declared here
+    # rather than relying on container_name, because Coolify renames
+    # containers.
     #
     # If this resource has "Connect To Predefined Network" enabled in Coolify,
     # turn it off — that setting puts it on `coolify` and undoes this.
