@@ -5,9 +5,10 @@ and the reasoning behind them live in [extraction.md](./extraction.md); this is
 the operational view — what to point Postman at, and what stands in the way.
 
 There are two tiers. The **app** is public and needs a session on four of its
-five routes. The **three services** are unauthenticated and published on
-loopback only, so reaching them at all takes a tunnel. Nothing in either tier
-stores anything: every call here is safe to repeat.
+five routes. The **fetcher** is unauthenticated and published on loopback only,
+so reaching it at all takes a tunnel. Extraction itself runs at Google and is
+not reachable from here. Nothing in either tier stores anything: every call is
+safe to repeat.
 
 ## Variables
 
@@ -17,27 +18,25 @@ from [`docker/`](../docker); see [architecture.svg](./architecture.svg).
 | Variable | Value | Notes |
 |---|---|---|
 | `app` | `https://your-coolify-domain` | Whatever FQDN the Coolify resource serves |
-| `ollama` | `http://127.0.0.1:8101` | Through the tunnel below |
-| `ocr` | `http://127.0.0.1:8102` | Through the tunnel below |
 | `fetcher` | `http://127.0.0.1:8103` | Through the tunnel below |
 
-### Reaching the services
+### Reaching the fetcher
 
-All three publish to `127.0.0.1` on the VPS, so nothing off that host can
-reach them — that is deliberate, and it applies to your laptop too. One tunnel
-covers all three:
+It publishes to `127.0.0.1` on the VPS, so nothing off that host can reach it —
+that is deliberate, and it applies to your laptop too:
 
 ```sh
-ssh -N -L 8101:127.0.0.1:8101 -L 8102:127.0.0.1:8102 -L 8103:127.0.0.1:8103 root@YOUR_VPS_IP
+ssh -N -L 8103:127.0.0.1:8103 root@YOUR_VPS_IP
 ```
 
-While it runs, `127.0.0.1:810x` on your machine is the VPS's. Leave it open for
+While it runs, `127.0.0.1:8103` on your machine is the VPS's. Leave it open for
 the whole session; Postman needs no proxy configuration.
 
-The fetcher and the OCR service are FastAPI, so each serves interactive docs at
-`{{fetcher}}/docs` and `{{ocr}}/docs` — worth opening in a browser alongside
-Postman, since they are generated from the same models the service validates
-against.
+The fetcher is FastAPI, so it serves interactive docs at `{{fetcher}}/docs` —
+worth opening in a browser alongside Postman, since they are generated from the
+same models the service validates against.
+
+8101 and 8102 were Ollama and the OCR service, and answer nothing now.
 
 ## Getting a session
 
@@ -108,11 +107,12 @@ Body `{ "text": string }`, at most 20 000 characters. Answers
 | 400 | Not valid JSON, or `text` missing, not a string, or blank |
 | 413 | Over 20 000 characters |
 | 422 | The model found no recipe in the text |
-| 502 | Ollama unreachable, failed, or answered with something unusable |
-| 504 | Ollama did not answer within five minutes |
+| 502 | The model was unreachable, failed, or answered with something unusable |
+| 503 | Busy or over quota; retry rather than investigate |
+| 504 | The model did not answer within a minute |
 
-Expect 20s to several minutes. The reply is the slow one to test; start here
-anyway, because it exercises the model path with the least that can go wrong.
+Expect a few seconds. Start here anyway: it exercises the model path with the
+least that can go wrong.
 
 ### `POST /api/extract/website`
 
@@ -159,18 +159,20 @@ Body → form-data
 | Status | Meaning |
 |---|---|
 | 401 | No session |
-| 415 | Not multipart, or the file is not an image this service can read |
+| 415 | Not multipart |
 | 400 | Malformed multipart, or the `file` part is missing or empty |
-| 413 | Over the byte limit, or its reading exceeds 20 000 characters |
-| 422 | No text could be read, or the model found no recipe in it |
-| 502 | Either service was unreachable, failed, or answered with something unusable |
-| 504 | The OCR service took over two minutes, or Ollama over five |
+| 413 | Over the byte limit |
+| 422 | The model found no recipe in the photograph |
+| 502 | The model was unreachable, failed, or answered with something unusable |
+| 503 | Busy or over quota; retry rather than investigate |
+| 504 | The model did not answer within a minute |
 
 Do **not** set `Content-Type` by hand — Postman writes the multipart boundary
 into it, and overriding the header drops the boundary and earns a 400.
 
-Unlike the website path, the OCR service's 415 passes straight through as a
-415. HEIC works; an iPhone photo needs no conversion.
+Expect five to nine seconds for a page. Nothing on this side decodes the image,
+so the media type the browser declared is forwarded as-is and an unreadable one
+is answered for by the model, not caught here.
 
 ### Auth routes
 
@@ -272,87 +274,6 @@ know whether the container is healthy.
 
 ---
 
-## OCR — `{{ocr}}`
-
-No auth, and no outbound connections at all. Called by `/api/extract/photo`.
-
-### `GET /health`
-
-`{"status": "ok"}` — but only once the three ONNX models are loaded, not merely
-once the process is up. A slow first answer after a restart is the models
-loading, and is expected.
-
-### `POST /ocr`
-
-```
-POST {{ocr}}/ocr
-Body → form-data
-  file : <select a file>
-```
-
-```jsonc
-{
-  // Laid out as the photo was, which is what gets posted on to the model.
-  "text": "Pfannkuchen\n\n250 g Mehl\n3 Eier",
-  "lines": [
-    { "text": "Pfannkuchen", "confidence": 0.99 },
-    { "text": "250 g Mehl", "confidence": 0.99 }
-  ],
-  "elapsed": 0.9,   // seconds across all three models
-  // true when the layout could not tell a column boundary from an indent, and
-  // so may have merged two columns into single lines. The app adds a sentence
-  // to the model's prompt when it sees this; nothing else reads it.
-  "layoutUncertain": false
-}
-```
-
-| Status | Meaning |
-|---|---|
-| 413 | Over the byte limit, or decodes to more pixels than Pillow allows |
-| 415 | Not an image, damaged, or in a mode the models cannot take |
-| 422 | The `file` part is missing or empty, or no text could be read |
-
-The declared content type is ignored — Pillow decides by trying to decode. EXIF
-orientation is applied, so a portrait phone photo reads upright.
-
-Calling this directly is the way to tell a bad photo from a bad model run: if
-`text` here looks right and `/api/extract/photo` still 422s, the model is the
-problem, not the picture. `layoutUncertain: true` on a page whose `text` reads
-correctly is not a fault — it means the layout declined a split it was not sure
-enough about, and the model was warned instead.
-
----
-
-## Ollama — `{{ollama}}`
-
-Not ours, but on the tunnel and worth probing.
-
-### `GET /api/tags`
-
-Lists installed models. The fastest liveness check in the stack, and the one
-that tells you whether `qwen3.5:2b` finished pulling.
-
-### `POST /api/chat`
-
-```
-POST {{ollama}}/api/chat
-Content-Type: application/json
-
-{
-  "model": "qwen3.5:2b",
-  "stream": false,
-  "think": false,
-  "messages": [{ "role": "user", "content": "Reply with: Recipeat is ready." }],
-  "options": { "num_predict": 64 }
-}
-```
-
-The model name must match `runtimeConfig.ollamaModel`; a name Ollama does not
-have is a 404 here and a 502 from the app. The first call after a restart is
-slow while the model loads — judge speed from the second.
-
----
-
 ## A smoke run, in order
 
 Each step narrows where a failure is, so run them in this order and stop at the
@@ -360,20 +281,21 @@ first one that breaks.
 
 | # | Call | Proves |
 |---|---|---|
-| 1 | `GET {{ollama}}/api/tags` | Tunnel works, Ollama is up, the model is pulled |
-| 2 | `GET {{ocr}}/health` | OCR container is up with its models loaded |
-| 3 | `GET {{fetcher}}/health` | Fetcher container is up |
-| 4 | `POST {{fetcher}}/ingredients` | A service answers correctly, in milliseconds |
-| 5 | `POST {{ocr}}/ocr` | Your test photo is readable at all |
-| 6 | `GET {{app}}/api/me` | The borrowed cookie is valid |
-| 7 | `POST {{app}}/api/extract/website` | App → fetcher, over `recipeat-fetch-net` |
-| 8 | `POST {{app}}/api/extract/text` | App → Ollama, over `coolify` |
-| 9 | `POST {{app}}/api/extract/photo` | App → OCR → Ollama, both hops |
+| 1 | `GET {{fetcher}}/health` | Tunnel works, fetcher container is up |
+| 2 | `POST {{fetcher}}/ingredients` | It answers correctly, in milliseconds |
+| 3 | `GET {{app}}/api/me` | The borrowed cookie is valid |
+| 4 | `POST {{app}}/api/extract/website` | App → fetcher, over `recipeat-fetch-net` |
+| 5 | `POST {{app}}/api/extract/text` | App → Gemini, over the internet |
+| 6 | `POST {{app}}/api/extract/photo` | The same, carrying an image |
 
-A 502 at step 7, 8 or 9 when the matching service answered earlier is a network
-problem rather than a service one: the app reaches Ollama and OCR over
-`coolify` and the fetcher over `recipeat-fetch-net`, by the aliases their
-Compose files declare, and never over the loopback ports you used in steps 1–5.
+A 502 at step 4 when the fetcher answered at steps 1–2 is a network problem
+rather than a service one: the app reaches it over `recipeat-fetch-net` by the
+alias its Compose file declares, never over the loopback port you tunnelled.
+
+A 502 at step 5 or 6 is the model, and the app will not say which — upstream
+bodies are logged, never forwarded, because they can name the project and the
+key. Check the container logs. A **503** there is not a fault: it means busy or
+over quota, and the same request will work shortly.
 
 ## What the errors will not tell you
 

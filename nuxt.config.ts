@@ -1,13 +1,15 @@
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
-  // 8100 is the app; 8101-8103 are the three services it calls. The block is
-  // kept contiguous so a port clash on the host is one range to check.
+  // 8100 is the app; 8103 is the fetcher, the one service it still calls. The
+  // block 8100-8103 stays reserved: 8101 and 8102 were Ollama and the OCR
+  // service, and leaving the gap is cheaper than renumbering a deployment.
   devServer: { port: 8100 },
   runtimeConfig: {
-    ollamaBaseUrl: 'http://127.0.0.1:8101',
-    ollamaModel: 'qwen3.5:2b',
     fetcherBaseUrl: 'http://127.0.0.1:8103',
-    ocrBaseUrl: 'http://127.0.0.1:8102',
+    // Empty here and supplied as NUXT_GEMINI_API_KEY: the only secret this
+    // project has, and the only runtime value that must not be in the repo.
+    geminiApiKey: '',
+    geminiModel: 'gemini-3.8-flash',
   },
   modules: ['nuxt-oidc-auth'],
   oidc: {

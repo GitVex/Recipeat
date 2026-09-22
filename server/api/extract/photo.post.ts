@@ -6,8 +6,8 @@ export default defineEventHandler(async (event) => {
   setHeader(event, 'Cache-Control', 'no-store')
   await requireUserSession(event)
   const photo = await readExtractionPhoto(event)
-  // Two services in order: OCR reads the image, then the model reads the text.
-  // Ollama handles one request at a time; concurrent callers queue upstream.
+  // One call: the model is shown the photograph, so nothing between here and it
+  // has to work out what the page's layout was.
   const { recipe } = await extractPhoto(photo, useRuntimeConfig(event))
   // Normalization is shared with the text and website pipelines.
   return { recipe: normalizeRecipe(recipe) }

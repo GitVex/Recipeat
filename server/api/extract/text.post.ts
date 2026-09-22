@@ -6,7 +6,6 @@ export default defineEventHandler(async (event) => {
   setHeader(event, 'Cache-Control', 'no-store')
   await requireUserSession(event)
   const text = await readExtractionText(event)
-  // Ollama handles one request at a time; concurrent callers queue upstream.
   const { recipe } = await extractText(text, useRuntimeConfig(event))
   // Normalization is deterministic, so it runs after the model has answered
   // rather than being asked of it.

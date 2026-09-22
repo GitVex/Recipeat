@@ -5,9 +5,9 @@ an extraction can be previewed before it is kept.
 
 | | |
 |---|---|
-| `POST /api/extract/text` | Pasted text, read by [Ollama](./ollama.md) |
+| `POST /api/extract/text` | Pasted text, read by the model |
 | `POST /api/extract/website` | A URL, read by the [fetcher](../services/recipeat-fetcher/README.md) with no model at all |
-| `POST /api/extract/photo` | A photo, read by the [OCR service](../services/recipeat-ocr/README.md) and then by Ollama |
+| `POST /api/extract/photo` | A photo, read by the model directly |
 
 ## Text
 
@@ -28,8 +28,9 @@ Response: `{ "recipe": { … } }`, shaped as below.
 | 400 | Body is not valid JSON, or `text` is missing, not a string, or blank |
 | 413 | `text` is over 20 000 characters |
 | 422 | The model found no recipe in the text |
-| 502 | Ollama unreachable, failed, or answered with something unusable |
-| 504 | Ollama did not answer within five minutes |
+| 502 | The model was unreachable, failed, or answered with something unusable |
+| 503 | The model is busy or the deployment is over its quota; the request can be retried |
+| 504 | The model did not answer within a minute |
 
 Client-facing messages are sanitized. The detail — upstream response bodies,
 host names, stack traces — rides on the error's `cause`, which Nitro logs
@@ -59,7 +60,7 @@ Response: the same `{ "recipe": { … } }` as above.
 
 **No model runs on this path.** `recipe-scrapers` reads the page's structured
 data and `ingredient-parser` segments each ingredient line, both
-deterministically. A page that took 2m 17s through Ollama takes seconds, which
+deterministically. A page that took 2m 17s through the model takes seconds, which
 is why this is an ordinary request and not a job and a poll.
 
 The fetcher's own 4xx messages name the host the caller asked for, so they are
@@ -101,31 +102,36 @@ Response: the same `{ "recipe": { … } }` as above.
 | Status | Meaning |
 |---|---|
 | 401 | No session |
-| 415 | Body is not multipart, or the file is not an image this service can read |
+| 415 | Body is not multipart |
 | 400 | Body is malformed multipart, or the `file` part is missing or empty |
-| 413 | The upload is over the byte limit, or its reading exceeds 20 000 characters |
-| 422 | No text could be read from the image, or the model found no recipe in it |
-| 502 | Either service was unreachable, failed, or answered with something unusable |
-| 504 | The OCR service took over two minutes, or Ollama over five |
+| 413 | The upload is over the byte limit |
+| 422 | The model found no recipe in the photograph |
+| 502 | The model was unreachable, failed, or answered with something unusable |
+| 503 | The model is busy or the deployment is over its quota; the request can be retried |
+| 504 | The model did not answer within a minute |
 
-**Two services, in order.** The OCR service turns the image into text and the
-same model the text pipeline uses turns that text into a recipe. No image ever
-reaches Ollama — sending the photo to a vision model is what took 4m 5s, and
-reading it first costs about a second.
+**One call.** The model is shown the photograph and answers with the recipe.
+Nothing between the upload and the model decodes the image, reads it, or
+decides what the page's layout was.
 
-This is why photo import is an ordinary request rather than a job and a poll:
-it now costs what the text path costs, which is the argument that already
-retired the poll for websites.
+It did not start this way. Photo import ran through a self-hosted OCR service
+that turned the page into text, and a local model that read the text — two
+containers, about eighty seconds, and a recursive XY-cut that tried to work out
+where a page's columns were before the model ever saw it. On ten photographs of
+handwritten cards that pipeline lost every quantity and collapsed two pages to
+two ingredients each. The same ten read directly take five to nine seconds and
+come back with the amounts intact. The layout problem did not get solved; it
+stopped existing.
 
-Unlike the website path, the OCR service's 415 is passed through as a 415. A URL
-serving a PDF is a problem with what the caller asked for; an upload that is not
-an image is a problem with the body they sent.
+The cost is that extraction now leaves the host. See
+[planning](./planning.md).
 
-The prompt adds two lines to the text pipeline's, saying what is true of a
-photograph: that line breaks may fall mid-sentence, and that a page number or a
-caption is neither an ingredient nor a step. It does not ask the model to
-correct the reading. An OCR slip left visible is better than one invented into
-something plausible.
+The prompt adds three lines to the text pipeline's, saying what is true of a
+photograph: that it may be handwritten and set in columns, that columns are
+read in their own order rather than straight across, and that a page number or
+a caption is neither an ingredient nor a step. Quantities are called out
+specifically — a misread amount becomes a wrong recipe, where a misread word
+stays a typo.
 
 Nothing stores the image, so `source.objectKey` is null and only the filename
 the browser sent is recorded. Object storage is what fills it in; see
@@ -140,16 +146,15 @@ source; everything below that is shared.
 1. **`readExtractionText`** — content type, JSON parse, then `validateText`
    for presence and length. The text is passed on unmodified; whitespace only
    decides whether it is empty.
-2. **`askOllama`** — the transport, shared by every input modality: one
-   `/api/chat` call with `stream: false`, `think: false`, `temperature: 0` and a
-   JSON schema in `format`. Rejects a truncated answer (`done_reason: "length"`)
-   even when it parses, and sanitizes every upstream failure.
-   **`extractText`** is the text modality on top of it — it builds the messages,
-   keeping the source as its own user message rather than interpolating it into
-   the instructions, and records a `RecipeSource` of `type: "text"`.
-   **`extractPhoto`** is the same shape with a hop in front: `askOcr` posts the
-   upload to the OCR service, and the reading it returns becomes the user
-   message. The prompt and the source differ; the transport does not.
+2. **`askGemini`** — the transport, shared by both model-backed modalities: one
+   `/v1beta/interactions` call at `temperature: 0`, thinking low, `store: false`
+   and the JSON schema in `response_format`. Rejects an answer whose `status` is
+   not `completed` even when it parses, and sanitizes every upstream failure.
+   **`extractText`** is the text modality on top of it — the source is its own
+   part rather than interpolated into the instructions, and it records a
+   `RecipeSource` of `type: "text"`.
+   **`extractPhoto`** is the same call with an image part instead of a text one.
+   The prompt and the source differ; the transport does not.
 3. **`parseExtraction`** — validates and clamps, then assigns IDs.
 4. **`normalizeRecipe`** — reads quantities into numbers and units, finds
    measurements in step prose, and links steps back to ingredients. A source
@@ -159,11 +164,15 @@ source; everything below that is shared.
 ### What the model is asked for, and what it is not
 
 The schema lives in `server/extraction/recipe-draft.schema.json`, its own file
-because that is what it is — the artifact Ollama compiles into a llama.cpp
-grammar. It constrains generation to a recipe object and to taking each
-ingredient line apart into an amount, a food and whatever else the line says,
-with the line copied verbatim first: property order is generation order under a
-grammar.
+because that is what it is — the artifact that constrains generation. It holds
+the answer to a recipe object and takes each ingredient line apart into an
+amount, a food and whatever else the line says, with the line copied verbatim
+first.
+
+That last part used to be structural. Under llama.cpp's grammar, property order
+was generation order, so `originalText` preceding `quantity` guaranteed the line
+was copied before it was taken apart. The hosted model makes no such promise, so
+the ordering is a hint and the system prompt carries the instruction.
 
 What a page supplies but a paste cannot — an image, a canonical link, a site
 name — is deliberately absent from it, and so is `parsedQuantity`, which is the
@@ -290,14 +299,12 @@ Each service has its own suite:
 
 ```sh
 cd services/recipeat-fetcher && uv run pytest
-cd services/recipeat-ocr && uv run pytest      # no model is loaded
 ```
 
 The auth suite covers the endpoint's 401 and its validation.
 
-For a live check, open the app with a [tunnel](./ollama.md#local-development)
-running, sign in, and call it from the devtools console so the session cookie
-comes along:
+For a live check, sign in and call it from the devtools console so the session
+cookie comes along:
 
 ```js
 await (await fetch('/api/extract/text', {
@@ -306,33 +313,21 @@ await (await fetch('/api/extract/text', {
 })).json()
 ```
 
-The first call is slow while the model loads; judge speed from the second.
+Measured over ten photographs of handwritten recipe cards, 1536x2048 and
+2048x1536:
 
-Measured on the VPS, for sizing expectations:
-
-| Source | Time |
+| | |
 |---|---|
-| Short text | 20s |
-| Trimmed HTML page | 2m 17s |
-| Full-resolution photo, through a vision model | 4m 5s |
+| Photo, end to end | 4.5-9.0s, mean 6.1s |
+| Tokens for one page | ~1 060 in, ~1 000 out |
+| Cost | $4.66 per 1 000 pages |
 
-Those numbers are why the text request timeout is five minutes. They are also
-why neither of the other two modalities goes through the model as it stands:
-the same page read by `recipe-scrapers` and `ingredient-parser` is a matter of
-seconds, and a photo is now read by OCR before the model sees anything.
+The request timeout is a minute, which is an order of magnitude over the
+slowest of those. Website import still does not go through the model at all:
+`recipe-scrapers` and `ingredient-parser` answer the same page in seconds and
+deterministically.
 
-Those VPS figures predate the switch to `qwen3.5:2b` and were taken with the 4b;
-nothing has re-measured them since. What has been measured is the whole stack in
-containers on a developer machine, which is slower per token than the VPS and
-says nothing about it directly:
-
-| Source | Time |
-|---|---|
-| Short German recipe, pasted | 1m 29s |
-| The same recipe as a 3024x4032 photo | 1m 36s |
-| — of which OCR | 3.5s |
-| The same photo at 680x460 | 1.0s of OCR |
-
-The gap between the two rows is the whole cost of reading a photo. `OCR_MAX_SIDE_LEN`
-caps the longer side at 2000 pixels, so a bigger photo costs the downscale and
-not the pixels.
+For comparison, the same ten pages through the self-hosted pipeline this
+replaced — an OCR container plus `qwen3.5:2b` — took 21.6s to 88.4s, returned
+no quantities at all, and reduced two of the landscape cards to two ingredients
+each.

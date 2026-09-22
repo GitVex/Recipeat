@@ -2,8 +2,10 @@ import type { H3Event } from 'h3'
 import { readJsonBody } from './body.ts'
 import { fail } from './errors.ts'
 
-// Characters, not bytes. Sized against OLLAMA_CONTEXT_LENGTH in
-// docker/compose.ollama.yaml: raising one means revisiting the other.
+// Characters, not bytes. No longer a context-window limit — the model behind
+// this reads a million tokens — but a ceiling on what one extraction is
+// allowed to be. Twenty thousand characters is a long recipe and several
+// pages of anything else, and the cost of a request scales with it.
 export const MAX_TEXT_LENGTH = 20_000
 
 export function validateText(body: unknown): string {
