@@ -8,6 +8,10 @@ export default defineNuxtConfig({
     ollamaModel: 'qwen3.5:2b',
     fetcherBaseUrl: 'http://127.0.0.1:8103',
     ocrBaseUrl: 'http://127.0.0.1:8102',
+    // Empty here and supplied as NUXT_GEMINI_API_KEY: the first secret this
+    // project has, and the only runtime value that must not be in the repo.
+    geminiApiKey: '',
+    geminiModel: 'gemini-3.8-flash',
   },
   modules: ['nuxt-oidc-auth'],
   oidc: {

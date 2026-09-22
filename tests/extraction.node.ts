@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import { createServer } from 'node:http'
 import { readFileSync } from 'node:fs'
 import { createApp, defineEventHandler, readRawBody, toNodeListener, toWebHandler } from 'h3'
-import { extractPhoto, extractText, extractWebsite, isUnit, normalizeRecipe, parseExtraction, parseQuantity, readExtractionPhoto, readExtractionText, unitInfo, validateText, validateUrl } from '../server/utils/extraction.ts'
+import { extractPhoto, extractPhotoViaGemini, extractText, extractTextViaGemini, extractWebsite, isUnit, normalizeRecipe, parseExtraction, parseQuantity, readExtractionPhoto, readExtractionText, unitInfo, validateText, validateUrl } from '../server/utils/extraction.ts'
 
 const bread = { originalText: '1 slice bread', quantity: '1 slice', name: 'bread' }
 const recipe = { title: 'Toast', source_lang: 'en', portions: 1, ingredients: [bread], steps: ['Toast the bread.'] }
@@ -540,4 +540,116 @@ test('photo upload reader enforces content type, the file part and its size', as
     server.closeAllConnections()
     await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
   }
+})
+
+// --- Gemini -----------------------------------------------------------------
+// The transport that replaces Ollama and the OCR service both. Nothing here
+// reaches Google: what is asserted is the request this builds and how someone
+// else's failure is turned into a status the caller should see.
+
+const geminiConfig = { geminiApiKey: 'test-key', geminiModel: 'gemini-3.8-flash' }
+const interaction = (draft: unknown, status = 'completed') => ({
+  status,
+  steps: [
+    // The thinking step comes back too, and must not be read as the answer.
+    { type: 'thought', signature: 'opaque' },
+    { type: 'model_output', content: [{ type: 'text', text: JSON.stringify(draft) }] },
+  ],
+})
+const answered = (draft: unknown): typeof fetch => async () => Response.json(interaction(draft))
+
+test('gemini text extraction sends the source as its own part, under the schema', async () => {
+  let seen: { url: string, headers: Headers, body: any } | null = null
+  const fetcher: typeof fetch = async (url, init) => {
+    seen = { url: String(url), headers: new Headers(init!.headers), body: JSON.parse(init!.body as string) }
+    return Response.json(interaction(recipe))
+  }
+
+  const { recipe: result } = await extractTextViaGemini('1 slice bread', geminiConfig, fetcher)
+
+  assert.equal(seen!.url, 'https://generativelanguage.googleapis.com/v1beta/interactions')
+  assert.equal(seen!.headers.get('x-goog-api-key'), 'test-key')
+  assert.equal(seen!.body.model, 'gemini-3.8-flash')
+  // The source is a part, never interpolated into the instructions.
+  assert.deepEqual(seen!.body.input, [{ type: 'text', text: '1 slice bread' }])
+  assert.match(seen!.body.system_instruction, /Extract the recipe/)
+  // Nested, not top-level: the API rejects a top-level temperature outright.
+  assert.equal(seen!.body.temperature, undefined)
+  assert.equal(seen!.body.generation_config.temperature, 0)
+  assert.equal(seen!.body.generation_config.thinking_level, 'low')
+  // Nothing is being continued, so nothing should be kept.
+  assert.equal(seen!.body.store, false)
+  assert.equal(seen!.body.response_format.mime_type, 'application/json')
+  assert.equal(seen!.body.response_format.schema.required.includes('ingredients'), true)
+
+  assert.equal(result.title, 'Toast')
+  assert.deepEqual(result.source, { type: 'text', originalText: '1 slice bread' })
+})
+
+test('gemini photo extraction sends the image itself and calls nothing else', async () => {
+  const calls: string[] = []
+  const fetcher: typeof fetch = async (url, init) => {
+    calls.push(String(url))
+    const body = JSON.parse(init!.body as string)
+    // The photograph, base64 of the three bytes below, and no OCR reading.
+    assert.deepEqual(body.input, [{ type: 'image', data: 'AQID', mime_type: 'image/jpeg' }])
+    assert.match(body.system_instruction, /photograph of a recipe/)
+    return Response.json(interaction(recipe))
+  }
+
+  const { recipe: result } = await extractPhotoViaGemini(photo, geminiConfig, fetcher)
+
+  // One call, to Gemini. No OCR service exists on this path.
+  assert.deepEqual(calls, ['https://generativelanguage.googleapis.com/v1beta/interactions'])
+  assert.deepEqual(result.source, { type: 'photo', objectKey: null, originalFilename: 'page.jpg' })
+})
+
+test('a photo with no declared type is still sent with a mime type', async () => {
+  let mime = ''
+  await extractPhotoViaGemini({ ...photo, type: null }, geminiConfig, async (_url, init) => {
+    mime = JSON.parse(init!.body as string).input[0].mime_type
+    return Response.json(interaction(recipe))
+  })
+  assert.equal(mime, 'image/jpeg')
+})
+
+test('gemini failures become the status the caller should see', async () => {
+  const extract = (fetcher: typeof fetch) => extractTextViaGemini('source', geminiConfig, fetcher)
+
+  // Our credentials, not the caller's problem — and the body never reaches them.
+  await assert.rejects(extract(served({ error: { message: 'API key not valid' } }, { status: 403 })),
+    error => status(502)(error) && !/API key/.test((error as Error).message))
+  // A quota the deployment ran into reads as busy, not as the caller being
+  // rate limited, which is what a bare 429 would say.
+  await assert.rejects(extract(served({}, { status: 429 })), status(503))
+  // Capacity, which Google answers with a 400 rather than a 503. Read on the
+  // status alone this is a 502 — "the service is broken" — when the service is
+  // merely busy and the right answer is to come back.
+  await assert.rejects(
+    extract(served({ error: { message: 'high demand', code: 'service_unavailable' } }, { status: 400 })),
+    status(503))
+  await assert.rejects(
+    extract(served({ error: { message: 'Rate limit exceeded', code: 'too_many_requests' } }, { status: 400 })),
+    status(503))
+  await assert.rejects(extract(served({}, { status: 500 })), status(502))
+  await assert.rejects(extract(async () => { throw new TypeError('fetch failed') }),
+    error => status(502)(error) && /Could not reach/.test((error as Error).message))
+  await assert.rejects(extract(async () => { throw Object.assign(new Error('slow'), { name: 'TimeoutError' }) }), status(504))
+  await assert.rejects(extract(async () => new Response('not json', { status: 200 })), status(502))
+  // No content, and content that is not the JSON the schema promised.
+  await assert.rejects(extract(served({ status: 'completed', steps: [] })), status(502))
+  await assert.rejects(
+    extract(served({ status: 'completed', steps: [{ type: 'model_output', content: [{ type: 'text', text: '{"title":' }] }] })),
+    status(502))
+  // A truncated answer can still be valid JSON, so the status is what catches
+  // it, checked before the content is read at all.
+  await assert.rejects(
+    extract(served(interaction(recipe, 'incomplete'))),
+    error => status(502)(error) && /stopped before finishing/.test((error as Error).message))
+  // A thinking step alone is not an answer.
+  await assert.rejects(
+    extract(served({ status: 'completed', steps: [{ type: 'thought', signature: 'opaque' }] })),
+    status(502))
+  // A draft that parses but is not a recipe stays parseExtraction's to reject.
+  await assert.rejects(extract(answered({ ...recipe, ingredients: [], steps: [] })), status(422))
 })
