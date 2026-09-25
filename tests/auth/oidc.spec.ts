@@ -174,3 +174,71 @@ test('a signed-in user saves a recipe, reads it back, and owns it by subject', a
     await sql.end()
   }
 })
+
+// The three write actions over HTTP, with the session doing the owning.
+test('save, save as progression and save as variant, each through its own route', async ({ page }) => {
+  test.skip(!process.env.NUXT_DATABASE_URL, 'NUXT_DATABASE_URL is not set')
+  const mark = randomUUID()
+  const recipe = (title: string) => ({
+    title: `${title} ${mark}`,
+    source_lang: 'en',
+    portions: 2,
+    ingredients: [{ originalText: '200 g flour', quantity: '200 g', name: 'flour' }],
+    steps: ['Mix the 200 g flour in.'],
+    source: { type: 'text', originalText: 'a paste' },
+  })
+  const post = async (path: string, title: string) => {
+    const response = await page.request.post(path, { data: { recipe: recipe(title) } })
+    return { status: response.status(), recipe: response.ok() ? (await response.json()).recipe : null }
+  }
+
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await expect(page.getByText('Test Cook', { exact: true })).toBeVisible()
+
+  const created = await post('/api/recipes', 'Stew')
+  expect(created.status).toBe(201)
+  const root = created.recipe
+
+  // Save: same row, same place in the line.
+  const saved = await page.request.put(`/api/recipes/${root.id}`, { data: { recipe: recipe('Stew, salted') } })
+  expect(saved.status()).toBe(200)
+  const corrected = (await saved.json()).recipe
+  expect(corrected.id).toBe(root.id)
+  expect([corrected.lineId, corrected.progressionOf, corrected.variantOf]).toEqual([root.lineId, null, null])
+
+  // Progression: same line, and it takes the pin.
+  const progression = await post(`/api/recipes/${root.id}/progressions`, 'Stew, browned first')
+  expect(progression.status).toBe(201)
+  expect(progression.recipe.lineId).toBe(root.lineId)
+  expect(progression.recipe.progressionOf).toBe(root.id)
+  expect(progression.recipe.pinned).toBe(true)
+  expect((await (await page.request.get(`/api/recipes/${root.id}`)).json()).recipe.pinned).toBe(false)
+
+  // Variant: a line of its own, and the line it left keeps its own pin.
+  const variant = await post(`/api/recipes/${progression.recipe.id}/variants`, 'Stew, vegetarian')
+  expect(variant.status).toBe(201)
+  expect(variant.recipe.lineId).toBe(variant.recipe.id)
+  expect(variant.recipe.variantOf).toBe(progression.recipe.id)
+
+  // A listing is one entry per line: the progression, and the variant beside it.
+  const listed = (await (await page.request.get('/api/recipes')).json()).recipes.filter((row: { title: string }) => row.title.endsWith(mark))
+  expect(listed.map((row: { id: string }) => row.id).sort()).toEqual([progression.recipe.id, variant.recipe.id].sort())
+
+  // A version that is not there, and an id that is not one.
+  expect((await page.request.put(`/api/recipes/${randomUUID()}`, { data: { recipe: recipe('Nowhere') } })).status()).toBe(404)
+  expect((await post(`/api/recipes/${randomUUID()}/progressions`, 'Nowhere')).status).toBe(404)
+  expect((await post(`/api/recipes/${randomUUID()}/variants`, 'Nowhere')).status).toBe(404)
+  expect((await post('/api/recipes/not-a-uuid/progressions', 'Nowhere')).status).toBe(400)
+  // The body is checked on every one of them, not just the first.
+  expect((await page.request.put(`/api/recipes/${root.id}`, { data: { recipe: { ...recipe('Empty'), ingredients: [], steps: [] } } })).status()).toBe(422)
+
+  const sql = postgres(process.env.NUXT_DATABASE_URL!, { max: 1, onnotice: () => {} })
+  try {
+    const owners = await sql<{ owner_sub: string }[]>`SELECT DISTINCT owner_sub FROM recipes WHERE title LIKE ${'%' + mark}`
+    expect(owners.map(row => row.owner_sub)).toEqual(['test-user'])
+  } finally {
+    await sql`DELETE FROM recipes WHERE owner_sub = 'test-user'`
+    await sql.end()
+  }
+})
