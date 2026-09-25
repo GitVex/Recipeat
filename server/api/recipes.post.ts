@@ -1,4 +1,4 @@
-import { requireDatabase } from '../utils/database.ts'
+import { requireKysely } from '../utils/database.ts'
 import { normalizeRecipe, parseExtraction } from '../utils/extraction.ts'
 import { insertRecipe, readRecipeBody, requireOwnerSub } from '../utils/recipes.ts'
 
@@ -15,5 +15,5 @@ export default defineEventHandler(async (event) => {
   const recipe = normalizeRecipe(parseExtraction(draft, source))
 
   setResponseStatus(event, 201)
-  return { recipe: await insertRecipe(requireDatabase(), ownerSub, recipe) }
+  return { recipe: await insertRecipe(requireKysely(), ownerSub, recipe) }
 })

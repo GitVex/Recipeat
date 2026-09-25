@@ -14,6 +14,21 @@ app startup. Nothing else talks to it.
 | `server/plugins/database.ts` | Runs the above at startup and holds requests until it is done |
 | `server/utils/database.ts` | The shared connection pool |
 | `server/recipes/` | What the routes do with it: validate, write, list, read |
+| `server/database/schema.ts` | The table as Kysely sees it, and the casts a statement needs |
+
+Two ways of asking, on one pool. The three POST routes build their statements
+with **Kysely**; the PUT and the two GETs are still postgres.js tagged
+templates. The dialect wraps the existing postgres.js instance rather than
+opening a pool of its own, so this is a migration in progress rather than two
+databases — `useDatabase()` and `useKysely()` are the same connections, and
+closing either closes both.
+
+Writing a `jsonb` column takes the `json()` helper from `schema.ts`, which
+casts the value rather than stringifying it. Handing `JSON.stringify(value)` to
+a parameter the cast has typed as `jsonb` makes postgres.js encode the string
+it was given, and the column ends up holding `"[{...}]"` instead of an array.
+The `jsonb_typeof` checks in the migration catch it; the tests catch it
+sooner.
 
 It is a separate Compose project, and in Coolify a separate resource, because
 the app redeploys on every push and a redeploy recreates that project's

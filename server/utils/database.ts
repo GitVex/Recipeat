@@ -1,5 +1,8 @@
 import { createError } from 'h3'
+import { Kysely } from 'kysely'
+import { PostgresJSDialect } from 'kysely-postgres-js'
 import postgres, { type Sql } from 'postgres'
+import type { Database } from '../database/schema.ts'
 
 // One pool for the process. Nitro has no lifecycle hook that hands a handler a
 // connection, so this is the shared thing every query reaches for, created on
@@ -57,10 +60,32 @@ export async function waitForDatabase(sql: Sql, attempts = 12, delayMs = 2_000):
   }
 }
 
+// Kysely over the same postgres.js instance rather than a pool of its own:
+// the dialect takes an existing Sql, so the two ways of asking are one set of
+// connections, one place that knows the URL, and one thing to close.
+let queries: Kysely<Database> | undefined
+
+export function useKysely(): Kysely<Database> {
+  if (!queries) queries = new Kysely<Database>({ dialect: new PostgresJSDialect({ postgres: useDatabase() }) })
+  return queries
+}
+
+// The same refusal as requireDatabase, for the routes that build their
+// statements rather than write them.
+export function requireKysely(): Kysely<Database> {
+  if (!hasDatabase()) throw createError({ statusCode: 503, message: 'Storage is not configured on this deployment.' })
+  return useKysely()
+}
+
 export async function closeDatabase(): Promise<void> {
   const open = pool
+  const open_queries = queries
   pool = undefined
-  await open?.end({ timeout: 5 })
+  queries = undefined
+  // Destroying Kysely ends the postgres.js instance it was handed, so the
+  // pool is only ended here when nothing wrapped it.
+  if (open_queries) await open_queries.destroy()
+  else await open?.end({ timeout: 5 })
 }
 
 export { applyMigrations, migrationOrder, type Migration } from '../database/migrate.ts'

@@ -17,6 +17,8 @@
     "test:recipes": "node --experimental-strip-types --test tests/recipes.node.ts"
   },
   "dependencies": {
+    "kysely": "^0.29.6",
+    "kysely-postgres-js": "^5.0.1",
     "nuxt": "^4.0.0",
     "nuxt-oidc-auth": "^1.0.0-beta.12",
     "postgres": "^3.4.9",

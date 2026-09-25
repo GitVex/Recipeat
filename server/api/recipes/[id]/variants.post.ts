@@ -1,4 +1,4 @@
-import { requireDatabase } from '../../../utils/database.ts'
+import { requireKysely } from '../../../utils/database.ts'
 import { normalizeRecipe, parseExtraction } from '../../../utils/extraction.ts'
 import { insertVariant, isRecipeId, readRecipeBody, requireOwnerSub } from '../../../utils/recipes.ts'
 
@@ -15,7 +15,7 @@ export default defineEventHandler(async (event) => {
   const { draft, source } = await readRecipeBody(event)
   const recipe = normalizeRecipe(parseExtraction(draft, source))
 
-  const saved = await insertVariant(requireDatabase(), ownerSub, parentId, recipe)
+  const saved = await insertVariant(requireKysely(), ownerSub, parentId, recipe)
   if (!saved) throw createError({ statusCode: 404, message: 'No such recipe to branch from.' })
 
   setResponseStatus(event, 201)

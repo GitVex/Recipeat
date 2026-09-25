@@ -1,4 +1,6 @@
+import type { Kysely } from 'kysely'
 import type { Sql } from 'postgres'
+import { boolean, integer, json, numeric, text, type Database, type RecipeRow } from '../database/schema.ts'
 import { fail } from '../extraction/errors.ts'
 import type { ExtractedRecipe } from '../extraction/recipe.ts'
 
@@ -23,23 +25,9 @@ export type RecipeSummary = Pick<SavedRecipe, 'id' | 'title' | 'image' | 'totalT
   stepCount: number
 }
 
-type Row = {
-  id: string
-  title: string | null
-  source_lang: string
-  portions: string | null
-  image: string | null
-  total_time: number | null
-  ingredients: ExtractedRecipe['ingredients']
-  steps: ExtractedRecipe['steps']
-  source: ExtractedRecipe['source']
-  line_id: string
-  progression_of: string | null
-  variant_of: string | null
-  pinned: boolean
-  created_at: Date
-  updated_at: Date
-}
+// The row as the table defines it. Restating it here is how it drifts from
+// the migration, so it is imported instead.
+type Row = RecipeRow
 
 // NUMERIC arrives as a string, because it is arbitrary precision and a double
 // is not. Portions are small, so reading it back into a number loses nothing.
@@ -65,9 +53,34 @@ const asRecipe = (row: Row): SavedRecipe => ({
 // written once and the three inserts differ only in their lineage. owner_sub
 // is a parameter rather than a field on a recipe: there is no shape in which a
 // request body could carry one.
-const content = (sql: Sql, ownerSub: string, recipe: ExtractedRecipe) => [
-  ownerSub, recipe.title, recipe.source_lang, recipe.portions, recipe.image, recipe.totalTime,
-  sql.json(recipe.ingredients), sql.json(recipe.steps), sql.json(recipe.source),
+const content = (ownerSub: string, recipe: ExtractedRecipe) => ({
+  owner_sub: ownerSub,
+  title: recipe.title,
+  source_lang: recipe.source_lang,
+  portions: recipe.portions,
+  image: recipe.image,
+  total_time: recipe.totalTime,
+  // Cast rather than handed over as a string: a plain parameter into a jsonb
+  // column is stored as a JSON *string*, and jsonb_typeof then refuses it.
+  ingredients: json(recipe.ingredients),
+  steps: json(recipe.steps),
+  source: json(recipe.source),
+})
+
+// The same values as a SELECT list, for the two inserts that read their parent
+// out of the table in the statement that writes the child. Every literal is
+// cast: Postgres types a SELECT list before it knows what the INSERT will do
+// with it.
+const selected = (ownerSub: string, recipe: ExtractedRecipe) => [
+  text(ownerSub).as('owner_sub'),
+  text(recipe.title).as('title'),
+  text(recipe.source_lang).as('source_lang'),
+  numeric(recipe.portions).as('portions'),
+  text(recipe.image).as('image'),
+  integer(recipe.totalTime).as('total_time'),
+  json(recipe.ingredients).as('ingredients'),
+  json(recipe.steps).as('steps'),
+  json(recipe.source).as('source'),
 ] as const
 
 /**
@@ -78,20 +91,13 @@ const content = (sql: Sql, ownerSub: string, recipe: ExtractedRecipe) => [
  * `line_id` is left out entirely — the table's own trigger points it at the
  * new row.
  */
-export async function insertRecipe(sql: Sql, ownerSub: string, recipe: ExtractedRecipe): Promise<SavedRecipe> {
-  const [owner, title, sourceLang, portions, image, totalTime, ingredients, steps, source] = content(sql, ownerSub, recipe)
-  const [row] = await sql<Row[]>`
-    INSERT INTO recipes (
-      owner_sub, title, source_lang, portions, image, total_time,
-      ingredients, steps, source, pinned
-    ) VALUES (
-      ${owner}, ${title}, ${sourceLang}, ${portions}, ${image}, ${totalTime},
-      ${ingredients}, ${steps}, ${source},
-      true
-    )
-    RETURNING *
-  `
-  return asRecipe(row!)
+export async function insertRecipe(db: Kysely<Database>, ownerSub: string, recipe: ExtractedRecipe): Promise<SavedRecipe> {
+  const row = await db
+    .insertInto('recipes')
+    .values({ ...content(ownerSub, recipe), pinned: true })
+    .returningAll()
+    .executeTakeFirstOrThrow()
+  return asRecipe(row)
 }
 
 /**
@@ -108,13 +114,12 @@ export async function insertRecipe(sql: Sql, ownerSub: string, recipe: Extracted
  * Null means no such row, or not theirs.
  */
 export async function updateRecipe(sql: Sql, ownerSub: string, id: string, recipe: ExtractedRecipe): Promise<SavedRecipe | null> {
-  const [owner, title, sourceLang, portions, image, totalTime, ingredients, steps, source] = content(sql, ownerSub, recipe)
   const [row] = await sql<Row[]>`
     UPDATE recipes SET
-      title = ${title}, source_lang = ${sourceLang}, portions = ${portions},
-      image = ${image}, total_time = ${totalTime},
-      ingredients = ${ingredients}, steps = ${steps}, source = ${source}
-    WHERE id = ${id} AND owner_sub = ${owner}
+      title = ${recipe.title}, source_lang = ${recipe.source_lang}, portions = ${recipe.portions},
+      image = ${recipe.image}, total_time = ${recipe.totalTime},
+      ingredients = ${sql.json(recipe.ingredients)}, steps = ${sql.json(recipe.steps)}, source = ${sql.json(recipe.source)}
+    WHERE id = ${id} AND owner_sub = ${ownerSub}
     RETURNING *
   `
   return row ? asRecipe(row) : null
@@ -131,34 +136,44 @@ export async function updateRecipe(sql: Sql, ownerSub: string, id: string, recip
  *
  * Null means no such parent, or not theirs.
  */
-export async function insertProgression(sql: Sql, ownerSub: string, parentId: string, recipe: ExtractedRecipe): Promise<SavedRecipe | null> {
-  const [owner, title, sourceLang, portions, image, totalTime, ingredients, steps, source] = content(sql, ownerSub, recipe)
+export async function insertProgression(db: Kysely<Database>, ownerSub: string, parentId: string, recipe: ExtractedRecipe): Promise<SavedRecipe | null> {
   try {
-    const row = await sql.begin(async (tx) => {
+    const row = await db.transaction().execute(async (tx) => {
       // The line the parent belongs to, not the parent: the pin can be
       // anywhere in the tree, and this is the one that has to give it up.
-      await tx`
-        UPDATE recipes SET pinned = false
-        WHERE pinned AND line_id = (
-          SELECT line_id FROM recipes WHERE id = ${parentId} AND owner_sub = ${owner}
-        )
-      `
-      const [inserted] = await tx<Row[]>`
-        INSERT INTO recipes (
-          owner_sub, title, source_lang, portions, image, total_time,
-          ingredients, steps, source, line_id, progression_of, pinned
-        )
-        SELECT
-          ${owner}, ${title}, ${sourceLang}, ${portions}, ${image}, ${totalTime},
-          ${ingredients}, ${steps}, ${source},
-          -- Inherited, never taken from the caller, which is what keeps a
-          -- progression of a progression in the line it came from.
-          parent.line_id, parent.id, true
-        FROM recipes parent
-        WHERE parent.id = ${parentId} AND parent.owner_sub = ${owner}
-        RETURNING *
-      `
-      return inserted ?? null
+      await tx
+        .updateTable('recipes')
+        .set({ pinned: false })
+        .where('pinned', '=', true)
+        .where('line_id', '=', eb => eb
+          .selectFrom('recipes')
+          .select('line_id')
+          .where('id', '=', parentId)
+          .where('owner_sub', '=', ownerSub))
+        .execute()
+
+      return await tx
+        .insertInto('recipes')
+        .columns([
+          'owner_sub', 'title', 'source_lang', 'portions', 'image', 'total_time',
+          'ingredients', 'steps', 'source', 'line_id', 'progression_of', 'pinned',
+        ])
+        .expression(eb => eb
+          .selectFrom('recipes as parent')
+          .select([
+            ...selected(ownerSub, recipe),
+            // Inherited, never taken from the caller, which is what keeps a
+            // progression of a progression in the line it came from.
+            'parent.line_id as line_id',
+            'parent.id as progression_of',
+            boolean(true).as('pinned'),
+          ])
+          // The ownership filter is in the statement that writes, so there is
+          // no window between checking a parent and inserting a child.
+          .where('parent.id', '=', parentId)
+          .where('parent.owner_sub', '=', ownerSub))
+        .returningAll()
+        .executeTakeFirst()
     })
     return row ? asRecipe(row) : null
   } catch (error) {
@@ -181,21 +196,24 @@ export async function insertProgression(sql: Sql, ownerSub: string, parentId: st
  * One statement, so there is no window in which the parent could be checked
  * and then deleted. Null means no such parent, or not theirs.
  */
-export async function insertVariant(sql: Sql, ownerSub: string, parentId: string, recipe: ExtractedRecipe): Promise<SavedRecipe | null> {
-  const [owner, title, sourceLang, portions, image, totalTime, ingredients, steps, source] = content(sql, ownerSub, recipe)
-  const [row] = await sql<Row[]>`
-    INSERT INTO recipes (
-      owner_sub, title, source_lang, portions, image, total_time,
-      ingredients, steps, source, variant_of, pinned
-    )
-    SELECT
-      ${owner}, ${title}, ${sourceLang}, ${portions}, ${image}, ${totalTime},
-      ${ingredients}, ${steps}, ${source},
-      parent.id, true
-    FROM recipes parent
-    WHERE parent.id = ${parentId} AND parent.owner_sub = ${owner}
-    RETURNING *
-  `
+export async function insertVariant(db: Kysely<Database>, ownerSub: string, parentId: string, recipe: ExtractedRecipe): Promise<SavedRecipe | null> {
+  const row = await db
+    .insertInto('recipes')
+    .columns([
+      'owner_sub', 'title', 'source_lang', 'portions', 'image', 'total_time',
+      'ingredients', 'steps', 'source', 'variant_of', 'pinned',
+    ])
+    .expression(eb => eb
+      .selectFrom('recipes as parent')
+      .select([
+        ...selected(ownerSub, recipe),
+        'parent.id as variant_of',
+        boolean(true).as('pinned'),
+      ])
+      .where('parent.id', '=', parentId)
+      .where('parent.owner_sub', '=', ownerSub))
+    .returningAll()
+    .executeTakeFirst()
   return row ? asRecipe(row) : null
 }
 

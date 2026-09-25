@@ -2,7 +2,10 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { after, before, describe, test } from 'node:test'
 import postgres, { type Sql } from 'postgres'
+import { Kysely } from 'kysely'
+import { PostgresJSDialect } from 'kysely-postgres-js'
 import { applyMigrations } from '../server/database/migrate.ts'
+import type { Database } from '../server/database/schema.ts'
 import { normalizeRecipe, parseExtraction } from '../server/utils/extraction.ts'
 import { findRecipe, insertProgression, insertRecipe, insertVariant, listRecipes, updateRecipe } from '../server/recipes/store.ts'
 
@@ -95,6 +98,7 @@ describe('recipes schema', { skip: url ? false : 'NUXT_DATABASE_URL is not set' 
   const SCHEMA = 'schema_check'
   let admin: Sql
   let sql: Sql
+  let db: Kysely<Database>
   let root: { id: string, line_id: string }
   let progression: { id: string }
   let branch: { id: string }
@@ -215,12 +219,16 @@ describe('recipes store', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }
   const SCHEMA = 'store_check'
   let admin: Sql
   let sql: Sql
+  let db: Kysely<Database>
 
   before(async () => {
     admin = postgres(url!, { max: 1, onnotice: () => {} })
     await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
     await admin`CREATE SCHEMA ${admin(SCHEMA)}`
     sql = postgres(url!, { max: 5, onnotice: () => {}, connection: { search_path: SCHEMA } })
+    // Kysely over the same instance, so both layers see the same search_path
+    // and the same pool — which is how the app wires them too.
+    db = new Kysely<Database>({ dialect: new PostgresJSDialect({ postgres: sql }) })
     const version = '001_recipes.sql'
     const body = readFileSync(new URL(`../server/database/migrations/${version}`, import.meta.url), 'utf8')
     await applyMigrations(sql, [{ version, sql: body }])
@@ -242,7 +250,7 @@ describe('recipes store', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }
   }, { type: 'text', originalText: title }))
 
   test('a saved recipe comes back as the recipe that went in', async () => {
-    const saved = await insertRecipe(sql, 'user_a', recipe('Bread'))
+    const saved = await insertRecipe(db, 'user_a', recipe('Bread'))
     const found = await findRecipe(sql, 'user_a', saved.id)
     assert.deepEqual(found, saved)
     // The row is the first version of its own line, and the entry point for it.
@@ -258,7 +266,7 @@ describe('recipes store', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }
   })
 
   test('a listing is one entry per line, newest first', async () => {
-    await insertRecipe(sql, 'user_a', recipe('Soup'))
+    await insertRecipe(db, 'user_a', recipe('Soup'))
     const listed = await listRecipes(sql, 'user_a')
     assert.deepEqual(listed.map(row => row.title), ['Soup', 'Bread'])
     assert.deepEqual(listed[0]!.ingredientCount, 1)
@@ -279,10 +287,10 @@ describe('recipes store', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }
   })
 
   test('one user cannot read another user\'s rows', async () => {
-    const mine = await insertRecipe(sql, 'user_a', recipe('Private'))
+    const mine = await insertRecipe(db, 'user_a', recipe('Private'))
     assert.equal(await findRecipe(sql, 'user_b', mine.id), null)
     assert.equal((await listRecipes(sql, 'user_b')).length, 0)
-    const theirs = await insertRecipe(sql, 'user_b', recipe('Theirs'))
+    const theirs = await insertRecipe(db, 'user_b', recipe('Theirs'))
     assert.deepEqual((await listRecipes(sql, 'user_b')).map(row => row.title), ['Theirs'])
     assert.equal(await findRecipe(sql, 'user_a', theirs.id), null)
   })
@@ -293,12 +301,16 @@ describe('recipes lineage writes', { skip: url ? false : 'NUXT_DATABASE_URL is n
   const SCHEMA = 'writes_check'
   let admin: Sql
   let sql: Sql
+  let db: Kysely<Database>
 
   before(async () => {
     admin = postgres(url!, { max: 1, onnotice: () => {} })
     await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
     await admin`CREATE SCHEMA ${admin(SCHEMA)}`
     sql = postgres(url!, { max: 5, onnotice: () => {}, connection: { search_path: SCHEMA } })
+    // Kysely over the same instance, so both layers see the same search_path
+    // and the same pool — which is how the app wires them too.
+    db = new Kysely<Database>({ dialect: new PostgresJSDialect({ postgres: sql }) })
     const version = '001_recipes.sql'
     const body = readFileSync(new URL(`../server/database/migrations/${version}`, import.meta.url), 'utf8')
     await applyMigrations(sql, [{ version, sql: body }])
@@ -323,7 +335,7 @@ describe('recipes lineage writes', { skip: url ? false : 'NUXT_DATABASE_URL is n
   `
 
   test('Save corrects a version in place and touches nothing else', async () => {
-    const first = await insertRecipe(sql, 'user_a', recipe('Focaccia'))
+    const first = await insertRecipe(db, 'user_a', recipe('Focaccia'))
     const saved = await updateRecipe(sql, 'user_a', first.id, recipe('Focaccia, salted'))
     assert.equal(saved!.id, first.id)
     assert.equal(saved!.title, 'Focaccia, salted')
@@ -338,8 +350,8 @@ describe('recipes lineage writes', { skip: url ? false : 'NUXT_DATABASE_URL is n
   })
 
   test('Save as Progression joins the line and takes the pin', async () => {
-    const root = await insertRecipe(sql, 'user_a', recipe('Stock'))
-    const second = await insertProgression(sql, 'user_a', root.id, recipe('Stock, roasted bones'))
+    const root = await insertRecipe(db, 'user_a', recipe('Stock'))
+    const second = await insertProgression(db, 'user_a', root.id, recipe('Stock, roasted bones'))
     assert.equal(second!.lineId, root.lineId)
     assert.equal(second!.progressionOf, root.id)
     assert.equal(second!.variantOf, null)
@@ -347,18 +359,18 @@ describe('recipes lineage writes', { skip: url ? false : 'NUXT_DATABASE_URL is n
 
     // A progression of a progression extends the tree rather than starting a
     // line of its own.
-    const third = await insertProgression(sql, 'user_a', second!.id, recipe('Stock, roasted and reduced'))
+    const third = await insertProgression(db, 'user_a', second!.id, recipe('Stock, roasted and reduced'))
     assert.equal(third!.lineId, root.lineId)
     assert.equal(third!.progressionOf, second!.id)
     assert.deepEqual((await pinnedIn(root.lineId)).map(row => row.id), [third!.id])
   })
 
   test('a progression can be made from any version, pinned or not', async () => {
-    const root = await insertRecipe(sql, 'user_a', recipe('Pancakes'))
-    const second = await insertProgression(sql, 'user_a', root.id, recipe('Pancakes, buttermilk'))
+    const root = await insertRecipe(db, 'user_a', recipe('Pancakes'))
+    const second = await insertProgression(db, 'user_a', root.id, recipe('Pancakes, buttermilk'))
     // Back to the original, which is no longer the entry point, and onwards
     // from there. The pin follows, wherever in the tree it was made.
-    const branch = await insertProgression(sql, 'user_a', root.id, recipe('Pancakes, thinner'))
+    const branch = await insertProgression(db, 'user_a', root.id, recipe('Pancakes, thinner'))
     assert.equal(branch!.progressionOf, root.id)
     assert.equal(branch!.lineId, root.lineId)
     assert.deepEqual((await pinnedIn(root.lineId)).map(row => row.id), [branch!.id])
@@ -368,8 +380,8 @@ describe('recipes lineage writes', { skip: url ? false : 'NUXT_DATABASE_URL is n
   })
 
   test('Save as Variant leaves the line and starts its own', async () => {
-    const root = await insertRecipe(sql, 'user_a', recipe('Chili'))
-    const variant = await insertVariant(sql, 'user_a', root.id, recipe('Chili, no beans'))
+    const root = await insertRecipe(db, 'user_a', recipe('Chili'))
+    const variant = await insertVariant(db, 'user_a', root.id, recipe('Chili, no beans'))
     assert.equal(variant!.lineId, variant!.id)
     assert.equal(variant!.variantOf, root.id)
     assert.equal(variant!.progressionOf, null)
@@ -382,10 +394,10 @@ describe('recipes lineage writes', { skip: url ? false : 'NUXT_DATABASE_URL is n
   })
 
   test('none of the three touch another owner\'s rows', async () => {
-    const mine = await insertRecipe(sql, 'user_a', recipe('Mine'))
+    const mine = await insertRecipe(db, 'user_a', recipe('Mine'))
     assert.equal(await updateRecipe(sql, 'user_b', mine.id, recipe('Theirs now')), null)
-    assert.equal(await insertProgression(sql, 'user_b', mine.id, recipe('Theirs now')), null)
-    assert.equal(await insertVariant(sql, 'user_b', mine.id, recipe('Theirs now')), null)
+    assert.equal(await insertProgression(db, 'user_b', mine.id, recipe('Theirs now')), null)
+    assert.equal(await insertVariant(db, 'user_b', mine.id, recipe('Theirs now')), null)
     // Not merely refused — nothing was written, and the pin did not move.
     assert.equal((await findRecipe(sql, 'user_a', mine.id))!.title, 'Mine')
     assert.deepEqual((await pinnedIn(mine.lineId)).map(row => row.id), [mine.id])
@@ -395,15 +407,15 @@ describe('recipes lineage writes', { skip: url ? false : 'NUXT_DATABASE_URL is n
   test('a parent that does not exist is not a new recipe', async () => {
     const absent = '6f1e9b3c-0000-4000-8000-000000000000'
     assert.equal(await updateRecipe(sql, 'user_a', absent, recipe('Nothing')), null)
-    assert.equal(await insertProgression(sql, 'user_a', absent, recipe('Nothing')), null)
-    assert.equal(await insertVariant(sql, 'user_a', absent, recipe('Nothing')), null)
+    assert.equal(await insertProgression(db, 'user_a', absent, recipe('Nothing')), null)
+    assert.equal(await insertVariant(db, 'user_a', absent, recipe('Nothing')), null)
   })
 
   test('two progressions at once leave exactly one pin', async () => {
-    const root = await insertRecipe(sql, 'user_a', recipe('Race'))
+    const root = await insertRecipe(db, 'user_a', recipe('Race'))
     const results = await Promise.allSettled([
-      insertProgression(sql, 'user_a', root.id, recipe('Race, left')),
-      insertProgression(sql, 'user_a', root.id, recipe('Race, right')),
+      insertProgression(db, 'user_a', root.id, recipe('Race, left')),
+      insertProgression(db, 'user_a', root.id, recipe('Race, right')),
     ])
     // Whether both get through or the index stops one, the invariant holds.
     assert.equal((await pinnedIn(root.lineId)).length, 1)
