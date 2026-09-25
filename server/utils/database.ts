@@ -1,3 +1,4 @@
+import { createError } from 'h3'
 import postgres, { type Sql } from 'postgres'
 
 // One pool for the process. Nitro has no lifecycle hook that hands a handler a
@@ -5,6 +6,22 @@ import postgres, { type Sql } from 'postgres'
 // first use rather than at import so that a build — which imports this file —
 // never opens a socket.
 let pool: Sql | undefined
+
+// A deployment always has one: compose.app.yaml marks NUXT_DATABASE_URL
+// required. A checkout and the auth fixture may not, and neither needs a
+// database to serve the landing page or sign a user in — so the absence is a
+// configuration this app can run in, and the storage routes are what refuse.
+export const hasDatabase = (): boolean => Boolean(useRuntimeConfig().databaseUrl)
+
+/**
+ * The pool, for a caller that is answering a request. Storage is not optional
+ * for these, so a deployment without a database says so plainly rather than
+ * failing somewhere inside a query.
+ */
+export function requireDatabase(): Sql {
+  if (!hasDatabase()) throw createError({ statusCode: 503, message: 'Storage is not configured on this deployment.' })
+  return useDatabase()
+}
 
 export function useDatabase(): Sql {
   if (!pool) {

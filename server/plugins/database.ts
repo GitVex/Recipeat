@@ -1,4 +1,4 @@
-import { applyMigrations, closeDatabase, migrationOrder, useDatabase, waitForDatabase, type Migration } from '../utils/database.ts'
+import { applyMigrations, closeDatabase, hasDatabase, migrationOrder, useDatabase, waitForDatabase, type Migration } from '../utils/database.ts'
 
 // Migrations run once, at startup, because Coolify rebuilds and restarts a
 // resource and gives nothing a per-deploy command to hang a one-shot runner
@@ -28,6 +28,14 @@ export default defineNitroPlugin((nitroApp) => {
 })
 
 async function migrate(): Promise<void> {
+  // Nothing to migrate and nothing to fail: the app serves what it can, and
+  // the storage routes answer 503 rather than the whole process refusing to
+  // start. A deployment cannot reach this — compose.app.yaml requires the URL.
+  if (!hasDatabase()) {
+    console.warn('[database] NUXT_DATABASE_URL is not set; storage is unavailable and migrations were skipped')
+    return
+  }
+
   // Server assets rather than a directory read: at runtime the built output is
   // all there is — server/ does not survive the image — and an asset is
   // bundled into it. The same read works in dev, where it is the directory.
