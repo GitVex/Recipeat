@@ -1,6 +1,7 @@
 import { createHash, generateKeyPairSync, randomUUID, sign } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
 import { test, expect } from '@playwright/test'
+import postgres from 'postgres'
 
 const issuer = 'http://localhost:3101'
 const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 })
@@ -121,3 +122,55 @@ for (const invalid of ['state', 'signature', 'issuer', 'audience', 'nonce', 'exp
     expect((await page.request.get('/api/me')).status()).toBe(401)
   })
 }
+
+// The storage path end to end: a session, a row, and the subject the row is
+// attributed to. Needs a database, and says so rather than failing without
+// one — docs/database.md has the container.
+test('a signed-in user saves a recipe, reads it back, and owns it by subject', async ({ page }) => {
+  test.skip(!process.env.NUXT_DATABASE_URL, 'NUXT_DATABASE_URL is not set')
+  const title = `Playwright toast ${randomUUID()}`
+  const recipe = {
+    title,
+    source_lang: 'en',
+    portions: 2,
+    ingredients: [{ originalText: '200 g flour', quantity: '200 g', name: 'flour' }],
+    steps: ['Mix the 200 g flour in.'],
+    source: { type: 'text', originalText: 'a paste' },
+  }
+
+  expect((await page.request.post('/api/recipes', { data: { recipe } })).status()).toBe(401)
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await expect(page.getByText('Test Cook', { exact: true })).toBeVisible()
+
+  const created = await page.request.post('/api/recipes', { data: { recipe } })
+  expect(created.status()).toBe(201)
+  expect(created.headers()['cache-control']).toBe('no-store')
+  const saved = (await created.json()).recipe
+  // Stored as the first version of its own line, and the entry point for it.
+  expect(saved.lineId).toBe(saved.id)
+  expect(saved.pinned).toBe(true)
+  // Rebuilt server-side rather than echoed: the step knows which ingredient
+  // its amount restates.
+  expect(saved.steps[0].parts.some((part: { type: string }) => part.type === 'ingredientQuantity')).toBe(true)
+
+  const listed = (await (await page.request.get('/api/recipes')).json()).recipes
+  expect(listed.map((row: { id: string }) => row.id)).toContain(saved.id)
+  expect((await (await page.request.get(`/api/recipes/${saved.id}`)).json()).recipe).toEqual(saved)
+
+  expect((await page.request.get('/api/recipes/not-a-uuid')).status()).toBe(400)
+  expect((await page.request.get(`/api/recipes/${randomUUID()}`)).status()).toBe(404)
+  expect((await page.request.post('/api/recipes', { data: { recipe: { ...recipe, ingredients: [], steps: [] } } })).status()).toBe(422)
+  expect((await page.request.post('/api/recipes', { data: { recipe: { ...recipe, portions: -1 } } })).status()).toBe(400)
+
+  // The acceptance criterion this test exists for: the row is attributed to
+  // the subject in the session, which no request body mentioned.
+  const sql = postgres(process.env.NUXT_DATABASE_URL!, { max: 1, onnotice: () => {} })
+  try {
+    const rows = await sql<{ owner_sub: string }[]>`SELECT owner_sub FROM recipes WHERE id = ${saved.id}`
+    expect(rows[0]?.owner_sub).toBe('test-user')
+  } finally {
+    await sql`DELETE FROM recipes WHERE owner_sub = 'test-user'`
+    await sql.end()
+  }
+})

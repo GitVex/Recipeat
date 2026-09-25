@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs'
 import { after, before, describe, test } from 'node:test'
 import postgres, { type Sql } from 'postgres'
 import { applyMigrations } from '../server/database/migrate.ts'
+import { normalizeRecipe, parseExtraction } from '../server/utils/extraction.ts'
+import { findRecipe, insertRecipe, listRecipes } from '../server/recipes/store.ts'
 
 // The half of the runner that needs a database. Everything here happens inside
 // a schema of its own, so a development database keeps its own
@@ -204,5 +206,84 @@ describe('recipes schema', { skip: url ? false : 'NUXT_DATABASE_URL is not set' 
     const plan = (await sql<{ 'QUERY PLAN': string }[]>`EXPLAIN SELECT id FROM recipes WHERE owner_sub = 'user_a' AND pinned ORDER BY created_at DESC`)
       .map(row => row['QUERY PLAN']).join('\n')
     assert.match(plan, /recipes_owner_pinned_idx/, plan)
+  })
+})
+
+// The store: what the three routes in #7 actually do to the table, minus the
+// session and the HTTP envelope.
+describe('recipes store', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () => {
+  const SCHEMA = 'store_check'
+  let admin: Sql
+  let sql: Sql
+
+  before(async () => {
+    admin = postgres(url!, { max: 1, onnotice: () => {} })
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin`CREATE SCHEMA ${admin(SCHEMA)}`
+    sql = postgres(url!, { max: 5, onnotice: () => {}, connection: { search_path: SCHEMA } })
+    const version = '001_recipes.sql'
+    const body = readFileSync(new URL(`../server/database/migrations/${version}`, import.meta.url), 'utf8')
+    await applyMigrations(sql, [{ version, sql: body }])
+  })
+
+  after(async () => {
+    await sql?.end()
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin?.end()
+  })
+
+  const recipe = (title: string) => normalizeRecipe(parseExtraction({
+    title,
+    source_lang: 'en',
+    portions: 2,
+    totalTime: 25,
+    ingredients: [{ originalText: '200 g flour', quantity: '200 g', name: 'flour' }],
+    steps: ['Mix the 200 g flour in.'],
+  }, { type: 'text', originalText: title }))
+
+  test('a saved recipe comes back as the recipe that went in', async () => {
+    const saved = await insertRecipe(sql, 'user_a', recipe('Bread'))
+    const found = await findRecipe(sql, 'user_a', saved.id)
+    assert.deepEqual(found, saved)
+    // The row is the first version of its own line, and the entry point for it.
+    assert.equal(saved.lineId, saved.id)
+    assert.equal(saved.pinned, true)
+    assert.deepEqual([saved.progressionOf, saved.variantOf], [null, null])
+    // JSONB round-trips whole: the parts and the links normalizeRecipe found.
+    assert.deepEqual(found!.ingredients, recipe('Bread').ingredients)
+    assert.equal(found!.steps[0]!.parts.some(part => part.type === 'ingredientQuantity'), true)
+    // NUMERIC arrives as a string and is read back to what was stored.
+    assert.equal(found!.portions, 2)
+    assert.equal(found!.totalTime, 25)
+  })
+
+  test('a listing is one entry per line, newest first', async () => {
+    await insertRecipe(sql, 'user_a', recipe('Soup'))
+    const listed = await listRecipes(sql, 'user_a')
+    assert.deepEqual(listed.map(row => row.title), ['Soup', 'Bread'])
+    assert.deepEqual(listed[0]!.ingredientCount, 1)
+    assert.deepEqual(listed[0]!.stepCount, 1)
+  })
+
+  test('an unpinned version is in no listing', async () => {
+    const [{ id, line_id }] = await sql<{ id: string, line_id: string }[]>`SELECT id, line_id FROM recipes WHERE title = 'Soup'`
+    await sql.begin(async (tx) => {
+      await tx`UPDATE recipes SET pinned = false WHERE id = ${id}`
+      await tx`INSERT INTO recipes (owner_sub, title, source_lang, ingredients, steps, line_id, progression_of, pinned)
+               VALUES ('user_a', 'Soup, again', 'en', '[]'::jsonb, '[]'::jsonb, ${line_id}, ${id}, true)`
+    })
+    const listed = await listRecipes(sql, 'user_a')
+    assert.deepEqual(listed.map(row => row.title), ['Soup, again', 'Bread'], 'the superseded version is still listed')
+    // Still readable by id, which is what the lineage view reaches it through.
+    assert.ok(await findRecipe(sql, 'user_a', id))
+  })
+
+  test('one user cannot read another user\'s rows', async () => {
+    const mine = await insertRecipe(sql, 'user_a', recipe('Private'))
+    assert.equal(await findRecipe(sql, 'user_b', mine.id), null)
+    assert.equal((await listRecipes(sql, 'user_b')).length, 0)
+    const theirs = await insertRecipe(sql, 'user_b', recipe('Theirs'))
+    assert.deepEqual((await listRecipes(sql, 'user_b')).map(row => row.title), ['Theirs'])
+    assert.equal(await findRecipe(sql, 'user_a', theirs.id), null)
   })
 })
