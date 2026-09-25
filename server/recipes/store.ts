@@ -1,4 +1,5 @@
 import type { Sql } from 'postgres'
+import { fail } from '../extraction/errors.ts'
 import type { ExtractedRecipe } from '../extraction/recipe.ts'
 
 // A saved recipe is an extracted one plus what the table knows about it: which
@@ -60,29 +61,142 @@ const asRecipe = (row: Row): SavedRecipe => ({
   updatedAt: row.updated_at.toISOString(),
 })
 
+// The content half of a row, in one place, so that what a recipe becomes is
+// written once and the three inserts differ only in their lineage. owner_sub
+// is a parameter rather than a field on a recipe: there is no shape in which a
+// request body could carry one.
+const content = (sql: Sql, ownerSub: string, recipe: ExtractedRecipe) => [
+  ownerSub, recipe.title, recipe.source_lang, recipe.portions, recipe.image, recipe.totalTime,
+  sql.json(recipe.ingredients), sql.json(recipe.steps), sql.json(recipe.source),
+] as const
+
 /**
  * Writes a recipe as the first version of a line of its own: no parent, and
  * pinned, because a line whose only version is not the entry point would
  * appear in no listing at all.
  *
- * `owner_sub` is a parameter rather than a field on the recipe so that a
- * caller cannot pass one in a body. `line_id` is left out entirely — the
- * table's own trigger points it at the new row.
+ * `line_id` is left out entirely — the table's own trigger points it at the
+ * new row.
  */
 export async function insertRecipe(sql: Sql, ownerSub: string, recipe: ExtractedRecipe): Promise<SavedRecipe> {
+  const [owner, title, sourceLang, portions, image, totalTime, ingredients, steps, source] = content(sql, ownerSub, recipe)
   const [row] = await sql<Row[]>`
     INSERT INTO recipes (
       owner_sub, title, source_lang, portions, image, total_time,
       ingredients, steps, source, pinned
     ) VALUES (
-      ${ownerSub}, ${recipe.title}, ${recipe.source_lang}, ${recipe.portions},
-      ${recipe.image}, ${recipe.totalTime},
-      ${sql.json(recipe.ingredients)}, ${sql.json(recipe.steps)}, ${sql.json(recipe.source)},
+      ${owner}, ${title}, ${sourceLang}, ${portions}, ${image}, ${totalTime},
+      ${ingredients}, ${steps}, ${source},
       true
     )
     RETURNING *
   `
   return asRecipe(row!)
+}
+
+/**
+ * **Save.** The recipe you had, corrected: same row, same id, same place in
+ * the tree. It is the one write that cannot change the shape of a line —
+ * no column below the content is named here, so a body cannot move a pin or
+ * reparent a version by mentioning one.
+ *
+ * Works on any version the caller owns, pinned or not. Two saves racing is
+ * last write wins: the second overwrites the first and `updated_at` says when.
+ * Nothing is lost that a progression would have kept, and a person editing
+ * their own recipe from two tabs is not a case worth a conflict for.
+ *
+ * Null means no such row, or not theirs.
+ */
+export async function updateRecipe(sql: Sql, ownerSub: string, id: string, recipe: ExtractedRecipe): Promise<SavedRecipe | null> {
+  const [owner, title, sourceLang, portions, image, totalTime, ingredients, steps, source] = content(sql, ownerSub, recipe)
+  const [row] = await sql<Row[]>`
+    UPDATE recipes SET
+      title = ${title}, source_lang = ${sourceLang}, portions = ${portions},
+      image = ${image}, total_time = ${totalTime},
+      ingredients = ${ingredients}, steps = ${steps}, source = ${source}
+    WHERE id = ${id} AND owner_sub = ${owner}
+    RETURNING *
+  `
+  return row ? asRecipe(row) : null
+}
+
+/**
+ * **Save as Progression.** A new version in the same line, descended from any
+ * version the caller owns — pinned or not, which is what makes a line a tree
+ * rather than a list. It takes the pin, wherever in the tree it was made from.
+ *
+ * Both statements filter on `owner_sub`, so a parent belonging to someone else
+ * unpins nothing and inserts nothing: the caller gets the same answer as for
+ * an id that does not exist, which is all they are owed.
+ *
+ * Null means no such parent, or not theirs.
+ */
+export async function insertProgression(sql: Sql, ownerSub: string, parentId: string, recipe: ExtractedRecipe): Promise<SavedRecipe | null> {
+  const [owner, title, sourceLang, portions, image, totalTime, ingredients, steps, source] = content(sql, ownerSub, recipe)
+  try {
+    const row = await sql.begin(async (tx) => {
+      // The line the parent belongs to, not the parent: the pin can be
+      // anywhere in the tree, and this is the one that has to give it up.
+      await tx`
+        UPDATE recipes SET pinned = false
+        WHERE pinned AND line_id = (
+          SELECT line_id FROM recipes WHERE id = ${parentId} AND owner_sub = ${owner}
+        )
+      `
+      const [inserted] = await tx<Row[]>`
+        INSERT INTO recipes (
+          owner_sub, title, source_lang, portions, image, total_time,
+          ingredients, steps, source, line_id, progression_of, pinned
+        )
+        SELECT
+          ${owner}, ${title}, ${sourceLang}, ${portions}, ${image}, ${totalTime},
+          ${ingredients}, ${steps}, ${source},
+          -- Inherited, never taken from the caller, which is what keeps a
+          -- progression of a progression in the line it came from.
+          parent.line_id, parent.id, true
+        FROM recipes parent
+        WHERE parent.id = ${parentId} AND parent.owner_sub = ${owner}
+        RETURNING *
+      `
+      return inserted ?? null
+    })
+    return row ? asRecipe(row) : null
+  } catch (error) {
+    // Two progressions racing in one line: both unpinned, both inserted, and
+    // recipes_line_pin_idx let exactly one of them through. The loser is a
+    // retry rather than a bug.
+    if ((error as { constraint_name?: string }).constraint_name === 'recipes_line_pin_idx') {
+      throw fail(409, 'Another version of this recipe was saved at the same time. Try again.', error)
+    }
+    throw error
+  }
+}
+
+/**
+ * **Save as Variant.** A branch that leaves the line: it points at the version
+ * it came from and becomes the first version of a line of its own, with its
+ * own pin. `line_id` is left out so the table's trigger points it at the new
+ * row, which is exactly what "its own line" means.
+ *
+ * One statement, so there is no window in which the parent could be checked
+ * and then deleted. Null means no such parent, or not theirs.
+ */
+export async function insertVariant(sql: Sql, ownerSub: string, parentId: string, recipe: ExtractedRecipe): Promise<SavedRecipe | null> {
+  const [owner, title, sourceLang, portions, image, totalTime, ingredients, steps, source] = content(sql, ownerSub, recipe)
+  const [row] = await sql<Row[]>`
+    INSERT INTO recipes (
+      owner_sub, title, source_lang, portions, image, total_time,
+      ingredients, steps, source, variant_of, pinned
+    )
+    SELECT
+      ${owner}, ${title}, ${sourceLang}, ${portions}, ${image}, ${totalTime},
+      ${ingredients}, ${steps}, ${source},
+      parent.id, true
+    FROM recipes parent
+    WHERE parent.id = ${parentId} AND parent.owner_sub = ${owner}
+    RETURNING *
+  `
+  return row ? asRecipe(row) : null
 }
 
 /**
