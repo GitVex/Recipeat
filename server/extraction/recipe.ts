@@ -2,7 +2,7 @@ import { fail } from './errors.ts'
 import { isUnit } from './quantity.ts'
 import { httpUrl } from './url.ts'
 
-// Storage limits. A generation grammar cannot express them, so they are
+// Storage limits. The response schema cannot express them, so they are
 // applied here, on the way from model output to stored document.
 // totalTime is in minutes, capped at a month: a cured ham is days, nothing is
 // longer, and a site that says otherwise is reporting something else.
@@ -18,7 +18,8 @@ export type IngredientDraft = {
   // quantity out of the text instead.
   parsedQuantity?: Quantity | null
   // What is left of the line once the amount and the name are out: how the
-  // ingredient is prepared, an aside, what it is for. Also fetcher-only.
+  // ingredient is prepared, an aside, what it is for. The fetcher segments it
+  // out, and the model is asked for it too.
   extra?: string | null
 }
 
@@ -28,8 +29,9 @@ export type RecipeDraft = {
   portions: number | null
   ingredients: IngredientDraft[]
   steps: string[]
-  // A page carries these; a paste and a photo do not, and the model is not
-  // asked to invent them.
+  // Optional because not every source states them. A page carries both in its
+  // metadata; the model is asked for totalTime and never for an image, which
+  // it has no way to know.
   image?: string | null
   totalTime?: number | null
 }
@@ -90,8 +92,9 @@ export type ExtractedRecipe = {
   title: string | null
   source_lang: string
   portions: number | null
-  // A picture of the dish, and how long it takes end to end. Both come from a
-  // page's own metadata; null for every other source, for now.
+  // A picture of the dish, and how long it takes end to end. The image comes
+  // from a page's own metadata and is null for every other source, for now;
+  // totalTime is whatever the source states, on all three paths.
   image: string | null
   totalTime: number | null
   ingredients: Ingredient[]
@@ -160,15 +163,16 @@ const ingredientsOf = (value: unknown[]): Ingredient[] => value
 // A failure should name what actually failed, and each modality answers to
 // something different. Only the wording changes; what is checked does not.
 const ORIGIN: Record<RecipeSource['type'], { service: string, where: string }> = {
-  text: { service: 'Ollama', where: 'in that text' },
+  text: { service: 'The extraction service', where: 'in that text' },
   website: { service: 'The recipe fetcher', where: 'on that page' },
-  photo: { service: 'Ollama', where: 'in that photo' },
+  photo: { service: 'The extraction service', where: 'in that photo' },
 }
 
 export function parseExtraction(value: unknown, source: RecipeSource): ExtractedRecipe {
   const origin = ORIGIN[source.type]
-  // For the model these are unreachable while the grammar is applied: reaching
-  // them means `format` was ignored, and then nothing below can be trusted.
+  // For the model these are unreachable while the response schema holds:
+  // reaching them means the schema was ignored, and then nothing below can be
+  // trusted.
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw fail(502, `${origin.service} did not return a recipe object.`, value)
   }

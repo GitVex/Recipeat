@@ -2,9 +2,9 @@
 
 Field names are camelCase on the wire because there is exactly one consumer and
 it is TypeScript. An ingredient deliberately mirrors the draft shape the model
-produces in `server/extraction/ollama.ts`: `quantity` is the amount *as
-written*, so the Nuxt side reads both sources through one code path, and the
-numbers this service could read sit beside it under `parsedQuantity`.
+is asked for in `server/extraction/recipe-draft.schema.json`: `quantity` is the
+amount *as written*, so the Nuxt side reads both sources through one code path,
+and the numbers this service could read sit beside it under `parsedQuantity`.
 
 Nothing here is passed through from a library. `recipe-scrapers` returns
 whatever getters a given site's scraper happens to implement, so narrowing to
