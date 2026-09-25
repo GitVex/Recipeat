@@ -13,6 +13,7 @@ app startup. Nothing else talks to it.
 | `server/database/migrate.ts` | The runner: a ledger, an advisory lock, one transaction per file |
 | `server/plugins/database.ts` | Runs the above at startup and holds requests until it is done |
 | `server/utils/database.ts` | The shared connection pool |
+| `server/recipes/` | What the routes do with it: validate, write, list, read |
 
 It is a separate Compose project, and in Coolify a separate resource, because
 the app redeploys on every push and a redeploy recreates that project's
@@ -45,8 +46,10 @@ Postgres publishes on `127.0.0.1:5432`, so a checkout points straight at it:
 NUXT_DATABASE_URL=postgres://recipeat:PASSWORD@127.0.0.1:5432/recipeat npm run dev
 ```
 
-Without that variable the server starts, logs `NUXT_DATABASE_URL is not set`,
-and answers 503 — it does not run half-configured.
+Without that variable the server still starts and serves the landing page and
+login — it logs that storage is unavailable, skips migrations, and answers 503
+on the routes that need a database. A deployment cannot end up there:
+`compose.app.yaml` marks the variable required.
 
 Reaching it by hand, for a dump or a look around:
 
@@ -82,7 +85,8 @@ filename, so a changed file is a file that has already run.
 ## Testing the runner
 
 `npm run test:database` covers the half that needs no database: which files are
-applied, in what order, and which names are refused.
+applied, in what order, and which names are refused. `npm run test:recipes`
+covers the validator a posted recipe goes through, which needs one even less.
 
 The rest wants a real Postgres, and skips without one:
 
@@ -94,8 +98,14 @@ It works inside a schema of its own and drops it afterwards, so a development
 database keeps its own tables and its own ledger. What it covers is what is
 hard to reason about from the code: that a multi-statement file runs to the
 end, that a re-run writes nothing, that a failing file leaves neither the
-schema change nor the ledger row, and that two runners at once produce one
-applied migration rather than two.
+schema change nor the ledger row, that two runners at once produce one applied
+migration rather than two, what the schema itself refuses, and what the store
+writes and reads back.
+
+`npm run test:auth` takes `NUXT_DATABASE_URL` too, and uses it for one test:
+signing in, saving a recipe and checking the row is attributed to the session's
+subject. Without the variable that test skips and the rest of the suite runs as
+before.
 
 ## Deploying to Coolify
 

@@ -7,8 +7,9 @@ the operational view — what to point Postman at, and what stands in the way.
 There are two tiers. The **app** is public and needs a session on four of its
 five routes. The **fetcher** is unauthenticated and published on loopback only,
 so reaching it at all takes a tunnel. Extraction itself runs at Google and is
-not reachable from here. Nothing in either tier stores anything: every call is
-safe to repeat.
+not reachable from here. Extraction stores nothing and is safe to repeat;
+`POST /api/recipes` is the one call here that writes a row, and repeating it
+writes another.
 
 ## Variables
 
@@ -174,6 +175,62 @@ Expect five to nine seconds for a page. Nothing on this side decodes the image,
 so the media type the browser declared is forwarded as-is and an unreadable one
 is answered for by the model, not caught here.
 
+### `POST /api/recipes`
+
+```
+POST {{app}}/api/recipes
+Content-Type: application/json
+Cookie: nuxt-oidc-auth=<value>
+
+{ "recipe": { … whatever an extract route returned … } }
+```
+
+Body `{ "recipe": { … } }`, or the recipe itself unwrapped. Answers **201** and
+`{ "recipe": { … } }` — the same shape it was given, plus `id`, `lineId`,
+`pinned`, `createdAt` and `updatedAt`.
+
+Post back exactly what an extraction returned, optionally edited. Ingredient
+ids, step parts and the links between them are rebuilt here rather than
+trusted, so editing the text of a step is enough to re-link the amounts inside
+it. `owner_sub` comes from the session and is never read from the body.
+
+| Status | Meaning |
+|---|---|
+| 401 | No session, or a session whose token carries no subject |
+| 415 | Content type is not JSON |
+| 400 | A field is the wrong type, an amount is not positive, a URL is not http(s), or the source is not one of text/website/photo |
+| 413 | Over a limit: 300-character title, 200 ingredients, 100 steps, 5 000 characters a step |
+| 422 | No ingredients and no steps — well-formed, but not a recipe |
+| 503 | This deployment has no database configured |
+
+### `GET /api/recipes`
+
+```
+GET {{app}}/api/recipes
+Cookie: nuxt-oidc-auth=<value>
+```
+
+Answers `{ "recipes": [ … ] }`, newest first, at most 200. One entry per line:
+the pinned version, with `id`, `title`, `image`, `totalTime`, `portions`,
+`ingredientCount`, `stepCount` and the timestamps — what a card needs, not the
+whole recipe. Earlier versions of a line are not here; they are reachable by
+id.
+
+### `GET /api/recipes/{id}`
+
+```
+GET {{app}}/api/recipes/6f1e9b3c-…
+Cookie: nuxt-oidc-auth=<value>
+```
+
+Answers `{ "recipe": { … } }`, whole. Another user's recipe answers **404**
+rather than 403: whether an id exists is not theirs to learn.
+
+| Status | Meaning |
+|---|---|
+| 400 | The id is not a UUID |
+| 404 | No such recipe, or not yours |
+
 ### Auth routes
 
 Browser flows, listed so they are not mistaken for API endpoints. Following
@@ -287,6 +344,13 @@ first one that breaks.
 | 4 | `POST {{app}}/api/extract/website` | App → fetcher, over `recipeat-fetch-net` |
 | 5 | `POST {{app}}/api/extract/text` | App → Gemini, over the internet |
 | 6 | `POST {{app}}/api/extract/photo` | The same, carrying an image |
+| 7 | `POST {{app}}/api/recipes` | App → Postgres, over `recipeat-db-net` |
+| 8 | `GET {{app}}/api/recipes` | The row is there, and is yours |
+
+A **503** at step 7 is not the database being down: it is `NUXT_DATABASE_URL`
+missing from the app's environment. A 500 there, with the app otherwise
+healthy, is worth checking the logs for — the migration runner refuses to
+serve a schema it could not apply, so the container would be restarting.
 
 A 502 at step 4 when the fetcher answered at steps 1–2 is a network problem
 rather than a service one: the app reaches it over `recipeat-fetch-net` by the

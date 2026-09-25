@@ -27,6 +27,7 @@ node .output/server/index.mjs
 
 ```sh
 npm run test:database                # node:test, no database needed
+npm run test:recipes                 # node:test, the validator on the way in
 NUXT_DATABASE_URL=... npm run test:database:live   # the migration runner, against a real Postgres
 npm run test:extraction              # node:test, no browser or model needed
 npm run build && npm run test:auth   # Playwright against a mock OIDC issuer
@@ -47,9 +48,13 @@ cd services/recipeat-fetcher && uv run pytest   # the fetcher service
 - **`POST /api/extract/photo`** sends an uploaded photo to the same model the
   text path uses, which reads the page itself. The image is read and discarded
   — nothing stores it yet.
+- **`POST /api/recipes`** writes an extracted recipe to Postgres, owned by the
+  subject in the session. `GET /api/recipes` lists a user's collection and
+  `GET /api/recipes/{id}` reads one; nobody reaches another user's rows.
 
-The demo collection is not connected to an account, and no recipe is written to
-a database. [Planning](docs/planning.md) covers what that needs.
+The browser does not call any of that yet: the demo collection is still
+browser-local and the import dialog still shows samples.
+[Planning](docs/planning.md) covers what is left.
 
 ## Docs
 

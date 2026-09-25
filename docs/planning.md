@@ -17,7 +17,8 @@ url ──────▶ fetcher ─┘
 | Zitadel login | Done |
 | Extraction model | Done; Gemini, billed per page. Was a self-hosted Ollama until the photo path needed a model that could read a page |
 | `POST /api/extract/text` | Done; returns a recipe, stores nothing |
-| Storage | Postgres, the `recipes` table and a migration runner are in. No route writes to them yet |
+| `POST /api/recipes` | Done; writes a recipe to the table, owned by the session's subject |
+| Storage | Done; Postgres, the `recipes` table, a migration runner, and routes that write, list and read |
 | Import UI wired to the API | Not started — the dialog still shows samples |
 | Website import | Done; returns a recipe, stores nothing. No SSRF guard yet |
 | Photo import | Done; the model reads the photo directly, returns a recipe, stores nothing. The image itself is discarded |
@@ -52,21 +53,32 @@ already exists in code; each extraction modality builds its own, since only it
 knows where the recipe came from.
 
 The service, the driver, the connection URL and the migration runner are done
-— see [database.md](database.md). What is left is the part that writes: a route
-that persists, with `owner_sub` read from the session.
+— see [database.md](database.md), and the routes that write and read are in
+`server/api/recipes*`. What is left is the app: nothing in the browser calls
+any of them yet.
 
-### Open decision: does extraction save?
+### Decided: extraction does not save
 
-Keeping them separate fits the existing UX — `RecipeImportDialog` previews
-before anything joins the collection — and keeps bad extractions out of the
-table. `POST /api/extract/text` would stay as it is, and a new `POST /api/recipes`
-would persist.
+`POST /api/extract/*` still stores nothing, and `POST /api/recipes` persists —
+which keeps the preview `RecipeImportDialog` already does, keeps a bad
+extraction out of the table, and is the only shape in which a person can
+correct a recipe before it joins their collection.
 
-The catch: a draft coming back from the browser is untrusted input, so the save
-endpoint needs its own validation. `parseExtraction` cannot be reused for it —
-that one expects model output. The alternative is to hold the draft server-side
-under an ID and have the client confirm by ID, so the recipe never round-trips
-through the browser. More moving parts, nothing to re-validate.
+The cost is that a draft comes back through the browser as untrusted input,
+and `parseExtraction` cannot check it: that one is written for model output and
+recovers rather than rejects. So `validateRecipe` does, and it refuses instead
+— a browser sending a malformed recipe is our own bug, not a flaky model.
+
+Holding the draft server-side under an ID was the alternative, and it buys less
+than it looks like. The three write endpoints in #29 all take an edited recipe
+body, so a validator for untrusted recipes has to exist regardless; a draft
+store would remove it from one path out of four and add a cache with a
+lifetime.
+
+What the validator produces is a draft, not a recipe. Ingredient ids, step
+parts and the links between them are rebuilt by the same assembly extraction
+runs, so a stored recipe and an extracted one are the same shape by
+construction and nothing structural arrives from outside.
 
 ## Then
 
@@ -215,9 +227,13 @@ tree, can disagree with it, and earns itself only if the UI shows a number
 - **Ingredient linking.** Matching falls back to the head noun, so two
   ingredients sharing a noun and an amount — `"1 cup white sugar"` and
   `"1 cup brown sugar"` in one step — are separated only by proximity.
-- **Dedupe.** Re-importing the same URL will create a second row. A partial
-  unique index on `(owner_sub, (source->>'url'))` would catch it, and the
-  canonical URL the fetcher returns is the better key to store there.
+- **Dedupe is a non-goal.** Re-importing the same URL makes a second recipe,
+  deliberately. The partial unique index on `(owner_sub, (source->>'url'))`
+  that would catch it cannot be written as it stands: every progression copies
+  `source`, so the second version of any website recipe would collide with the
+  first. Restricted to rows that are neither a progression nor a variant it
+  would work, and it is still not wanted — re-importing a page is a way to
+  start again from it.
 - **Extraction leaves the host.** Every text and photo import is a request to
   Google. The fetcher already reaches the internet, but it reaches a page the
   user named; this sends the user's own recipes. Billing is required rather
