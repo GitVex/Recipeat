@@ -18,7 +18,8 @@ url ──────▶ fetcher ─┘
 | Extraction model | Done; Gemini, billed per page. Was a self-hosted Ollama until the photo path needed a model that could read a page |
 | `POST /api/extract/text` | Done; returns a recipe, stores nothing |
 | `POST /api/recipes` | Done; writes a recipe to the table, owned by the session's subject |
-| Storage | Done; Postgres, the `recipes` table, a migration runner, and routes that write, list and read |
+| Save, progression, variant | Done; the three write routes, with the pin moving on a progression |
+| Storage | Done; Postgres, the `recipes` table, a migration runner, and every route the collection needs. Nothing in the browser calls them yet |
 | Import UI wired to the API | Not started — the dialog still shows samples |
 | Website import | Done; returns a recipe, stores nothing. No SSRF guard yet |
 | Photo import | Done; the model reads the photo directly, returns a recipe, stores nothing. The image itself is discarded |
@@ -119,9 +120,12 @@ it decides any UI. The definitions, settled in #23:
 - **Save as Variant** — a branch. A different take that stands on its own and
   is not trying to replace the original.
 
-Three endpoints rather than one taking the action as a parameter (#29). The
-payload is the same recipe either way, but only one of the three overwrites,
-and three routes make that one impossible to reach by accident.
+Three endpoints rather than one taking the action as a parameter (#29):
+`PUT /api/recipes/{id}` saves, `POST /api/recipes/{id}/progressions` extends a
+line, `POST /api/recipes/{id}/variants` leaves it. The payload is the same
+recipe either way, but only one of the three overwrites, and it is the only one
+that is not a POST — the destructive action cannot be reached by posting
+somewhere.
 
 ### The pin
 

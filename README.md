@@ -51,6 +51,10 @@ cd services/recipeat-fetcher && uv run pytest   # the fetcher service
 - **`POST /api/recipes`** writes an extracted recipe to Postgres, owned by the
   subject in the session. `GET /api/recipes` lists a user's collection and
   `GET /api/recipes/{id}` reads one; nobody reaches another user's rows.
+- **Save, progression, variant.** `PUT /api/recipes/{id}` corrects a version in
+  place; `POST /api/recipes/{id}/progressions` adds a version to its line and
+  moves the pin to it; `POST /api/recipes/{id}/variants` branches into a line
+  of its own. [Planning](docs/planning.md) has what those words mean.
 
 The browser does not call any of that yet: the demo collection is still
 browser-local and the import dialog still shows samples.

@@ -203,6 +203,65 @@ it. `owner_sub` comes from the session and is never read from the body.
 | 422 | No ingredients and no steps — well-formed, but not a recipe |
 | 503 | This deployment has no database configured |
 
+### `PUT /api/recipes/{id}`
+
+```
+PUT {{app}}/api/recipes/6f1e9b3c-…
+Content-Type: application/json
+Cookie: nuxt-oidc-auth=<value>
+
+{ "recipe": { … } }
+```
+
+**Save.** Replaces the version it names and creates nothing — the only one of
+the three that overwrites, which is why it is the only one that is not a POST.
+Works on any version you own, pinned or not, and moves neither the pin nor the
+version's place in its line. Answers `{ "recipe": { … } }`.
+
+Two saves racing is last write wins; `updatedAt` says which won.
+
+### `POST /api/recipes/{id}/progressions`
+
+```
+POST {{app}}/api/recipes/6f1e9b3c-…/progressions
+Content-Type: application/json
+Cookie: nuxt-oidc-auth=<value>
+
+{ "recipe": { … } }
+```
+
+**Save as Progression.** A new version in the same line, descended from the id
+in the path — any version you own, pinned or not. Answers **201**. The new
+version takes the pin, wherever in the tree it was made, so the collection
+shows it from then on.
+
+`lineId` is inherited and never taken from the body, which is what keeps a
+progression of a progression in the line it came from.
+
+### `POST /api/recipes/{id}/variants`
+
+```
+POST {{app}}/api/recipes/6f1e9b3c-…/variants
+Content-Type: application/json
+Cookie: nuxt-oidc-auth=<value>
+
+{ "recipe": { … } }
+```
+
+**Save as Variant.** A branch that leaves the line: the new recipe points at
+the id in the path and becomes the first version of a line of its own, with
+its own pin. Answers **201**. The line it left keeps its own pin, and the
+variant appears in a listing as its own entry.
+
+All three take the same body as `POST /api/recipes` and answer the same 400,
+413, 415 and 422 as it does, plus:
+
+| Status | Meaning |
+|---|---|
+| 400 | The id in the path is not a UUID |
+| 404 | No such version, or not yours — the same answer either way |
+| 409 | Two progressions in one line at once; one of them got the pin, retry |
+
 ### `GET /api/recipes`
 
 ```
@@ -346,6 +405,7 @@ first one that breaks.
 | 6 | `POST {{app}}/api/extract/photo` | The same, carrying an image |
 | 7 | `POST {{app}}/api/recipes` | App → Postgres, over `recipeat-db-net` |
 | 8 | `GET {{app}}/api/recipes` | The row is there, and is yours |
+| 9 | `POST {{app}}/api/recipes/{id}/progressions` | Lineage: the new version takes the pin, and step 8 shows it in place of the old one |
 
 A **503** at step 7 is not the database being down: it is `NUXT_DATABASE_URL`
 missing from the app's environment. A 500 there, with the app otherwise
