@@ -12,6 +12,7 @@
     "preview": "nuxt preview",
     "test:auth": "playwright test --config playwright.auth.config.ts",
     "test:database": "node --experimental-strip-types --test tests/database.node.ts",
+    "test:database:live": "node --experimental-strip-types --test tests/database.live.ts",
     "test:extraction": "node --experimental-strip-types --test tests/extraction.node.ts"
   },
   "dependencies": {
