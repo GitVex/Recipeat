@@ -38,21 +38,36 @@ CREATE TABLE recipes (
     steps JSONB NOT NULL,
     portions NUMERIC,
     source JSONB,
+
+    line_id UUID NOT NULL,
+    progression_of UUID REFERENCES recipes(id) ON DELETE CASCADE,
+    variant_of UUID REFERENCES recipes(id) ON DELETE SET NULL,
+    pinned BOOLEAN NOT NULL DEFAULT false,
+
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 
     CHECK (portions IS NULL OR portions > 0),
     CHECK (jsonb_typeof(ingredients) = 'array'),
     CHECK (jsonb_typeof(steps) = 'array'),
-    CHECK (source IS NULL OR jsonb_typeof(source) = 'object')
+    CHECK (source IS NULL OR jsonb_typeof(source) = 'object'),
+    CHECK (num_nonnulls(progression_of, variant_of) <= 1)
 );
 
-CREATE INDEX recipes_owner_recent_idx ON recipes (owner_sub, created_at DESC);
+CREATE UNIQUE INDEX recipes_line_pin_idx ON recipes (line_id) WHERE pinned;
+CREATE INDEX recipes_owner_pinned_idx ON recipes (owner_sub, created_at DESC)
+    WHERE pinned;
+CREATE INDEX recipes_line_idx ON recipes (line_id);
 ```
 
-`owner_sub` has no foreign key on purpose: users live in Zitadel. The index is
-composite because the listing query is always
-`WHERE owner_sub = $1 ORDER BY created_at DESC`.
+`owner_sub` has no foreign key on purpose: users live in Zitadel. The listing
+index is composite because the query is always
+`WHERE owner_sub = $1 AND pinned ORDER BY created_at DESC`, and partial
+because an unpinned version is never in a listing.
+
+The four lineage columns and their indexes are explained under "Recipe
+lineage" below; they belong to the first migration rather than a second one,
+which is free only while nothing has been applied anywhere (#28).
 
 `updated_at` still needs a `BEFORE UPDATE` trigger — the default fires only on
 insert, so without one the column never changes.
@@ -106,6 +121,99 @@ to nine seconds, which is the whole request.
 **Translation.** `source_lang` is recorded but there is nowhere to put a
 translation. Either a `translations JSONB` keyed by language tag, or a
 `recipe_translations` table.
+
+## Recipe lineage
+
+Three save actions, and the difference between them decides the schema before
+it decides any UI. The definitions, settled in #23:
+
+- **Save** — overwrite in place. The recipe you had, corrected. Same row, same
+  id, and it works on any version, not only the current one.
+- **Save as Progression** — a new version in a line. The same recipe, further
+  along; you are iterating and the history is the point.
+- **Save as Variant** — a branch. A different take that stands on its own and
+  is not trying to replace the original.
+
+Three endpoints rather than one taking the action as a parameter (#29). The
+payload is the same recipe either way, but only one of the three overwrites,
+and three routes make that one impossible to reach by accident.
+
+### The pin
+
+A line of progressions is a tree, not a list. A progression can be made from
+any version, so a version can have several progression children, and something
+has to say which one the app means when it says "the recipe". That is the pin:
+the entry point, what the collection and every menu show, and the only version
+reachable without going through the lineage view.
+
+Making a progression moves the pin to it, wherever in the tree it was made
+from. That is the whole rule — no exception for progressing off an old version
+— and it makes the pin always the thing last worked on. It also means the
+lineage view needs a pin button, or a version reached by going backwards could
+only become the entry point by progressing off it again.
+
+One pin per line, held as a partial unique index rather than by three write
+endpoints each remembering to unpin the old one. The endpoint that inserts a
+progression unpins and inserts in one transaction.
+
+### Variants
+
+A variant leaves the line. It points at the version it branched off and becomes
+the first version of a line of its own, with its own pin and its own tree. A
+lineage view shows a recipe's own progressions in full and its variants only as
+far as their entry point: a variant is a different recipe, and its history is
+its own business.
+
+### Progressions are copies
+
+A progression stores the whole recipe, not a delta. Reading a version is one
+row, a diff between two is a comparison of two rows, and the cost is that a
+line of thirty progressions is thirty recipes on disk — which, for text, is
+less than the alternative costs in complexity.
+
+The consequence to be honest about: editing an earlier version does not reach
+the versions made from it. Fixing a typo three versions back leaves the pinned
+version still carrying it. That is inherent in copies rather than deltas, and
+is accepted; the UI's job is to not imply otherwise.
+
+### Deleting
+
+Deletions cascade along progressions and stop at variants. Deleting a version
+takes every progression descended from it; a variant that branched off it
+survives, having become its own recipe, and keeps no reference to where it came
+from.
+
+Most deletions are not that. The common one is deleting the pinned version,
+which is usually a leaf, and the pin reverts to its parent. A deletion that
+takes other versions with it has to say so before it runs — the count is
+knowable first.
+
+A single parent column cannot express "cascade to progressions, not to
+variants": `ON DELETE` applies to every child a foreign key has. Two columns
+can, and they make a separate kind column unnecessary — which of the two is set
+*is* the kind. Hence `progression_of`, `variant_of`, `line_id` and `pinned` in
+the sketch above, with:
+
+```sql
+CREATE UNIQUE INDEX recipes_line_pin_idx ON recipes (line_id) WHERE pinned;
+CREATE INDEX recipes_owner_pinned_idx ON recipes (owner_sub, created_at DESC)
+    WHERE pinned;
+CREATE INDEX recipes_line_idx ON recipes (line_id);
+```
+
+`line_id` is the tree's identity: a root and every variant is its own, and a
+progression inherits its parent's. It never needs rewriting, because cascade
+means no progression outlives its ancestors. With it the collection listing is
+`WHERE owner_sub = $1 AND pinned ORDER BY created_at DESC` — the composite
+index becomes a partial one — and a lineage view is an index scan rather than a
+recursive CTE.
+
+The unique index stops a second pin; nothing stops a line having none, so the
+write paths own that half of the invariant.
+
+Still open: whether a `version INT` is worth carrying. It is derivable from the
+tree, can disagree with it, and earns itself only if the UI shows a number
+(#28).
 
 ## Known rough edges
 
