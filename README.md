@@ -14,7 +14,9 @@ npm run dev
 ```
 
 Needs Node.js 22.19+. Login and extraction both require a running server;
-`nuxt generate` cannot serve them.
+`nuxt generate` cannot serve them. Storage needs a database — see
+[Database](docs/database.md) — and without `NUXT_DATABASE_URL` the server
+starts and answers 503.
 
 ```sh
 npm run build
@@ -24,6 +26,8 @@ node .output/server/index.mjs
 ## Test
 
 ```sh
+npm run test:database                # node:test, no database needed
+NUXT_DATABASE_URL=... npm run test:database:live   # the migration runner, against a real Postgres
 npm run test:extraction              # node:test, no browser or model needed
 npm run build && npm run test:auth   # Playwright against a mock OIDC issuer
 cd services/recipeat-fetcher && uv run pytest   # the fetcher service
@@ -53,6 +57,7 @@ a database. [Planning](docs/planning.md) covers what that needs.
 |---|---|
 | [Authentication](docs/authentication.md) | Zitadel application, secrets, deployment |
 | [Fetcher](services/recipeat-fetcher/README.md) | The Python service behind website import |
+| [Database](docs/database.md) | Postgres, migrations, and the third container |
 | [Extraction](docs/extraction.md) | The API, the pipeline, the recipe shape |
 | [API map](docs/api-map.md) | Every route, arranged for testing by hand in Postman |
 | [Planning](docs/planning.md) | What is next, and what is still undecided |
