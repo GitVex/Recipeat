@@ -9,6 +9,7 @@ app startup. Nothing else talks to it.
 |---|---|
 | `docker/compose.db.yaml` | The Postgres service, its volume and its network |
 | `server/database/migrations/` | Plain `.sql`, applied in filename order |
+| `001_recipes.sql` | The `recipes` table, its lineage columns and its triggers |
 | `server/database/migrate.ts` | The runner: a ledger, an advisory lock, one transaction per file |
 | `server/plugins/database.ts` | Runs the above at startup and holds requests until it is done |
 | `server/utils/database.ts` | The shared connection pool |

@@ -17,7 +17,7 @@ url ──────▶ fetcher ─┘
 | Zitadel login | Done |
 | Extraction model | Done; Gemini, billed per page. Was a self-hosted Ollama until the photo path needed a model that could read a page |
 | `POST /api/extract/text` | Done; returns a recipe, stores nothing |
-| Storage | Not started — no database, driver, or migration |
+| Storage | Postgres, the `recipes` table and a migration runner are in. No route writes to them yet |
 | Import UI wired to the API | Not started — the dialog still shows samples |
 | Website import | Done; returns a recipe, stores nothing. No SSRF guard yet |
 | Photo import | Done; the model reads the photo directly, returns a recipe, stores nothing. The image itself is discarded |
@@ -28,59 +28,32 @@ The extraction output already maps onto the table one-to-one, and satisfies
 every constraint by construction. Only `owner_sub` is missing, and the route
 already holds it — `session.claims.sub`.
 
-```sql
-CREATE TABLE recipes (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    owner_sub TEXT NOT NULL,
-    title TEXT,
-    source_lang TEXT NOT NULL,
-    ingredients JSONB NOT NULL,
-    steps JSONB NOT NULL,
-    portions NUMERIC,
-    source JSONB,
-
-    line_id UUID NOT NULL,
-    progression_of UUID REFERENCES recipes(id) ON DELETE CASCADE,
-    variant_of UUID REFERENCES recipes(id) ON DELETE SET NULL,
-    pinned BOOLEAN NOT NULL DEFAULT false,
-
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-
-    CHECK (portions IS NULL OR portions > 0),
-    CHECK (jsonb_typeof(ingredients) = 'array'),
-    CHECK (jsonb_typeof(steps) = 'array'),
-    CHECK (source IS NULL OR jsonb_typeof(source) = 'object'),
-    CHECK (num_nonnulls(progression_of, variant_of) <= 1)
-);
-
-CREATE UNIQUE INDEX recipes_line_pin_idx ON recipes (line_id) WHERE pinned;
-CREATE INDEX recipes_owner_pinned_idx ON recipes (owner_sub, created_at DESC)
-    WHERE pinned;
-CREATE INDEX recipes_line_idx ON recipes (line_id);
-```
+The table is [`server/database/migrations/001_recipes.sql`](../server/database/migrations/001_recipes.sql)
+— committed SQL rather than a sketch here, so there is one place to read
+it and one place to get it wrong. What follows is why it looks like that.
 
 `owner_sub` has no foreign key on purpose: users live in Zitadel. The listing
 index is composite because the query is always
 `WHERE owner_sub = $1 AND pinned ORDER BY created_at DESC`, and partial
 because an unpinned version is never in a listing.
 
-The four lineage columns and their indexes are explained under "Recipe
-lineage" below; they belong to the first migration rather than a second one,
-which is free only while nothing has been applied anywhere (#28).
+The four lineage columns are explained under "Recipe lineage" below. They went
+into the first migration rather than a second one, which was free only while
+nothing had been applied anywhere (#28).
 
-`updated_at` still needs a `BEFORE UPDATE` trigger — the default fires only on
-insert, so without one the column never changes.
+`updated_at` gets a `BEFORE UPDATE` trigger, because the default fires only on
+insert and without one the column would never change. `line_id` gets a
+`BEFORE INSERT` one, so a root row can be written without generating its UUID
+on the client in order to use it twice.
 
 `source` is JSONB rather than TEXT so a website import can record its URL and
 retrieval time, and a photo import its object key. The `RecipeSource` union
 already exists in code; each extraction modality builds its own, since only it
 knows where the recipe came from.
 
-Work involved: a Postgres service of its own under `docker/`, a
-connection URL in `runtimeConfig`, a driver (`postgres` handles JSONB natively
-and needs no query builder here), a real `.sql` migration, and `owner_sub` read
-from the session.
+The service, the driver, the connection URL and the migration runner are done
+— see [database.md](database.md). What is left is the part that writes: a route
+that persists, with `owner_sub` read from the session.
 
 ### Open decision: does extraction save?
 
@@ -191,15 +164,9 @@ knowable first.
 A single parent column cannot express "cascade to progressions, not to
 variants": `ON DELETE` applies to every child a foreign key has. Two columns
 can, and they make a separate kind column unnecessary — which of the two is set
-*is* the kind. Hence `progression_of`, `variant_of`, `line_id` and `pinned` in
-the sketch above, with:
-
-```sql
-CREATE UNIQUE INDEX recipes_line_pin_idx ON recipes (line_id) WHERE pinned;
-CREATE INDEX recipes_owner_pinned_idx ON recipes (owner_sub, created_at DESC)
-    WHERE pinned;
-CREATE INDEX recipes_line_idx ON recipes (line_id);
-```
+*is* the kind. Hence `progression_of` and `variant_of`, each a composite
+foreign key carrying `owner_sub`, which is what makes lineage across two owners
+fail in the schema rather than in whichever route forgot to check.
 
 `line_id` is the tree's identity: a root and every variant is its own, and a
 progression inherits its parent's. It never needs rewriting, because cascade
