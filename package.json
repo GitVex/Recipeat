@@ -2,18 +2,22 @@
   "name": "recipeat",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22.19.0" },
+  "engines": {
+    "node": ">=22.19.0"
+  },
   "scripts": {
     "dev": "nuxt dev",
     "build": "nuxt build",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "test:auth": "playwright test --config playwright.auth.config.ts",
+    "test:database": "node --experimental-strip-types --test tests/database.node.ts",
     "test:extraction": "node --experimental-strip-types --test tests/extraction.node.ts"
   },
   "dependencies": {
     "nuxt": "^4.0.0",
     "nuxt-oidc-auth": "^1.0.0-beta.12",
+    "postgres": "^3.4.9",
     "vue": "^3.5.0"
   },
   "devDependencies": {
