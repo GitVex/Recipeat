@@ -242,3 +242,126 @@ test('save, save as progression and save as variant, each through its own route'
     await sql.end()
   }
 })
+
+// The import dialog against the real session, with the extraction routes
+// stubbed: what is under test is what the dialog sends and what it makes of
+// each answer, not the model.
+const extracted = {
+  title: 'Playwright pancakes',
+  source_lang: 'en',
+  portions: 2,
+  image: null,
+  totalTime: null,
+  ingredients: [{ id: 'ingredient_1', originalText: '200 g flour', name: 'flour', quantityText: '200 g', quantity: { value: 200, maxValue: null, unit: 'g' }, extra: null }],
+  steps: [{ id: 'step_1', originalText: 'Whisk it all together.', parts: [{ type: 'text', value: 'Whisk it all together.' }], quantities: {} }],
+  source: { type: 'text', originalText: 'pancakes' },
+}
+const answer = (status: number) => status === 200
+  ? { status, json: { recipe: extracted } }
+  : { status, json: { statusCode: status, message: 'upstream detail a person should never see' } }
+
+async function signIn(page: import('@playwright/test').Page) {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await expect(page.getByText('Test Cook', { exact: true })).toBeVisible()
+}
+
+test('signed out, importing asks for a sign-in and comes back to the dialog', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Save your first recipe' }).click()
+  await page.getByRole('button', { name: 'Sign in to continue' }).click()
+  await expect(page.getByText('Test Cook', { exact: true })).toBeVisible()
+  await expect(page.getByRole('dialog').getByRole('tab', { name: 'Website' })).toBeVisible()
+})
+
+test('an extraction opens the recipe it returned, after a busy answer is retried', async ({ page }) => {
+  const bodies: unknown[] = []
+  await page.route('**/api/extract/website', route => {
+    bodies.push(route.request().postDataJSON())
+    return route.fulfill(answer(bodies.length === 1 ? 503 : 200))
+  })
+  await signIn(page)
+  await page.getByRole('button', { name: 'Save your first recipe' }).click()
+  await page.getByLabel('Recipe URL').fill('https://example.com/pancakes')
+  await page.getByRole('button', { name: 'Bring it in' }).click()
+  const alert = page.getByRole('alert')
+  await expect(alert).toContainText('Recipeat is busy right now')
+  await expect(alert).not.toHaveClass(/\berror\b/)
+  await expect(page.getByText('upstream detail')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Try again' }).click()
+  await expect(page.getByRole('dialog')).toContainText('Playwright pancakes')
+  await expect(page.getByRole('dialog')).toContainText('200 g flour')
+  expect(bodies).toEqual([{ url: 'https://example.com/pancakes' }, { url: 'https://example.com/pancakes' }])
+})
+
+test('one request at a time, and closing or switching tabs drops it for good', async ({ page }) => {
+  let calls = 0
+  const held: (() => Promise<void>)[] = []
+  await page.route('**/api/extract/text', route => {
+    calls++
+    // Answered only when the test says so, and quietly if the page has
+    // already given up on it.
+    held.push(() => route.fulfill(answer(200)).catch(() => {}))
+  })
+  await signIn(page)
+  const trigger = page.getByRole('button', { name: 'Save your first recipe' })
+  await trigger.click()
+  await page.getByRole('tab', { name: 'Text', exact: true }).click()
+  await page.getByLabel('Recipe text').fill('Flour, milk, eggs. Mix and fry.')
+  await page.getByRole('button', { name: 'Bring it in' }).click()
+  await expect(page.getByRole('button', { name: 'Reading…' })).toBeDisabled()
+  await expect(page.getByRole('status')).toContainText('several seconds')
+  // Past the disabled button: a second submit while the first is out.
+  await page.locator('.import-modal form').evaluate((form: HTMLFormElement) => form.requestSubmit())
+  await expect.poll(() => calls).toBe(1)
+
+  await page.getByRole('button', { name: 'Close import' }).click()
+  await Promise.all(held.splice(0).map(release => release()))
+  await page.waitForTimeout(300)
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+
+  await trigger.click()
+  await expect(page.getByLabel('Recipe text')).toHaveValue('Flour, milk, eggs. Mix and fry.')
+  await page.getByRole('button', { name: 'Bring it in' }).click()
+  await expect.poll(() => calls).toBe(2)
+  await page.getByRole('tab', { name: 'Photo', exact: true }).click()
+  await Promise.all(held.splice(0).map(release => release()))
+  await page.waitForTimeout(300)
+  await expect(page.getByRole('dialog')).not.toContainText('Playwright pancakes')
+  await expect(page.getByRole('button', { name: 'Bring it in' })).toBeEnabled()
+})
+
+test('a lapsed session keeps what was typed through the sign-in', async ({ page }) => {
+  await page.route('**/api/extract/text', route => route.fulfill(answer(401)))
+  await signIn(page)
+  await page.getByRole('button', { name: 'Save your first recipe' }).click()
+  await page.getByRole('tab', { name: 'Text', exact: true }).click()
+  await page.getByLabel('Recipe text').fill('Two eggs, beaten. Fry them in butter.')
+  await page.getByRole('button', { name: 'Bring it in' }).click()
+  await expect(page.getByRole('alert')).toContainText('signed out')
+  await page.getByRole('button', { name: 'Sign in again' }).click()
+  await expect(page.getByText('Test Cook', { exact: true })).toBeVisible()
+  await expect(page.getByRole('tab', { name: 'Text', exact: true })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByLabel('Recipe text')).toHaveValue('Two eggs, beaten. Fry them in butter.')
+})
+
+test('a photo goes up as multipart, and a photo with no recipe says so', async ({ page }) => {
+  let contentType = ''
+  let body = ''
+  await page.route('**/api/extract/photo', route => {
+    contentType = route.request().headers()['content-type'] ?? ''
+    body = route.request().postDataBuffer()?.toString('latin1') ?? ''
+    return route.fulfill(answer(422))
+  })
+  await signIn(page)
+  await page.getByRole('button', { name: 'Save your first recipe' }).click()
+  await page.getByRole('tab', { name: 'Photo', exact: true }).click()
+  await page.getByRole('button', { name: 'Bring it in' }).click()
+  await expect(page.getByRole('alert')).toContainText('Choose a photo')
+  await page.locator('input[type=file]').setInputFiles({ name: 'recipe.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64') })
+  await page.getByRole('button', { name: 'Bring it in' }).click()
+  await expect(page.getByRole('alert')).toContainText('couldn’t find a recipe in that photo')
+  expect(contentType).toMatch(/^multipart\/form-data; boundary=/)
+  expect(body).toContain('name="file"; filename="recipe.png"')
+  expect(body).toContain('Content-Type: image/png')
+})

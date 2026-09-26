@@ -1,7 +1,7 @@
-import type { Recipe } from "~/types/recipe";
+import type { ShelfRecipe } from "~/data/recipes";
 
-export function useRecipeCollection(recipes: Recipe[]) {
-  const saved = ref<number[]>([]);
+export function useRecipeCollection(recipes: ShelfRecipe[]) {
+  const saved = ref<string[]>([]);
   const toast = ref("");
   let toastTimer: ReturnType<typeof setTimeout>;
   onMounted(() => {
@@ -12,7 +12,7 @@ export function useRecipeCollection(recipes: Recipe[]) {
     } catch {}
   });
   onBeforeUnmount(() => clearTimeout(toastTimer));
-  function save(recipe: Recipe) {
+  function save(recipe: ShelfRecipe) {
     const exists = saved.value.includes(recipe.id);
     saved.value = exists
       ? saved.value.filter((id) => id !== recipe.id)

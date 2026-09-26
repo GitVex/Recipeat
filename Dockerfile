@@ -17,6 +17,8 @@ RUN npm ci
 COPY nuxt.config.ts ./
 COPY app ./app
 COPY server ./server
+# The recipe types both of them import.
+COPY shared ./shared
 RUN npm run build
 
 # .output is self-contained: it carries its own node_modules and needs neither

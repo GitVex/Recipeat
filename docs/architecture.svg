@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 1300" width="1240" height="1300" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 1444" width="1240" height="1444" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
   <title>Recipeat backend infrastructure and request flows</title>
 
   <defs>
@@ -25,22 +25,22 @@
     </marker>
   </defs>
 
-  <rect x="0" y="0" width="1240" height="1300" fill="#fbfaf8"/>
+  <rect x="0" y="0" width="1240" height="1444" fill="#fbfaf8"/>
 
   <text x="44" y="48" font-size="25" font-weight="650" fill="#23201c">Recipeat backend</text>
-  <text x="44" y="73" font-size="13.5" fill="#6f685e">Three containers, and every request path through them, as deployed today. Ports are host-side. Storage exists; no route writes to it yet.</text>
+  <text x="44" y="73" font-size="13.5" fill="#6f685e">Three containers, and every request path through them, as deployed today. Ports are host-side. Extraction stores nothing; the recipes routes write to Postgres.</text>
 
   <!-- ============================ clients ============================ -->
   <rect x="44" y="100" width="1152" height="76" rx="10" fill="#ffffff" stroke="#ddd8d0" stroke-width="1.5"/>
   <text x="68" y="126" font-size="13.5" font-weight="650" fill="#23201c">Browser · Postman</text>
-  <text x="68" y="147" font-size="11.5" fill="#6f685e">The five app routes are the whole public surface. Four of them need the session cookie, and only the OIDC login flow can mint one.</text>
-  <text x="68" y="165" font-size="11.5" fill="#6f685e">The fetcher underneath is unauthenticated and published on loopback only — an SSH tunnel is the sole way in from outside.</text>
+  <text x="68" y="147" font-size="11.5" fill="#6f685e">The landing page is public; all ten API routes need the session cookie, and only the OIDC login flow can mint one. The import dialog calls</text>
+  <text x="68" y="165" font-size="11.5" fill="#6f685e">the three extraction routes through <tspan font-family="ui-monospace, Consolas, monospace">useExtraction</tspan>. The fetcher underneath is unauthenticated, on loopback only.</text>
 
   <!-- ============================ server ============================= -->
-  <rect x="44" y="206" width="1152" height="656" rx="12" fill="#ffffff" stroke="#cfc8bd" stroke-width="2"/>
+  <rect x="44" y="206" width="1152" height="800" rx="12" fill="#ffffff" stroke="#cfc8bd" stroke-width="2"/>
   <text x="68" y="238" font-size="14.5" font-weight="650" fill="#23201c">Nuxt 4 · Nitro server</text>
   <text x="228" y="238" font-size="11.5" fill="#8d857a">recipeat-app · listens on 8100 · published 127.0.0.1:8100</text>
-  <text x="68" y="256" font-size="11" fill="#a39a8d" font-family="ui-monospace, Consolas, monospace">runtimeConfig: geminiApiKey · geminiModel · fetcherBaseUrl        env: NUXT_GEMINI_API_KEY · NUXT_OIDC_*</text>
+  <text x="68" y="256" font-size="11" fill="#a39a8d" font-family="ui-monospace, Consolas, monospace">runtimeConfig: geminiApiKey · geminiModel · fetcherBaseUrl · databaseUrl — env: NUXT_GEMINI_API_KEY · NUXT_DATABASE_URL · NUXT_OIDC_*</text>
 
   <!-- auth module -->
   <rect x="68" y="274" width="286" height="102" rx="8" fill="#f4eef7" stroke="#a98bbb" stroke-width="1.3"/>
@@ -82,7 +82,7 @@
   <text x="86" y="422" font-size="12" font-weight="650" fill="#1f3b5c">Session</text>
   <text x="196" y="422" font-size="10.5" fill="#3d5a7a" font-family="ui-monospace, Consolas, monospace">cookie: nuxt-oidc-auth</text>
   <text x="86" y="444" font-size="11" fill="#3d5a7a">Encrypted, HttpOnly, Secure in production. Never exposed to page JavaScript.</text>
-  <text x="86" y="465" font-size="11" fill="#3d5a7a">Read by /api/me and by all three extraction routes. Nothing else mints it.</text>
+  <text x="86" y="465" font-size="11" fill="#3d5a7a">Read by every /api route; the recipes routes take owner_sub from it.</text>
 
   <!-- readers -->
   <rect x="544" y="398" width="200" height="82" rx="8" fill="#f2f7f3" stroke="#a8c7b4" stroke-width="1.1"/>
@@ -157,7 +157,30 @@
   <text x="68" y="820" font-size="11" fill="#8d857a">this replaced — an OCR container plus qwen3.5:2b — took 22 to</text>
   <text x="68" y="838" font-size="11" fill="#8d857a">88s a page and returned no quantities at all.</text>
 
+  <!-- storage row: the recipes routes run the same tail, then write -->
+  <rect x="68" y="866" width="452" height="112" rx="8" fill="#eef0f7" stroke="#8f9cc4" stroke-width="1.3"/>
+  <text x="86" y="890" font-size="12" font-weight="650" fill="#33406e">The recipes routes</text>
+  <text x="86" y="911" font-size="10.5" fill="#525c8a" font-family="ui-monospace, Consolas, monospace">GET · POST /api/recipes</text>
+  <text x="86" y="929" font-size="10.5" fill="#525c8a" font-family="ui-monospace, Consolas, monospace">GET · PUT  /api/recipes/{id}</text>
+  <text x="86" y="947" font-size="10.5" fill="#525c8a" font-family="ui-monospace, Consolas, monospace">POST /api/recipes/{id}/progressions · /variants</text>
+  <text x="86" y="967" font-size="11" fill="#525c8a">owner_sub from the session, never the body · someone else's recipe is a 404</text>
+
+  <rect x="544" y="866" width="304" height="112" rx="8" fill="#f5f6fa" stroke="#aab3d2" stroke-width="1.2"/>
+  <text x="562" y="890" font-size="11.5" font-weight="650" fill="#33406e" font-family="ui-monospace, Consolas, monospace">validateRecipe</text>
+  <text x="562" y="911" font-size="10.5" fill="#525c8a">Checks what a browser posts, then hands</text>
+  <text x="562" y="929" font-size="10.5" fill="#525c8a">it to the same tail extraction runs: ids,</text>
+  <text x="562" y="947" font-size="10.5" fill="#525c8a">parts and links are rebuilt, not trusted</text>
+  <text x="562" y="967" font-size="10" fill="#525c8a" font-family="ui-monospace, Consolas, monospace">415 · 400 · 413 · 422</text>
+
+  <rect x="864" y="866" width="308" height="112" rx="8" fill="#eef0f7" stroke="#8f9cc4" stroke-width="1.3"/>
+  <text x="882" y="890" font-size="11.5" font-weight="650" fill="#33406e" font-family="ui-monospace, Consolas, monospace">store.ts · Kysely</text>
+  <text x="882" y="911" font-size="10.5" fill="#525c8a">insertRecipe starts a line · updateRecipe</text>
+  <text x="882" y="929" font-size="10.5" fill="#525c8a">corrects in place · a progression takes</text>
+  <text x="882" y="947" font-size="10.5" fill="#525c8a">the pin · a variant starts a line of its own</text>
+  <text x="882" y="967" font-size="10" fill="#525c8a" font-family="ui-monospace, Consolas, monospace">503 no database · 404 · 409 pin race</text>
+
   <!-- ========================== infrastructure ======================== -->
+  <g transform="translate(0,144)">
   <rect x="44" y="916" width="360" height="172" rx="10" fill="#f4eef7" stroke="#a98bbb" stroke-width="1.4"/>
   <text x="62" y="940" font-size="12.5" font-weight="650" fill="#4a3356">Zitadel</text>
   <text x="62" y="960" font-size="10.5" fill="#6b5a78" font-family="ui-monospace, Consolas, monospace">auth.bardicinspiration.cc</text>
@@ -201,7 +224,9 @@
   <text x="902" y="1203" font-size="11" fill="#525c8a">Migrations applied by the app at startup</text>
   <text x="902" y="1224" font-size="11" fill="#6f7599">Its own Compose project and volume, so</text>
   <text x="902" y="1242" font-size="11" fill="#6f7599">deploying the app cannot take it with it.</text>
-  <text x="902" y="1262" font-size="11" font-weight="650" fill="#a8542f">No route writes a recipe here yet.</text>
+  <text x="902" y="1262" font-size="11" font-weight="650" fill="#a8542f">One row per version, lineage included.</text>
+
+  </g>
 
   <!-- ============================= arrows ============================= -->
   <!-- clients into the routes -->
@@ -230,7 +255,14 @@
   <path d="M 1074 604 L 1074 726 L 790 726 L 790 740" fill="none" stroke="#2b7a8c" stroke-width="1.6" marker-end="url(#a-teal)"/>
   <path d="M 848 788 L 860 788" fill="none" stroke="#9b9488" stroke-width="1.6" marker-end="url(#a-gray)"/>
 
+  <!-- the recipes routes: in from the browser, through the shared tail, out to the table -->
+  <path d="M 56 176 L 56 922 L 64 922" fill="none" stroke="#5b6aa3" stroke-width="1.6" marker-end="url(#a-slate)"/>
+  <path d="M 520 922 L 540 922" fill="none" stroke="#5b6aa3" stroke-width="1.6" marker-end="url(#a-slate)"/>
+  <path d="M 696 866 L 696 836" fill="none" stroke="#5b6aa3" stroke-width="1.6" marker-end="url(#a-slate)"/>
+  <path d="M 1018 832 L 1018 862" fill="none" stroke="#5b6aa3" stroke-width="1.6" marker-end="url(#a-slate)"/>
+
   <!-- out of the server box, straight down to each upstream -->
+  <g transform="translate(0,144)">
   <path d="M 224 862 L 224 912" fill="none" stroke="#8a5fa8" stroke-width="1.8" marker-end="url(#a-purple)"/>
   <path d="M 608 862 L 608 912" fill="none" stroke="#3f8558" stroke-width="1.8" marker-end="url(#a-green)"/>
   <path d="M 1004 862 L 1004 912" fill="none" stroke="#2b7a8c" stroke-width="1.8" marker-end="url(#a-teal)"/>
@@ -239,7 +271,9 @@
   <text x="608" y="884" font-size="10" fill="#5c8a70" text-anchor="middle">text or photo in, recipe draft out · 2–9s</text>
   <text x="1004" y="884" font-size="10" fill="#35707f" text-anchor="middle">page + parsed lines · milliseconds</text>
 
-  <!-- the app to the database: down the gap between Gemini and the fetcher -->
-  <path d="M 800 862 L 800 1104 L 1040 1104 L 1040 1116" fill="none" stroke="#5b6aa3" stroke-width="1.8" marker-end="url(#a-slate)"/>
-  <text x="920" y="1098" font-size="10" fill="#5b6aa3" text-anchor="middle">schema at startup · one pool</text>
+  </g>
+
+  <!-- the store to the database: down the gap between Gemini and the fetcher -->
+  <path d="M 890 978 L 890 992 L 800 992 L 800 1248 L 1040 1248 L 1040 1260" fill="none" stroke="#5b6aa3" stroke-width="1.8" marker-end="url(#a-slate)"/>
+  <text x="920" y="1242" font-size="10" fill="#5b6aa3" text-anchor="middle">schema at startup · one pool</text>
 </svg>

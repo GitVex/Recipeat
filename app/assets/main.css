@@ -613,10 +613,6 @@ h2 {
 .recipe-info {
     padding: 18px 2px;
 }
-.recipe-category {
-    font-size: 9px;
-    color: #91947b;
-}
 .recipe-title {
     display: block;
     font-family: "Playfair Display", serif;
@@ -822,11 +818,24 @@ textarea {
     width: 100%;
     gap: 12px;
 }
-.demo-note {
-    display: block;
+.import-failure {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 14px;
+    font-size: 12px;
+    line-height: 1.6;
+    margin-bottom: 14px;
+}
+.import-failure .text-button {
+    flex-shrink: 0;
+    padding-bottom: 3px;
+}
+.import-wait {
     text-align: center;
     margin-top: 15px;
-    font-size: 10px;
+    font-size: 11px;
+    line-height: 1.6;
     color: var(--muted);
 }
 .file-upload {
@@ -1338,9 +1347,6 @@ textarea {
     }
     .recipe-title {
         font-size: 24px;
-    }
-    .recipe-category {
-        font-size: 10px;
     }
     .recipe-info {
         padding-top: 15px;

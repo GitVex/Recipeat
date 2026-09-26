@@ -20,7 +20,7 @@ url ──────▶ fetcher ─┘
 | `POST /api/recipes` | Done; writes a recipe to the table, owned by the session's subject |
 | Save, progression, variant | Done; the three write routes, with the pin moving on a progression |
 | Storage | Done; Postgres, the `recipes` table, a migration runner, and every route the collection needs. Nothing in the browser calls them yet |
-| Import UI wired to the API | Not started — the dialog still shows samples |
+| Import UI wired to the API | Done for the shared part (#36): all three tabs call their route and open what comes back. Per-source polish is #37–#39; saving an import is #41 |
 | Website import | Done; returns a recipe, stores nothing. No SSRF guard yet |
 | Photo import | Done; the model reads the photo directly, returns a recipe, stores nothing. The image itself is discarded |
 
@@ -83,17 +83,16 @@ construction and nothing structural arrives from outside.
 
 ## Then
 
-**Wire the import dialog.** `RecipeImportDialog.vue` fakes extraction with a
-`setTimeout` and emits a sample. Real wiring needs a pending state that
-tolerates 20+ seconds, and error copy for 422 and 504. The recipe card must also
-handle a `null` title and an empty step list — an ingredients-only extraction is
-valid.
+**Finish the import dialog.** It calls all three routes through
+`useExtraction`, which turns every status into something a person can act on.
+What is left is specific to each source: URL fix-ups (#37), the text limit and
+its counter (#38), a thumbnail, HEIC and the byte limit for photos (#39). An
+extracted recipe opens but cannot be saved yet; that is #41.
 
-**One type for a recipe.** `app/types/recipe.ts` is a separate, incompatible
-shape with `category`, `time` and `image` fields that the extraction has no
-equivalent for. The app and the server should share one definition, and the
-table needs somewhere to put an image before a saved recipe can render like the
-demo does.
+**One type for a recipe.** Settled: `shared/types/recipe.ts` is the one
+definition, and the server re-exports it rather than restating it. The shelf's
+samples are written in it too. What rendering it fully takes — step parts,
+rescaling, units — is still #12.
 
 **Photo import: the image itself.** Extraction works, but nothing keeps the
 photo. `source.objectKey` is null because there is nowhere to put it, and a
