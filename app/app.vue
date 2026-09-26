@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import type { Recipe } from "~/types/recipe";
-import { recipes } from "~/data/recipes";
+import type { ExtractedRecipe } from "#shared/types/recipe";
+import { recipes, type ShelfRecipe } from "~/data/recipes";
 
 const { saved, toast, save } = useRecipeCollection(recipes);
-const selected = ref<Recipe | null>(null);
+const selected = ref<ExtractedRecipe | ShelfRecipe | null>(null);
 const showImport = ref(false);
 const collectionOnly = ref(false);
 useDialogFocus(computed(() => (showImport.value ? "import" : selected.value)));
 
-function openRecipe(recipe: Recipe) {
+function openRecipe(recipe: ExtractedRecipe | ShelfRecipe) {
   showImport.value = false;
   selected.value = recipe;
 }
@@ -54,7 +54,7 @@ function openCollection() {
     />
     <RecipeDetailDialog
       :recipe="selected"
-      :saved="!!selected && saved.includes(selected.id)"
+      :saved="!!selected && 'id' in selected && saved.includes(selected.id)"
       @close="selected = null"
       @save="save"
     />

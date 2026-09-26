@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { Recipe } from "~/types/recipe";
-defineProps<{ recipe: Recipe; saved: boolean }>();
+import type { ShelfRecipe } from "~/data/recipes";
+defineProps<{ recipe: ShelfRecipe; saved: boolean }>();
 const emit = defineEmits<{
-  select: [recipe: Recipe];
-  save: [recipe: Recipe];
+  select: [recipe: ShelfRecipe];
+  save: [recipe: ShelfRecipe];
 }>();
 </script>
 
@@ -12,19 +12,23 @@ const emit = defineEmits<{
     <div class="recipe-image-wrap">
       <button
         class="image-open"
-        :aria-label="`View ${recipe.title}`"
+        :aria-label="`View ${recipeTitle(recipe)}`"
         @click="emit('select', recipe)"
       >
-        <img :src="recipe.image" :alt="recipe.title" loading="lazy" /></button
+        <img
+          v-if="recipe.image"
+          :src="recipe.image"
+          :alt="recipeTitle(recipe)"
+          loading="lazy"
+        /></button
       ><span class="source-chip"
-        ><AppIcon
-          :name="recipe.id === 1 ? 'link' : recipe.id === 2 ? 'camera' : 'book'"
-          :size="13"
-        />{{ recipe.source }}</span
+        ><AppIcon :name="SOURCE_ICON[recipe.source.type]" :size="13" />{{
+          SOURCE_LABEL[recipe.source.type]
+        }}</span
       ><button
         class="save-button"
         :class="{ saved: saved }"
-        :aria-label="`${saved ? 'Unsave' : 'Save'} ${recipe.title}`"
+        :aria-label="`${saved ? 'Unsave' : 'Save'} ${recipeTitle(recipe)}`"
         :aria-pressed="saved"
         @click="emit('save', recipe)"
       >
@@ -32,13 +36,16 @@ const emit = defineEmits<{
       </button>
     </div>
     <div class="recipe-info">
-      <span class="recipe-category">{{ recipe.category }}</span
-      ><button class="recipe-title" @click="emit('select', recipe)">
-        {{ recipe.title }}
+      <button class="recipe-title" @click="emit('select', recipe)">
+        {{ recipeTitle(recipe) }}
       </button>
       <div class="recipe-meta">
-        <span><AppIcon name="clock" :size="14" />{{ recipe.time }}</span
-        ><span class="meta-dot">·</span
+        <template v-if="recipe.totalTime"
+          ><span
+            ><AppIcon name="clock" :size="14" />{{
+              formatMinutes(recipe.totalTime)
+            }}</span
+          ><span class="meta-dot">·</span></template
         ><span>Simple ingredients, big smiles</span>
       </div>
     </div>

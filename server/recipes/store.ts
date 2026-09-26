@@ -2,28 +2,10 @@ import type { Kysely } from 'kysely'
 import type { Sql } from 'postgres'
 import { boolean, integer, json, numeric, text, type Database, type RecipeRow } from '../database/schema.ts'
 import { fail } from '../extraction/errors.ts'
-import type { ExtractedRecipe } from '../extraction/recipe.ts'
+import type { ExtractedRecipe, RecipeSummary, SavedRecipe } from '../../shared/types/recipe.ts'
 
-// A saved recipe is an extracted one plus what the table knows about it: which
-// row it is, when it was written, and where it sits in its line. The lineage
-// fields are read-only here — #29 owns the writes that move them.
-export type SavedRecipe = ExtractedRecipe & {
-  id: string
-  lineId: string
-  progressionOf: string | null
-  variantOf: string | null
-  pinned: boolean
-  createdAt: string
-  updatedAt: string
-}
-
-// What a collection card needs and no more. The rows carry whole recipes in
-// JSONB, and a listing that returns fifty of them to render fifty titles is
-// paying for the detail route twice.
-export type RecipeSummary = Pick<SavedRecipe, 'id' | 'title' | 'image' | 'totalTime' | 'portions' | 'createdAt' | 'updatedAt'> & {
-  ingredientCount: number
-  stepCount: number
-}
+// Shared with the app, which renders what these routes return.
+export type { RecipeSummary, SavedRecipe } from '../../shared/types/recipe.ts'
 
 // The row as the table defines it. Restating it here is how it drifts from
 // the migration, so it is imported instead.

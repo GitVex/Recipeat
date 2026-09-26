@@ -613,10 +613,6 @@ h2 {
 .recipe-info {
     padding: 18px 2px;
 }
-.recipe-category {
-    font-size: 9px;
-    color: #91947b;
-}
 .recipe-title {
     display: block;
     font-family: "Playfair Display", serif;
@@ -1338,9 +1334,6 @@ textarea {
     }
     .recipe-title {
         font-size: 24px;
-    }
-    .recipe-category {
-        font-size: 10px;
     }
     .recipe-info {
         padding-top: 15px;

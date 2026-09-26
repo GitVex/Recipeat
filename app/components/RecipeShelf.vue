@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import type { Recipe } from "~/types/recipe";
-const props = defineProps<{ recipes: Recipe[]; saved: number[] }>();
+import type { ShelfRecipe } from "~/data/recipes";
+const props = defineProps<{ recipes: ShelfRecipe[]; saved: string[] }>();
 const collectionOnly = defineModel<boolean>("collectionOnly", {
   required: true,
 });
 const emit = defineEmits<{
-  select: [recipe: Recipe];
-  save: [recipe: Recipe];
+  select: [recipe: ShelfRecipe];
+  save: [recipe: ShelfRecipe];
 }>();
 const visibleRecipes = computed(() =>
   collectionOnly.value

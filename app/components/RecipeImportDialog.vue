@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import type { Recipe } from "~/types/recipe";
-import { recipes } from "~/data/recipes";
+import { recipes, type ShelfRecipe } from "~/data/recipes";
 const props = defineProps<{ open: boolean }>();
-const emit = defineEmits<{ close: []; extracted: [recipe: Recipe] }>();
+const emit = defineEmits<{ close: []; extracted: [recipe: ShelfRecipe] }>();
 const mode = ref("link");
 const input = ref("");
 const fileName = ref("");
