@@ -39,7 +39,8 @@ cd services/recipeat-fetcher && uv run pytest   # the fetcher service
 - **Landing page and recipe shelf.** The shelf shows sample recipes, and its
   collection still lives in browser local storage.
 - **The import dialog** calls the three extraction routes below and opens the
-  recipe that comes back. Signed out, it asks for a sign-in first.
+  recipe that comes back, which can then be added to the collection. Signed
+  out, it asks for a sign-in first.
 - **Zitadel login** through `nuxt-oidc-auth`, with `GET /api/me` as the worked
   example of a server-enforced private endpoint.
 - **`POST /api/extract/text`** sends text to the model and returns a normalized
@@ -58,9 +59,9 @@ cd services/recipeat-fetcher && uv run pytest   # the fetcher service
   moves the pin to it; `POST /api/recipes/{id}/variants` branches into a line
   of its own. [Planning](docs/planning.md) has what those words mean.
 
-The browser calls the extraction routes, not the storage ones yet: an
-imported recipe opens but is not saved, and the shelf's collection is still
-browser-local.
+The browser calls the extraction routes and `POST /api/recipes`: an imported
+recipe can be added to the collection. The shelf does not read that collection
+yet, and still shows samples saved in browser local storage.
 [Planning](docs/planning.md) covers what is left.
 
 ## Docs

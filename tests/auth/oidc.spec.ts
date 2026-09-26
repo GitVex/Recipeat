@@ -365,3 +365,97 @@ test('a photo goes up as multipart, and a photo with no recipe says so', async (
   expect(body).toContain('name="file"; filename="recipe.png"')
   expect(body).toContain('Content-Type: image/png')
 })
+
+// Adding an import to the collection (#41). The extraction is stubbed as
+// above; so is the save, except in the last test, which writes a real row.
+const storedFrom = (recipe: object) => ({
+  ...recipe,
+  id: randomUUID(), lineId: randomUUID(), progressionOf: null, variantOf: null, pinned: true,
+  createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+})
+
+async function importText(page: import('@playwright/test').Page) {
+  await page.route('**/api/extract/text', route => route.fulfill(answer(200)))
+  await signIn(page)
+  await page.getByRole('button', { name: 'Save your first recipe' }).click()
+  await page.getByRole('tab', { name: 'Text', exact: true }).click()
+  await page.getByLabel('Recipe text').fill('Pancakes: 200 g flour. Whisk it all together.')
+  await page.getByRole('button', { name: 'Bring it in' }).click()
+  await expect(page.getByRole('heading', { name: 'Playwright pancakes' })).toBeVisible()
+}
+
+test('an import is added once, exactly as extracted, and becomes the stored recipe', async ({ page }) => {
+  const posted: unknown[] = []
+  let release = () => {}
+  await page.route('**/api/recipes', async route => {
+    posted.push(route.request().postDataJSON())
+    await new Promise<void>(resolve => (release = resolve))
+    await route.fulfill({ status: 201, json: { recipe: storedFrom((posted[0] as { recipe: object }).recipe) } })
+  })
+  await importText(page)
+  await expect(page.getByRole('button', { name: 'Save to my collection' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Add to my collection' }).click()
+  await expect(page.getByRole('button', { name: 'Adding…' })).toBeDisabled()
+  // The handler has to be holding the request before there is anything to let go.
+  await expect.poll(() => posted.length).toBe(1)
+  release()
+  await expect(page.getByText('In your collection')).toBeFocused()
+  await expect(page.getByRole('button', { name: /Add to my collection|Adding/ })).toHaveCount(0)
+  await expect(page.locator('.toast')).toContainText('added to your collection')
+  expect(posted).toEqual([{ recipe: { ...extracted } }])
+  // A stored recipe can be closed without being asked about.
+  await page.getByRole('button', { name: 'Close recipe' }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+})
+
+test('closing an unsaved import asks first, and only "Close anyway" loses it', async ({ page }) => {
+  await importText(page)
+  await page.getByRole('button', { name: 'Close recipe' }).click()
+  await expect(page.getByRole('alertdialog')).toContainText('Close it now and it’s gone')
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('alertdialog')).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Playwright pancakes' })).toBeVisible()
+  await page.getByRole('button', { name: 'Close recipe' }).click()
+  await page.getByRole('button', { name: 'Close anyway' }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+})
+
+test('a lapsed session keeps the unsaved import through the sign-in', async ({ page }) => {
+  await page.route('**/api/recipes', route => route.fulfill(answer(401)))
+  await importText(page)
+  await page.getByRole('button', { name: 'Add to my collection' }).click()
+  await expect(page.getByRole('alert')).toContainText('signed out')
+  await page.unroute('**/api/recipes')
+  await page.getByRole('button', { name: 'Sign in again' }).click()
+  await expect(page.getByText('Test Cook', { exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Playwright pancakes' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Add to my collection' })).toBeEnabled()
+  await expect(page.getByRole('alert')).toHaveCount(0)
+})
+
+test('a server with no database says so, and a rejected body is treated as a bug', async ({ page }) => {
+  let status = 503
+  await page.route('**/api/recipes', route => route.fulfill(answer(status)))
+  await importText(page)
+  await page.getByRole('button', { name: 'Add to my collection' }).click()
+  await expect(page.getByRole('alert')).toContainText('Saving isn’t available right now')
+  status = 422
+  await page.getByRole('button', { name: 'Add to my collection' }).click()
+  await expect(page.getByRole('alert')).toContainText('Something went wrong while saving')
+  await expect(page.getByText('upstream detail')).toHaveCount(0)
+})
+
+test('an added import is a real row, owned by the signed-in subject', async ({ page }) => {
+  test.skip(!process.env.NUXT_DATABASE_URL, 'NUXT_DATABASE_URL is not set')
+  await importText(page)
+  await page.getByRole('button', { name: 'Add to my collection' }).click()
+  await expect(page.getByText('In your collection')).toBeVisible()
+  const sql = postgres(process.env.NUXT_DATABASE_URL!, { max: 1, onnotice: () => {} })
+  try {
+    const rows = await sql<{ owner_sub: string, source: { type: string } }[]>`SELECT owner_sub, source FROM recipes WHERE title = 'Playwright pancakes'`
+    expect(rows.map(row => [row.owner_sub, row.source.type])).toEqual([['test-user', 'text']])
+  } finally {
+    await sql`DELETE FROM recipes WHERE owner_sub = 'test-user'`
+    await sql.end()
+  }
+})

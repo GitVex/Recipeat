@@ -20,7 +20,7 @@ url ──────▶ fetcher ─┘
 | `POST /api/recipes` | Done; writes a recipe to the table, owned by the session's subject |
 | Save, progression, variant | Done; the three write routes, with the pin moving on a progression |
 | Storage | Done; Postgres, the `recipes` table, a migration runner, and every route the collection needs. Nothing in the browser calls them yet |
-| Import UI wired to the API | Done for the shared part (#36): all three tabs call their route and open what comes back. Per-source polish is #37–#39; saving an import is #41 |
+| Import UI wired to the API | Done for the shared part (#36): all three tabs call their route and open what comes back. Per-source polish is #37–#39. An import can be added to the collection (#41) |
 | Website import | Done; returns a recipe, stores nothing. No SSRF guard yet |
 | Photo import | Done; the model reads the photo directly, returns a recipe, stores nothing. The image itself is discarded |
 
@@ -87,7 +87,8 @@ construction and nothing structural arrives from outside.
 `useExtraction`, which turns every status into something a person can act on.
 What is left is specific to each source: URL fix-ups (#37), the text limit and
 its counter (#38), a thumbnail, HEIC and the byte limit for photos (#39). An
-extracted recipe opens but cannot be saved yet; that is #41.
+extracted recipe can be added to the collection, but the shelf does not list
+the collection yet.
 
 **One type for a recipe.** Settled: `shared/types/recipe.ts` is the one
 definition, and the server re-exports it rather than restating it. The shelf's
