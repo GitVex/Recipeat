@@ -262,6 +262,38 @@ All three take the same body as `POST /api/recipes` and answer the same 400,
 | 404 | No such version, or not yours — the same answer either way |
 | 409 | Two progressions in one line at once; one of them got the pin, retry |
 
+### `DELETE /api/recipes/{id}`
+
+```
+DELETE {{app}}/api/recipes/6f1e9b3c-…?dryRun=true
+Cookie: nuxt-oidc-auth=<value>
+```
+
+**Delete.** Removes the version in the path and every progression descended
+from it. Variants that branched off any of them survive as recipes of their
+own, with `variantOf` cleared. No body.
+
+If the pin was among what went, it moves to the deleted version's parent in
+the same transaction, so a line that survives still has exactly one pinned
+version. Deleting a root takes its whole line.
+
+`?dryRun=true` answers the same question without deleting anything. That is
+how the UI says "this will also delete 3 later versions" before it does. The
+preview and the deletion walk the tree the same way, so the number they give
+can differ only if the line changed in between. Any other query parameter is
+refused rather than ignored, because a misspelled dry run must not delete.
+
+Both answer 200 and
+`{ "deletion": { "count": 3, "ids": [ … ], "pinned": "<id>" | null } }`:
+how many versions went (or would go), which ones, and the version the line is
+entered by afterwards — `null` when the line ended.
+
+| Status | Meaning |
+|---|---|
+| 400 | The id is not a UUID, or a query parameter other than `dryRun=true` |
+| 404 | No such version, or not yours — the same answer as `GET` |
+| 409 | The line changed mid-deletion; nothing was deleted, retry |
+
 ### `GET /api/recipes`
 
 ```
@@ -406,6 +438,7 @@ first one that breaks.
 | 7 | `POST {{app}}/api/recipes` | App → Postgres, over `recipeat-db-net` |
 | 8 | `GET {{app}}/api/recipes` | The row is there, and is yours |
 | 9 | `POST {{app}}/api/recipes/{id}/progressions` | Lineage: the new version takes the pin, and step 8 shows it in place of the old one |
+| 10 | `DELETE {{app}}/api/recipes/{id}` on step 9's id | The pin goes back to step 7's row, and step 8 shows it again |
 
 A **503** at step 7 is not the database being down: it is `NUXT_DATABASE_URL`
 missing from the app's environment. A 500 there, with the app otherwise

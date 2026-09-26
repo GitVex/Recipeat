@@ -2,10 +2,10 @@ import type { Kysely } from 'kysely'
 import type { Sql } from 'postgres'
 import { boolean, integer, json, numeric, text, type Database, type RecipeRow } from '../database/schema.ts'
 import { fail } from '../extraction/errors.ts'
-import type { ExtractedRecipe, RecipeSummary, SavedRecipe } from '../../shared/types/recipe.ts'
+import type { ExtractedRecipe, RecipeDeletion, RecipeSummary, SavedRecipe } from '../../shared/types/recipe.ts'
 
 // Shared with the app, which renders what these routes return.
-export type { RecipeSummary, SavedRecipe } from '../../shared/types/recipe.ts'
+export type { RecipeDeletion, RecipeSummary, SavedRecipe } from '../../shared/types/recipe.ts'
 
 // The row as the table defines it. Restating it here is how it drifts from
 // the migration, so it is imported instead.
@@ -197,6 +197,69 @@ export async function insertVariant(db: Kysely<Database>, ownerSub: string, pare
     .returningAll()
     .executeTakeFirst()
   return row ? asRecipe(row) : null
+}
+
+/**
+ * **Delete.** The version named and every progression descended from it;
+ * variants that branched off any of them survive with `variant_of` cleared,
+ * which is the foreign key's doing. What the foreign key cannot do is move a
+ * pin, so this does: a pin among the deleted reverts to the deleted version's
+ * parent, and deleting a root takes its whole line, pin and all.
+ *
+ * The line is read whole — one scan of recipes_line_idx — and the subtree is
+ * walked here rather than in a recursive CTE. When deleting, those rows are
+ * locked first, so a progression saved into the line at the same moment
+ * either lands before the count is taken or waits until the deletion is done.
+ *
+ * `dryRun` answers the same question without deleting, by the same walk, so
+ * the count a person confirms is the count this would remove.
+ *
+ * Null means no such version, or not theirs.
+ */
+export async function deleteRecipe(sql: Sql, ownerSub: string, id: string, { dryRun = false } = {}): Promise<RecipeDeletion | null> {
+  try {
+    return await sql.begin(async (tx) => {
+      const line = await tx<Pick<Row, 'id' | 'progression_of' | 'pinned'>[]>`
+        SELECT id, progression_of, pinned FROM recipes
+        WHERE line_id = (SELECT line_id FROM recipes WHERE id = ${id} AND owner_sub = ${ownerSub})
+        ${dryRun ? tx`` : tx`FOR UPDATE`}
+      `
+      const target = line.find(row => row.id === id)
+      // Gone between finding its line and locking it: a deletion that raced
+      // this one got there first.
+      if (!target) return null
+
+      const children = Map.groupBy(line, row => row.progression_of)
+      const ids: string[] = []
+      for (let queue = [id]; queue.length;) {
+        const next = queue.shift()!
+        ids.push(next)
+        queue.push(...(children.get(next) ?? []).map(row => row.id))
+      }
+
+      const taken = new Set(ids)
+      const pin = line.find(row => row.pinned)
+      // A root has no parent to revert to, and every other version in its line
+      // descends from it: the line ends.
+      const pinned = pin && !taken.has(pin.id) ? pin.id : target.progression_of
+
+      if (dryRun) return { count: ids.length, ids, pinned }
+
+      const deleted = await tx<{ id: string }[]>`
+        DELETE FROM recipes WHERE id = ANY(${ids}) AND owner_sub = ${ownerSub} RETURNING id
+      `
+      if (pinned && pinned !== pin?.id) await tx`UPDATE recipes SET pinned = true WHERE id = ${pinned}`
+      return { count: deleted.length, ids: deleted.map(row => row.id), pinned }
+    })
+  } catch (error) {
+    // The line is locked, so this should not happen; if a write that skipped
+    // the lock pinned something meanwhile, the index refuses the second pin
+    // and nothing is deleted.
+    if ((error as { constraint_name?: string }).constraint_name === 'recipes_line_pin_idx') {
+      throw fail(409, 'This recipe changed while it was being deleted. Try again.', error)
+    }
+    throw error
+  }
 }
 
 /**

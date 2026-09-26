@@ -177,6 +177,11 @@ which is usually a leaf, and the pin reverts to its parent. A deletion that
 takes other versions with it has to say so before it runs — the count is
 knowable first.
 
+The count is a dry run of the route (`DELETE …?dryRun=true`), not a field on
+`GET /api/recipes/{id}`. That way the preview and the deletion are the same
+walk of the tree, and reading a recipe does not pay for a question that is
+only asked when someone reaches for Delete (#49).
+
 A single parent column cannot express "cascade to progressions, not to
 variants": `ON DELETE` applies to every child a foreign key has. Two columns
 can, and they make a separate kind column unnecessary — which of the two is set
