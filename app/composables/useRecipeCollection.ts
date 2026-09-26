@@ -20,11 +20,16 @@ export function useRecipeCollection(recipes: ShelfRecipe[]) {
     try {
       localStorage.setItem("recipeat-saved", JSON.stringify(saved.value));
     } catch {}
-    toast.value = exists
-      ? "Recipe removed from your collection"
-      : "A little deliciousness, saved to your collection";
+    notify(
+      exists
+        ? "Recipe removed from your collection"
+        : "A little deliciousness, saved to your collection",
+    );
+  }
+  function notify(message: string) {
+    toast.value = message;
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => (toast.value = ""), 3500);
   }
-  return { saved, toast, save };
+  return { saved, toast, save, notify };
 }
