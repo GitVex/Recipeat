@@ -1,41 +1,19 @@
-# A separate Compose project from the app on purpose, and for a different
-# reason than the fetcher's. The app redeploys on every push, and a redeploy
-# recreates the project's containers — a database in that project would restart
-# every time, possibly mid-migration, and its volume would live in a namespace
-# Coolify tears down with the resource. This one is deployed once and then left
-# alone.
-#
-# It shares a network with the app and nothing else. In particular it is not on
-# recipeat-fetch-net: that network exists to contain a service that opens
-# connections to URLs a user supplies, and a database is precisely what it must
-# not reach.
 name: recipeat-db
 
 services:
   recipeat-postgres:
-    # 17 rather than 18: the 18 images moved the data directory, so the upgrade
-    # is a deliberate migration rather than a tag bump. 17 is supported into
-    # 2029.
     image: postgres:17-alpine
     container_name: recipeat-postgres
     restart: unless-stopped
-    # Loopback only, and unlike the app and the fetcher nothing needs this at
-    # all — it is here so `psql` and `pg_dump` can reach it from the host.
     ports:
       - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_DB: recipeat
       POSTGRES_USER: recipeat
-      # No default: an empty password makes the image trust every connection.
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required}
-      # Cheap insurance that only initdb can buy — a cluster created without
-      # checksums cannot be given them later without a rewrite.
       POSTGRES_INITDB_ARGS: "--data-checksums"
     volumes:
       - pgdata:/var/lib/postgresql/data
-    # The app is a separate resource, so it cannot depend_on this one. Nothing
-    # waits for this healthcheck except a person reading `docker ps`; the app
-    # retries the connection itself on startup.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U recipeat -d recipeat"]
       interval: 10s
@@ -43,15 +21,8 @@ services:
       retries: 5
       start_period: 20s
     cpus: 1.0
-    # Ten connections against a table of text. The defaults this image ships
-    # with fit inside this comfortably; measure before raising it.
     mem_limit: 512m
     memswap_limit: 512m
-    # Same reasoning as the fetcher: the alias is declared here rather than
-    # relying on container_name, because Coolify renames containers. If this
-    # resource has "Connect To Predefined Network" enabled in Coolify, turn it
-    # off — that setting puts it on `coolify`, where everything else Coolify
-    # runs could reach it.
     networks:
       default: {}
       db:
@@ -64,18 +35,9 @@ services:
         max-file: "3"
 
 networks:
-  # The one network this project asks you to create:
-  #
-  #   docker network create recipeat-db-net
-  #
-  # Not a <project>_default network, for the same reason as the fetcher's:
-  # Coolify runs Compose with --project-name <resource-uuid>, which overrides
-  # the `name:` above.
   db:
     external: true
     name: recipeat-db-net
 
 volumes:
-  # The reason this file exists. Deploying the app must never be able to take
-  # this with it.
   pgdata:
