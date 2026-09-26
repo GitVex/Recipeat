@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url'
+
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   // 8100 is the app; 8103 is the fetcher, the one service it still calls. The
@@ -6,6 +8,10 @@ export default defineNuxtConfig({
   devServer: { port: 8100 },
   runtimeConfig: {
     fetcherBaseUrl: 'http://127.0.0.1:8103',
+    // Empty here and supplied as NUXT_DATABASE_URL. Postgres publishes on
+    // loopback like the other services, so a checkout points at 127.0.0.1 and
+    // a deployment at the container the compose file names.
+    databaseUrl: '',
     // Empty here and supplied as NUXT_GEMINI_API_KEY: the only secret this
     // project has, and the only runtime value that must not be in the repo.
     geminiApiKey: '',
@@ -33,6 +39,14 @@ export default defineNuxtConfig({
   },
   nitro: {
     storage: { oidc: { driver: 'fs', base: './.data/oidc' } },
+    // The migration runner reads these at startup. They are server assets
+    // rather than a directory read because the built output is all that
+    // reaches the container — server/ does not — and an asset is bundled into
+    // it, so the same read works in a checkout and in the image.
+    // Absolute: Nitro resolves a relative serverAssets dir against its own
+    // srcDir, which under Nuxt is server/ — so a path written from the project
+    // root silently matches nothing and bundles no migrations.
+    serverAssets: [{ baseName: 'migrations', dir: fileURLToPath(new URL('./server/database/migrations', import.meta.url)) }],
   },
   css: ['~/assets/main.css'],
   app: {

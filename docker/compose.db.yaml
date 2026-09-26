@@ -1,0 +1,43 @@
+name: recipeat-db
+
+services:
+  recipeat-postgres:
+    image: postgres:17-alpine
+    container_name: recipeat-postgres
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      POSTGRES_DB: recipeat
+      POSTGRES_USER: recipeat
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required}
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U recipeat -d recipeat"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    cpus: 1.0
+    mem_limit: 512m
+    memswap_limit: 512m
+    networks:
+      default: {}
+      db:
+        aliases:
+          - recipeat-postgres
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  db:
+    external: true
+    name: recipeat-db-net
+
+volumes:
+  pgdata:

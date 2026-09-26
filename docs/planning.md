@@ -17,7 +17,9 @@ url ──────▶ fetcher ─┘
 | Zitadel login | Done |
 | Extraction model | Done; Gemini, billed per page. Was a self-hosted Ollama until the photo path needed a model that could read a page |
 | `POST /api/extract/text` | Done; returns a recipe, stores nothing |
-| Storage | Not started — no database, driver, or migration |
+| `POST /api/recipes` | Done; writes a recipe to the table, owned by the session's subject |
+| Save, progression, variant | Done; the three write routes, with the pin moving on a progression |
+| Storage | Done; Postgres, the `recipes` table, a migration runner, and every route the collection needs. Nothing in the browser calls them yet |
 | Import UI wired to the API | Not started — the dialog still shows samples |
 | Website import | Done; returns a recipe, stores nothing. No SSRF guard yet |
 | Photo import | Done; the model reads the photo directly, returns a recipe, stores nothing. The image itself is discarded |
@@ -28,57 +30,56 @@ The extraction output already maps onto the table one-to-one, and satisfies
 every constraint by construction. Only `owner_sub` is missing, and the route
 already holds it — `session.claims.sub`.
 
-```sql
-CREATE TABLE recipes (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    owner_sub TEXT NOT NULL,
-    title TEXT,
-    source_lang TEXT NOT NULL,
-    ingredients JSONB NOT NULL,
-    steps JSONB NOT NULL,
-    portions NUMERIC,
-    source JSONB,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+The table is [`server/database/migrations/001_recipes.sql`](../server/database/migrations/001_recipes.sql)
+— committed SQL rather than a sketch here, so there is one place to read
+it and one place to get it wrong. What follows is why it looks like that.
 
-    CHECK (portions IS NULL OR portions > 0),
-    CHECK (jsonb_typeof(ingredients) = 'array'),
-    CHECK (jsonb_typeof(steps) = 'array'),
-    CHECK (source IS NULL OR jsonb_typeof(source) = 'object')
-);
+`owner_sub` has no foreign key on purpose: users live in Zitadel. The listing
+index is composite because the query is always
+`WHERE owner_sub = $1 AND pinned ORDER BY created_at DESC`, and partial
+because an unpinned version is never in a listing.
 
-CREATE INDEX recipes_owner_recent_idx ON recipes (owner_sub, created_at DESC);
-```
+The four lineage columns are explained under "Recipe lineage" below. They went
+into the first migration rather than a second one, which was free only while
+nothing had been applied anywhere (#28).
 
-`owner_sub` has no foreign key on purpose: users live in Zitadel. The index is
-composite because the listing query is always
-`WHERE owner_sub = $1 ORDER BY created_at DESC`.
-
-`updated_at` still needs a `BEFORE UPDATE` trigger — the default fires only on
-insert, so without one the column never changes.
+`updated_at` gets a `BEFORE UPDATE` trigger, because the default fires only on
+insert and without one the column would never change. `line_id` gets a
+`BEFORE INSERT` one, so a root row can be written without generating its UUID
+on the client in order to use it twice.
 
 `source` is JSONB rather than TEXT so a website import can record its URL and
 retrieval time, and a photo import its object key. The `RecipeSource` union
 already exists in code; each extraction modality builds its own, since only it
 knows where the recipe came from.
 
-Work involved: a Postgres service of its own under `docker/`, a
-connection URL in `runtimeConfig`, a driver (`postgres` handles JSONB natively
-and needs no query builder here), a real `.sql` migration, and `owner_sub` read
-from the session.
+The service, the driver, the connection URL and the migration runner are done
+— see [database.md](database.md), and the routes that write and read are in
+`server/api/recipes*`. What is left is the app: nothing in the browser calls
+any of them yet.
 
-### Open decision: does extraction save?
+### Decided: extraction does not save
 
-Keeping them separate fits the existing UX — `RecipeImportDialog` previews
-before anything joins the collection — and keeps bad extractions out of the
-table. `POST /api/extract/text` would stay as it is, and a new `POST /api/recipes`
-would persist.
+`POST /api/extract/*` still stores nothing, and `POST /api/recipes` persists —
+which keeps the preview `RecipeImportDialog` already does, keeps a bad
+extraction out of the table, and is the only shape in which a person can
+correct a recipe before it joins their collection.
 
-The catch: a draft coming back from the browser is untrusted input, so the save
-endpoint needs its own validation. `parseExtraction` cannot be reused for it —
-that one expects model output. The alternative is to hold the draft server-side
-under an ID and have the client confirm by ID, so the recipe never round-trips
-through the browser. More moving parts, nothing to re-validate.
+The cost is that a draft comes back through the browser as untrusted input,
+and `parseExtraction` cannot check it: that one is written for model output and
+recovers rather than rejects. So `validateRecipe` does, and it refuses instead
+— a browser sending a malformed recipe is our own bug, not a flaky model.
+
+Holding the draft server-side under an ID was the alternative, and it buys less
+than it looks like. The three write endpoints in #29 all take an edited recipe
+body, so a validator for untrusted recipes has to exist regardless; a draft
+store would remove it from one path out of four and add a cache with a
+lifetime.
+
+What the validator produces is a draft, not a recipe. Ingredient ids, step
+parts and the links between them are rebuilt by the same assembly extraction
+runs, so a stored recipe and an extracted one are the same shape by
+construction and nothing structural arrives from outside.
 
 ## Then
 
@@ -106,6 +107,96 @@ to nine seconds, which is the whole request.
 **Translation.** `source_lang` is recorded but there is nowhere to put a
 translation. Either a `translations JSONB` keyed by language tag, or a
 `recipe_translations` table.
+
+## Recipe lineage
+
+Three save actions, and the difference between them decides the schema before
+it decides any UI. The definitions, settled in #23:
+
+- **Save** — overwrite in place. The recipe you had, corrected. Same row, same
+  id, and it works on any version, not only the current one.
+- **Save as Progression** — a new version in a line. The same recipe, further
+  along; you are iterating and the history is the point.
+- **Save as Variant** — a branch. A different take that stands on its own and
+  is not trying to replace the original.
+
+Three endpoints rather than one taking the action as a parameter (#29):
+`PUT /api/recipes/{id}` saves, `POST /api/recipes/{id}/progressions` extends a
+line, `POST /api/recipes/{id}/variants` leaves it. The payload is the same
+recipe either way, but only one of the three overwrites, and it is the only one
+that is not a POST — the destructive action cannot be reached by posting
+somewhere.
+
+### The pin
+
+A line of progressions is a tree, not a list. A progression can be made from
+any version, so a version can have several progression children, and something
+has to say which one the app means when it says "the recipe". That is the pin:
+the entry point, what the collection and every menu show, and the only version
+reachable without going through the lineage view.
+
+Making a progression moves the pin to it, wherever in the tree it was made
+from. That is the whole rule — no exception for progressing off an old version
+— and it makes the pin always the thing last worked on. It also means the
+lineage view needs a pin button, or a version reached by going backwards could
+only become the entry point by progressing off it again.
+
+One pin per line, held as a partial unique index rather than by three write
+endpoints each remembering to unpin the old one. The endpoint that inserts a
+progression unpins and inserts in one transaction.
+
+### Variants
+
+A variant leaves the line. It points at the version it branched off and becomes
+the first version of a line of its own, with its own pin and its own tree. A
+lineage view shows a recipe's own progressions in full and its variants only as
+far as their entry point: a variant is a different recipe, and its history is
+its own business.
+
+### Progressions are copies
+
+A progression stores the whole recipe, not a delta. Reading a version is one
+row, a diff between two is a comparison of two rows, and the cost is that a
+line of thirty progressions is thirty recipes on disk — which, for text, is
+less than the alternative costs in complexity.
+
+The consequence to be honest about: editing an earlier version does not reach
+the versions made from it. Fixing a typo three versions back leaves the pinned
+version still carrying it. That is inherent in copies rather than deltas, and
+is accepted; the UI's job is to not imply otherwise.
+
+### Deleting
+
+Deletions cascade along progressions and stop at variants. Deleting a version
+takes every progression descended from it; a variant that branched off it
+survives, having become its own recipe, and keeps no reference to where it came
+from.
+
+Most deletions are not that. The common one is deleting the pinned version,
+which is usually a leaf, and the pin reverts to its parent. A deletion that
+takes other versions with it has to say so before it runs — the count is
+knowable first.
+
+A single parent column cannot express "cascade to progressions, not to
+variants": `ON DELETE` applies to every child a foreign key has. Two columns
+can, and they make a separate kind column unnecessary — which of the two is set
+*is* the kind. Hence `progression_of` and `variant_of`, each a composite
+foreign key carrying `owner_sub`, which is what makes lineage across two owners
+fail in the schema rather than in whichever route forgot to check.
+
+`line_id` is the tree's identity: a root and every variant is its own, and a
+progression inherits its parent's. It never needs rewriting, because cascade
+means no progression outlives its ancestors. With it the collection listing is
+`WHERE owner_sub = $1 AND pinned ORDER BY created_at DESC` — the composite
+index becomes a partial one — and a lineage view is an index scan rather than a
+recursive CTE.
+
+The unique index stops a second pin; nothing stops a line having none, so the
+write paths own that half of the invariant.
+
+Still open: whether a `version INT` is worth carrying. It is derivable from the
+tree, can disagree with it, and earns itself only if the UI shows a number
+(#28).
 
 ## Known rough edges
 
@@ -140,9 +231,13 @@ translation. Either a `translations JSONB` keyed by language tag, or a
 - **Ingredient linking.** Matching falls back to the head noun, so two
   ingredients sharing a noun and an amount — `"1 cup white sugar"` and
   `"1 cup brown sugar"` in one step — are separated only by proximity.
-- **Dedupe.** Re-importing the same URL will create a second row. A partial
-  unique index on `(owner_sub, (source->>'url'))` would catch it, and the
-  canonical URL the fetcher returns is the better key to store there.
+- **Dedupe is a non-goal.** Re-importing the same URL makes a second recipe,
+  deliberately. The partial unique index on `(owner_sub, (source->>'url'))`
+  that would catch it cannot be written as it stands: every progression copies
+  `source`, so the second version of any website recipe would collide with the
+  first. Restricted to rows that are neither a progression nor a variant it
+  would work, and it is still not wanted — re-importing a page is a way to
+  start again from it.
 - **Extraction leaves the host.** Every text and photo import is a request to
   Google. The fetcher already reaches the internet, but it reaches a page the
   user named; this sends the user's own recipes. Billing is required rather

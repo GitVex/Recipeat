@@ -41,6 +41,12 @@ services:
       # on the Google project: the free tier is not licensed for an API client
       # serving users in the EEA, and its quota would not carry this anyway.
       NUXT_GEMINI_API_KEY: ${NUXT_GEMINI_API_KEY:?required}
+      # The database, addressed by the alias compose.db.yaml declares on
+      # recipeat-db-net — again the alias and not the container name, which
+      # Coolify renames. Migrations run from here at startup, so this is also
+      # what applies the schema:
+      #   postgres://recipeat:PASSWORD@recipeat-postgres:5432/recipeat
+      NUXT_DATABASE_URL: ${NUXT_DATABASE_URL:?required}
       # Zitadel. The redirect URIs must be this deployment's public URL, not the
       # localhost:8100 a checkout defaults to, and must match the application
       # registered in Zitadel character for character.
@@ -64,6 +70,7 @@ services:
     networks:
       - default
       - fetch
+      - db
     logging:
       driver: json-file
       options:
@@ -71,7 +78,7 @@ services:
         max-file: "3"
 
 networks:
-  # The only network these files ask you to create:
+  # The fetcher's network:
   #
   #   docker network create recipeat-fetch-net
   #
@@ -81,6 +88,17 @@ networks:
   fetch:
     external: true
     name: recipeat-fetch-net
+
+  # And the database's, created the same way:
+  #
+  #   docker network create recipeat-db-net
+  #
+  # Separate from fetch on purpose. The fetcher reaches this app and stops
+  # there; it has no route to the database, because Docker does not route
+  # between networks.
+  db:
+    external: true
+    name: recipeat-db-net
 
 volumes:
   app-data:

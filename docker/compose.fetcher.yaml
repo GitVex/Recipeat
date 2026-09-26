@@ -42,7 +42,8 @@ services:
         max-file: "3"
 
 networks:
-  # The one network this project asks you to create, and the only one left:
+  # The one network this project asks you to create. The app also joins
+  # recipeat-db-net, which this project must never be on:
   #
   #   docker network create recipeat-fetch-net
   #

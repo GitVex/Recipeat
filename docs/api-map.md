@@ -7,8 +7,9 @@ the operational view — what to point Postman at, and what stands in the way.
 There are two tiers. The **app** is public and needs a session on four of its
 five routes. The **fetcher** is unauthenticated and published on loopback only,
 so reaching it at all takes a tunnel. Extraction itself runs at Google and is
-not reachable from here. Nothing in either tier stores anything: every call is
-safe to repeat.
+not reachable from here. Extraction stores nothing and is safe to repeat;
+`POST /api/recipes` is the one call here that writes a row, and repeating it
+writes another.
 
 ## Variables
 
@@ -174,6 +175,121 @@ Expect five to nine seconds for a page. Nothing on this side decodes the image,
 so the media type the browser declared is forwarded as-is and an unreadable one
 is answered for by the model, not caught here.
 
+### `POST /api/recipes`
+
+```
+POST {{app}}/api/recipes
+Content-Type: application/json
+Cookie: nuxt-oidc-auth=<value>
+
+{ "recipe": { … whatever an extract route returned … } }
+```
+
+Body `{ "recipe": { … } }`, or the recipe itself unwrapped. Answers **201** and
+`{ "recipe": { … } }` — the same shape it was given, plus `id`, `lineId`,
+`pinned`, `createdAt` and `updatedAt`.
+
+Post back exactly what an extraction returned, optionally edited. Ingredient
+ids, step parts and the links between them are rebuilt here rather than
+trusted, so editing the text of a step is enough to re-link the amounts inside
+it. `owner_sub` comes from the session and is never read from the body.
+
+| Status | Meaning |
+|---|---|
+| 401 | No session, or a session whose token carries no subject |
+| 415 | Content type is not JSON |
+| 400 | A field is the wrong type, an amount is not positive, a URL is not http(s), or the source is not one of text/website/photo |
+| 413 | Over a limit: 300-character title, 200 ingredients, 100 steps, 5 000 characters a step |
+| 422 | No ingredients and no steps — well-formed, but not a recipe |
+| 503 | This deployment has no database configured |
+
+### `PUT /api/recipes/{id}`
+
+```
+PUT {{app}}/api/recipes/6f1e9b3c-…
+Content-Type: application/json
+Cookie: nuxt-oidc-auth=<value>
+
+{ "recipe": { … } }
+```
+
+**Save.** Replaces the version it names and creates nothing — the only one of
+the three that overwrites, which is why it is the only one that is not a POST.
+Works on any version you own, pinned or not, and moves neither the pin nor the
+version's place in its line. Answers `{ "recipe": { … } }`.
+
+Two saves racing is last write wins; `updatedAt` says which won.
+
+### `POST /api/recipes/{id}/progressions`
+
+```
+POST {{app}}/api/recipes/6f1e9b3c-…/progressions
+Content-Type: application/json
+Cookie: nuxt-oidc-auth=<value>
+
+{ "recipe": { … } }
+```
+
+**Save as Progression.** A new version in the same line, descended from the id
+in the path — any version you own, pinned or not. Answers **201**. The new
+version takes the pin, wherever in the tree it was made, so the collection
+shows it from then on.
+
+`lineId` is inherited and never taken from the body, which is what keeps a
+progression of a progression in the line it came from.
+
+### `POST /api/recipes/{id}/variants`
+
+```
+POST {{app}}/api/recipes/6f1e9b3c-…/variants
+Content-Type: application/json
+Cookie: nuxt-oidc-auth=<value>
+
+{ "recipe": { … } }
+```
+
+**Save as Variant.** A branch that leaves the line: the new recipe points at
+the id in the path and becomes the first version of a line of its own, with
+its own pin. Answers **201**. The line it left keeps its own pin, and the
+variant appears in a listing as its own entry.
+
+All three take the same body as `POST /api/recipes` and answer the same 400,
+413, 415 and 422 as it does, plus:
+
+| Status | Meaning |
+|---|---|
+| 400 | The id in the path is not a UUID |
+| 404 | No such version, or not yours — the same answer either way |
+| 409 | Two progressions in one line at once; one of them got the pin, retry |
+
+### `GET /api/recipes`
+
+```
+GET {{app}}/api/recipes
+Cookie: nuxt-oidc-auth=<value>
+```
+
+Answers `{ "recipes": [ … ] }`, newest first, at most 200. One entry per line:
+the pinned version, with `id`, `title`, `image`, `totalTime`, `portions`,
+`ingredientCount`, `stepCount` and the timestamps — what a card needs, not the
+whole recipe. Earlier versions of a line are not here; they are reachable by
+id.
+
+### `GET /api/recipes/{id}`
+
+```
+GET {{app}}/api/recipes/6f1e9b3c-…
+Cookie: nuxt-oidc-auth=<value>
+```
+
+Answers `{ "recipe": { … } }`, whole. Another user's recipe answers **404**
+rather than 403: whether an id exists is not theirs to learn.
+
+| Status | Meaning |
+|---|---|
+| 400 | The id is not a UUID |
+| 404 | No such recipe, or not yours |
+
 ### Auth routes
 
 Browser flows, listed so they are not mistaken for API endpoints. Following
@@ -287,6 +403,14 @@ first one that breaks.
 | 4 | `POST {{app}}/api/extract/website` | App → fetcher, over `recipeat-fetch-net` |
 | 5 | `POST {{app}}/api/extract/text` | App → Gemini, over the internet |
 | 6 | `POST {{app}}/api/extract/photo` | The same, carrying an image |
+| 7 | `POST {{app}}/api/recipes` | App → Postgres, over `recipeat-db-net` |
+| 8 | `GET {{app}}/api/recipes` | The row is there, and is yours |
+| 9 | `POST {{app}}/api/recipes/{id}/progressions` | Lineage: the new version takes the pin, and step 8 shows it in place of the old one |
+
+A **503** at step 7 is not the database being down: it is `NUXT_DATABASE_URL`
+missing from the app's environment. A 500 there, with the app otherwise
+healthy, is worth checking the logs for — the migration runner refuses to
+serve a schema it could not apply, so the container would be restarting.
 
 A 502 at step 4 when the fetcher answered at steps 1–2 is a network problem
 rather than a service one: the app reaches it over `recipeat-fetch-net` by the
