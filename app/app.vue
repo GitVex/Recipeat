@@ -51,6 +51,7 @@ function openCollection() {
       :open="showImport"
       @close="showImport = false"
       @extracted="openRecipe"
+      @resume="showImport = true"
     />
     <RecipeDetailDialog
       :recipe="selected"
