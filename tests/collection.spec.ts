@@ -108,6 +108,36 @@ test('opening the rail lays itself over the recipe, which stays where and as wid
   }
 })
 
+test('the rail leaves the pane alone whatever it shows: not found, signed out, failed', async ({ page }) => {
+  const states = { '44444444-4444-4444-8444-444444444444': 404, '55555555-5555-4555-8555-555555555555': 401, '66666666-6666-4666-8666-666666666666': 500 }
+  const entries = Object.keys(states).map((id, index) => summary(id, `State ${index}`, null))
+  await page.route('**/api/recipes', route => route.fulfill({ json: { recipes: entries } }))
+  await page.route('**/api/recipes/*', (route) => {
+    const id = new URL(route.request().url()).pathname.split('/').pop() as keyof typeof states
+    return route.fulfill({ status: states[id], json: { message: 'x' } })
+  })
+  await openCollection(page)
+  const expected = ['We couldn’t find that recipe.', 'Sign in to open this recipe.', 'We couldn’t open this recipe.']
+  for (const [index, text] of expected.entries()) {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    if (index === 0) await page.locator('.collection-entry').nth(index).click()
+    else {
+      await page.getByRole('button', { name: 'Show your recipes' }).click()
+      await page.locator('.collection-entry').nth(index).click()
+    }
+    await expect(page.locator('.collection-pane')).toContainText(text)
+    for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 }]) {
+      await page.setViewportSize(viewport)
+      await page.waitForTimeout(400)
+      const pane = page.locator('.collection-pane')
+      const closed = await pane.boundingBox()
+      await page.getByRole('button', { name: 'Show your recipes' }).click()
+      expect(await pane.boundingBox(), `${text} at ${viewport.width}px`).toEqual(closed)
+      await page.getByRole('button', { name: 'Hide your recipes' }).click()
+    }
+  }
+})
+
 test('an empty collection says so, and offers a way in', async ({ page }) => {
   await mockApi(page, { status: 200, body: { recipes: [] } })
   await openCollection(page)
