@@ -52,6 +52,12 @@ const openFocaccia = async (page: Page) => {
 }
 
 const bar = (page: Page) => page.getByRole('region', { name: 'Unsaved changes' })
+// These save over the recipe: the PUT is what they mock. The other two ways to
+// save are tests/writes.spec.ts.
+const overwrite = async (page: Page) => {
+  await bar(page).getByRole('radio', { name: /Overwrite this version/ }).check()
+  await bar(page).getByRole('button', { name: 'Overwrite' }).click()
+}
 
 test('a field is typed into where it stands, and Save writes the edit and renders the answer', async ({ page }) => {
   let sent: any
@@ -88,7 +94,7 @@ test('a field is typed into where it stands, and Save writes the edit and render
   await expect(bar(page)).toContainText('Unsaved changes')
   await page.screenshot({ path: 'test-results/editor-unsaved.png', fullPage: true })
 
-  await bar(page).getByRole('button', { name: 'Save' }).click()
+  await overwrite(page)
   await expect(bar(page)).toHaveCount(0)
   await expect(page.locator('.toast')).toContainText('Saved')
   // The step restating the amount follows the ingredient, from the answer.
@@ -107,7 +113,7 @@ test('a refused save says why and keeps the edit', async ({ page }) => {
   await openFocaccia(page)
   await page.getByRole('button', { name: 'Edit title: Focaccia' }).click()
   await page.getByRole('textbox', { name: 'title' }).fill('Focaccia two')
-  await bar(page).getByRole('button', { name: 'Save' }).click()
+  await overwrite(page)
   await expect(bar(page).getByRole('alert')).toContainText('A step is limited to 5000 characters.')
   await expect(page.getByRole('heading', { level: 2 }).first()).toContainText('Focaccia two')
   await bar(page).getByRole('button', { name: 'Discard' }).click()
@@ -123,7 +129,7 @@ test('what cannot be saved is said before it is sent', async ({ page }) => {
   await page.getByRole('textbox', { name: 'total time' }).fill('a while')
   await page.keyboard.press('Enter')
   await expect(bar(page)).toContainText('isn’t a duration')
-  await expect(bar(page).getByRole('button', { name: 'Save' })).toBeDisabled()
+  await expect(bar(page).getByRole('button', { name: 'Save as new version' })).toBeDisabled()
   expect(saves).toBe(0)
 })
 
@@ -150,7 +156,7 @@ test('ingredients and steps are added, moved and removed, and the steps are coun
   // Out of the source's order, its numbers no longer apply: counted from one.
   await expect(page.locator('.step-list .step-mark')).toHaveText(['1.', '2.', '3.', '4.'])
 
-  await bar(page).getByRole('button', { name: 'Save' }).click()
+  await overwrite(page)
   await expect(bar(page)).toHaveCount(0)
   expect(sent.recipe.ingredients.map((ingredient: { originalText: string }) => ingredient.originalText)).toEqual(['500 g flour', '2 tbsp olive oil'])
   expect(sent.recipe.steps).toEqual(['Dough: mix everything.', 'Bake.', 'Add 500 g flour.', 'Serve warm.'])

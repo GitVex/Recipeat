@@ -1,16 +1,14 @@
 <script setup lang="ts">
 import type { SavedRecipe } from "#shared/types/recipe";
+import type { SaveAction } from "~/composables/useRecipeWrites";
 
 // A stored recipe at its own address, so it survives a reload and can be
-// linked to. It is also where it is edited: any field can be tapped and typed
-// into, and Save writes the edit over the recipe. The line back to its root
-// (#31) and the other two ways to save (#30) belong here too.
+// linked to. It is read here, scaled, edited, saved one of three ways, and
+// deleted. The line back to its root (#31) belongs here too.
 const route = useRoute();
 const id = String(route.params.id);
 const { login } = useOidcAuth();
 const cache = useRecipeCache();
-const list = useRecipeListCache();
-const { notify } = useToast();
 
 // Not awaited: a recipe the preview already read is shown while this one is
 // still on its way. On the server the render waits for it either way.
@@ -54,65 +52,48 @@ useHead(() => ({
 const editor = useRecipeEditor(recipe);
 const { edited, problems } = editor;
 
+let leaving = false;
 
-const saving = ref(false);
-const saveError = ref<string | null>(null);
-watch(edited, (value) => {
-  if (!value) saveError.value = null;
+// Saving an edit one of three ways, and deleting. An overwrite is shown in
+// place; a new version, a new recipe or a delete goes to another page, which
+// is not leaving with unsaved changes: they have just been dealt with.
+const choice = ref<SaveAction>("progression");
+const writes = useRecipeWrites(
+  id,
+  editor,
+  (stored) => (data.value = { recipe: stored }),
+  async (path) => {
+    leaving = true;
+    await navigateTo(path);
+  },
+);
+const { saving, saveError, deleting, deletePending, deleteError } = writes;
+const save = () => writes.save(choice.value);
+
+const deleteTitle = computed(() =>
+  (deleting.value?.count ?? 1) > 1
+    ? `Delete this recipe and ${deleting.value!.count - 1} later version${deleting.value!.count > 2 ? "s" : ""}?`
+    : "Delete this recipe?",
+);
+// Says what goes, and no more: the versions that came after this one. What
+// was branched off it as a separate recipe is not in the count, and nothing
+// here suggests it is.
+const deleteDetail = computed(() =>
+  (deleting.value?.count ?? 1) > 1
+    ? "This version goes, and every version that came after it. There is no undo."
+    : "It will be gone for good. There is no undo.",
+);
+const deleteActions = ref<HTMLElement | null>(null);
+watch(deleting, async (value) => {
+  if (!value) return;
+  await nextTick();
+  // The safe answer is the one that takes focus.
+  deleteActions.value?.querySelector<HTMLElement>(".keep")?.focus();
 });
-
-function saveMessage(error: unknown): string {
-  const { statusCode, data } = error as { statusCode?: number; data?: { message?: string } };
-  switch (statusCode) {
-    case undefined:
-      return "We couldn’t reach Recipeat. Check your connection and try again.";
-    case 401:
-      return "You’ve been signed out. Sign in again in another tab, then save; your changes stay here until you leave this page.";
-    case 404:
-      return "This recipe isn’t in your collection any more, so there is nothing to save over.";
-    case 503:
-      return "Saving isn’t available on this server.";
-    // The content itself was refused. The editor stops most of this before
-    // it is sent; the server's own words say what is left.
-    case 400:
-    case 413:
-    case 422:
-      return data?.message ?? "Recipeat couldn’t save this recipe as it is.";
-    default:
-      return "Something went wrong while saving. Your changes are still here.";
-  }
-}
-
-/** True once the edit is written. */
-async function save(): Promise<boolean> {
-  const body = editor.body.value;
-  if (!body || saving.value) return false;
-  saving.value = true;
-  saveError.value = null;
-  try {
-    const { recipe: stored } = await $fetch<{ recipe: SavedRecipe }>(`/api/recipes/${id}`, {
-      method: "PUT",
-      body: { recipe: body },
-      retry: 0,
-    });
-    // The recipe is rendered from what came back, re-linked amounts and all,
-    // and the edit starts over from it.
-    data.value = { recipe: stored };
-    list.update(stored);
-    notify("Saved");
-    return true;
-  } catch (error) {
-    saveError.value = saveMessage(error);
-    return false;
-  } finally {
-    saving.value = false;
-  }
-}
 
 // Leaving with unsaved changes asks first. Inside the app that is a dialog of
 // our own; closing or reloading the tab gets the browser's.
 const leavingTo = ref<string | null>(null);
-let leaving = false;
 function guard(to: { fullPath: string }) {
   if (!edited.value || leaving) return true;
   leavingTo.value = to.fullPath;
@@ -179,27 +160,25 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", warnBeforeUnloa
         scalable
         title-id="open-recipe-title"
       />
-      <div v-if="edited" class="edit-bar" role="region" aria-label="Unsaved changes">
-        <div class="edit-bar-text">
-          <p class="edit-bar-title"><span class="unsaved-dot" aria-hidden="true" />Unsaved changes</p>
-          <p v-for="problem in problems" :key="problem" class="edit-bar-problem">
-            {{ EDIT_PROBLEM[problem] }}
-          </p>
-          <p v-if="saveError" class="edit-bar-problem" role="alert">{{ saveError }}</p>
-        </div>
-        <div class="edit-bar-actions">
-          <button type="button" class="text-button" :disabled="saving" @click="editor.reset()">
-            Discard
-          </button>
-          <button
-            type="button"
-            class="button small"
-            :disabled="saving || !editor.body.value"
-            @click="save"
-          >
-            {{ saving ? "Saving…" : "Save" }}
-          </button>
-        </div>
+      <SaveControl
+        v-if="edited"
+        v-model="choice"
+        :problems="problems"
+        :saving="saving"
+        :error="saveError"
+        :can-save="!!editor.body.value"
+        @save="writes.save"
+        @discard="editor.reset()"
+      />
+      <div v-else class="recipe-actions">
+        <button
+          type="button"
+          class="text-button delete-recipe"
+          :disabled="deletePending"
+          @click="writes.askDelete()"
+        >
+          <AppIcon name="trash" :size="15" />{{ deletePending && !deleting ? "Checking…" : "Delete recipe" }}
+        </button>
       </div>
     </template>
     <p v-else-if="status === 'pending'" class="collection-state" role="status">
@@ -230,6 +209,34 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", warnBeforeUnloa
           </button>
           <button type="button" class="text-button" @click="leavingTo = null">
             Keep editing
+          </button>
+        </div>
+      </div>
+    </BaseDialog>
+
+    <BaseDialog
+      :open="!!deleting"
+      title-id="delete-title"
+      close-label="Close"
+      modal-class="leave-modal"
+      @close="writes.cancelDelete()"
+    >
+      <div class="leave-content">
+        <h2 id="delete-title">{{ deleteTitle }}</h2>
+        <p v-if="deleting?.count">{{ deleteDetail }}</p>
+        <p v-if="deleteError" class="edit-bar-problem" role="alert">{{ deleteError }}</p>
+        <div ref="deleteActions" class="leave-actions">
+          <button
+            v-if="deleting?.count"
+            type="button"
+            class="button small destructive"
+            :disabled="deletePending"
+            @click="writes.confirmDelete()"
+          >
+            {{ deletePending ? "Deleting…" : "Delete" }}
+          </button>
+          <button type="button" class="text-button keep" @click="writes.cancelDelete()">
+            Keep it
           </button>
         </div>
       </div>

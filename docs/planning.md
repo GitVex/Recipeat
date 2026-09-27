@@ -250,9 +250,20 @@ tree, can disagree with it, and earns itself only if the UI shows a number
   the steps, as it does for an extraction. A line left untouched goes back
   exactly as it came, parsed amount included. Steps keep their source numbers
   while they keep their order; once one is added, removed or moved, the
-  numbers are dropped and the page counts them. Only Save (overwrite) is wired
-  up so far — Progression and Variant, and weighting Save as the destructive
-  one, are #30.
+  numbers are dropped and the page counts them.
+- **Three saves, one choice.** Unsaved changes offer the three as options
+  with a line each saying what happens to the recipe on the page, then one
+  button that does the chosen one. "New version" (progression) is chosen to
+  start with, because it is the one that loses nothing; "Overwrite this
+  version" is the one marked as losing something, before the click. A new
+  version or a separate recipe (variant) is a new row, and the page moves to
+  it. There is no sharing yet, so every recipe that can be opened is the
+  reader's own and all three are always offered.
+- **Deleting asks with a count.** The dry run is read first, so the question
+  is "Delete this recipe?" or "…and 2 later versions?". Variants survive a
+  delete and are not mentioned. Afterwards the page goes to whatever the line
+  is entered by now, or to the collection if the line ended, and the listing
+  is read again. A 404 is already-deleted, and treated as done.
 - **Reading or editing.** #34 asked for no edit mode at all; it has one after
   all, because reading is where scaling (#44) happens, and a tapped amount
   cannot both set the scale and edit the recipe. A stored recipe opens to be

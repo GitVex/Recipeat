@@ -1287,6 +1287,107 @@ input.editable-input {
     align-items: center;
     gap: 14px;
 }
+/* The three saves: a choice, then one button. Overwriting is the one that
+   loses something, and looks it while it is being chosen. */
+.save-choice {
+    flex: 1 1 100%;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    border: none;
+    min-width: 0;
+}
+.save-choice legend {
+    padding: 0;
+    margin-bottom: 8px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+.save-option {
+    display: flex;
+    gap: 9px;
+    align-items: flex-start;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #fffdf8;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+}
+.save-option:hover {
+    border-color: #c9ccbb;
+}
+.save-option.chosen {
+    border-color: var(--olive);
+    background: #f0f1e7;
+}
+.save-option.destructive.chosen {
+    border-color: var(--orange);
+    background: #fbefe9;
+}
+.save-option input {
+    margin-top: 3px;
+    accent-color: var(--olive);
+}
+.save-option.destructive input {
+    accent-color: var(--orange);
+}
+.save-option:has(input:focus-visible) {
+    outline: 2px solid var(--olive);
+    outline-offset: 2px;
+}
+.save-option-text {
+    display: grid;
+    gap: 3px;
+}
+.save-option-title {
+    font-size: 13px;
+    font-weight: 600;
+}
+.save-option-title small {
+    margin-left: 4px;
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--muted);
+}
+.save-option-detail {
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--muted);
+}
+.save-choice:disabled .save-option {
+    cursor: default;
+    opacity: 0.7;
+}
+.button.destructive {
+    background: var(--orange);
+    border-color: var(--orange);
+}
+.recipe-actions {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0 38px 28px;
+}
+.delete-recipe {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--orange);
+}
+@media (max-width: 800px) {
+    .save-choice {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .recipe-actions {
+        padding: 0 20px 22px;
+    }
+}
 .leave-modal {
     max-width: 420px;
 }
