@@ -4,7 +4,12 @@ const mobileNav = ref(false);
 // Shown once the collection has been read, never fetched for its own sake: a
 // signed-out visit to the landing page should not cost a request that 401s.
 const { data } = useRecipeListCache();
-const count = computed(() => data.value?.recipes.length ?? 0);
+// Not before hydration: on the server the header renders before the page has
+// read the list, and the browser, which already has it in the payload, must
+// start from the same markup.
+const hydrated = ref(false);
+onMounted(() => (hydrated.value = true));
+const count = computed(() => (hydrated.value ? (data.value?.recipes.length ?? 0) : 0));
 </script>
 
 <template>
