@@ -245,6 +245,30 @@ tree, can disagree with it, and earns itself only if the UI shows a number
   written. Converting into imperial means US measures. Each recipe opens in the
   system it was written in until the reader picks one; the pick is a cookie,
   so the server renders the same amounts, and it holds for every recipe after.
+- **Editing is text in, structure out.** The editor (#34) edits what a person
+  typed and sends it back as text; the server reads the amounts and re-links
+  the steps, as it does for an extraction. A line left untouched goes back
+  exactly as it came, parsed amount included. Steps keep their source numbers
+  while they keep their order; once one is added, removed or moved, the
+  numbers are dropped and the page counts them. Only Save (overwrite) is wired
+  up so far — Progression and Variant, and weighting Save as the destructive
+  one, are #30.
+- **Reading or editing.** #34 asked for no edit mode at all; it has one after
+  all, because reading is where scaling (#44) happens, and a tapped amount
+  cannot both set the scale and edit the recipe. A stored recipe opens to be
+  read, with a "View | Edit" switch beside the title. Editing shows the
+  amounts as stored, and unsaved changes hold the switch on Edit, since
+  reading would show the recipe without them. A fresh import in the dialog
+  has nothing to scale and is always editable.
+- **Scaling is a way of reading.** One factor, set from the servings or from
+  one ingredient's amount (the anchor, which then reads exactly as typed).
+  It moves ingredients and the step amounts marked `scaleWithPortions: true`;
+  oven temperatures, times and lengths stay put, and an amount nothing says
+  how to scale is left as written and marked "not scaled", as is a line with
+  no amount at all. Amounts round to what can be measured and move between
+  g and kg, ml and l, oz and lb as they cross. The scale is a session cookie
+  for the recipe it was set on: it survives a reload, and opening another
+  recipe drops it.
 - **Ingredient linking.** Matching falls back to the head noun, so two
   ingredients sharing a noun and an amount — `"1 cup white sugar"` and
   `"1 cup brown sugar"` in one step — are separated only by proximity.

@@ -10,7 +10,7 @@ function trapFocus(event: KeyboardEvent) {
   if (event.key !== "Tab") return;
   const elements = [
     ...(event.currentTarget as HTMLElement).querySelectorAll<HTMLElement>(
-      ".modal button:not(:disabled), .modal input, .modal textarea, .modal [href]",
+      ".modal button:not(:disabled), .modal input, .modal textarea, .modal [href], .modal [tabindex='0']",
     ),
   ];
   const first = elements[0],

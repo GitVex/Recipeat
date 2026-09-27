@@ -19,11 +19,6 @@ export const SOURCE_ICON: Record<RecipeSource["type"], string> = {
   text: "text",
 };
 
-// Minutes as a person would say them: "25 min", "1 h 30 min", "2 h".
-export function formatMinutes(minutes: number | null): string | null {
-  if (minutes === null) return null;
-  if (minutes < 60) return `${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
-  return rest ? `${hours} h ${rest} min` : `${hours} h`;
-}
+// Minutes as a person would say them — shared, because the editor reads them
+// back in the same form.
+export { formatMinutes } from "#shared/utils/recipeText";

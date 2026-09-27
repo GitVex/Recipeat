@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ExtractedRecipe } from "#shared/types/recipe";
+import type { RecipeBody } from "#shared/utils/recipeDraft";
 
 const { recipe: selected, importing, openRecipe, openImport } = useDialogs();
 const { message: toast, notify } = useToast();
@@ -26,8 +27,8 @@ onMounted(() => {
   if (recipe) openRecipe(recipe);
 });
 
-async function addToCollection(recipe: ExtractedRecipe) {
-  const stored = await adding.save(recipe);
+async function addToCollection(recipe: ExtractedRecipe, body: RecipeBody) {
+  const stored = await adding.save(body);
   if (!stored) return;
   // The dialog may have been closed, or moved on, while the POST was out;
   // the row is written either way, so the user hears about it either way.

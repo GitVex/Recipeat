@@ -102,10 +102,10 @@ test('an ingredient prints its amount in the chosen system, and an unknown unit 
     ],
   })
   const [chicken, oil, onion] = recipe.ingredients.map(ingredient => ingredientText(ingredient, 'de', 'metric'))
-  assert.deepEqual(chicken, { amount: '1,2 kg', name: 'Hähnchenfilet', extra: null })
+  assert.deepEqual(chicken, { amount: '1,2 kg', name: 'Hähnchenfilet', extra: null, unscaled: false })
   // "TL" is not a unit the parser knows, and dropping it would leave "4 Rapsöl".
   assert.equal(oil!.amount, '4 TL')
-  assert.deepEqual(onion, { amount: '1', name: 'Zwiebel', extra: 'fein gewürfelt' })
+  assert.deepEqual(onion, { amount: '1', name: 'Zwiebel', extra: 'fein gewürfelt', unscaled: false })
   assert.equal(ingredientText(recipe.ingredients[0]!, 'de', 'imperial').amount, '2¾ lb')
   assert.equal(ingredientText(recipe.ingredients[1]!, 'de', 'imperial').amount, '4 TL')
 })

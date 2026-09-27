@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ExtractedRecipe } from "#shared/types/recipe";
+import type { RecipeBody } from "#shared/utils/recipeDraft";
 import type { SaveFailure } from "~/composables/useSaveRecipe";
 import type { OpenRecipe } from "~/composables/useDialogs";
 const props = defineProps<{
@@ -10,7 +11,8 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{
   close: [];
-  add: [recipe: ExtractedRecipe];
+  // The extraction, and what to add in its place: it as edited here.
+  add: [recipe: ExtractedRecipe, body: RecipeBody];
   signIn: [recipe: ExtractedRecipe];
 }>();
 
@@ -23,6 +25,10 @@ const stored = computed(() =>
 const fresh = computed(() =>
   props.recipe && !("id" in props.recipe) ? props.recipe : null,
 );
+
+// Only a fresh import is edited here, before it is first added: a stored one
+// is edited on its own page, and a sample is only to be looked at.
+const editor = useRecipeEditor(fresh);
 
 // Closing a fresh import asks first. Asking again — Escape, the close button,
 // the backdrop — puts the question away rather than answering it, so only
@@ -43,7 +49,8 @@ watch(
 );
 function add() {
   confirming.value = false;
-  if (fresh.value) emit("add", fresh.value);
+  const body = editor.body.value;
+  if (fresh.value && body) emit("add", fresh.value, body);
 }
 function requestClose() {
   if (fresh.value && !props.adding && !confirming.value) confirming.value = true;
@@ -60,7 +67,12 @@ function requestClose() {
     modal-class="detail-modal"
     @close="requestClose"
   >
-    <RecipeBody v-if="recipe" :recipe="recipe" title-id="recipe-title">
+    <RecipeBody
+      v-if="recipe"
+      :recipe="recipe"
+      :editor="fresh ? editor : undefined"
+      title-id="recipe-title"
+    >
       <div
         v-if="fresh && confirming"
         class="unsaved-warning"
@@ -71,7 +83,7 @@ function requestClose() {
           This recipe isn’t in your collection yet. Close it now and it’s gone.
         </p>
         <div class="unsaved-actions">
-          <button class="button small" @click="add">
+          <button class="button small" :disabled="!editor.body.value" @click="add">
             <AppIcon name="bookmark" :size="17" />Add to my collection
           </button>
           <button class="text-button" @click="emit('close')">
@@ -80,11 +92,18 @@ function requestClose() {
         </div>
       </div>
       <template v-else-if="fresh">
-        <button class="button small" :disabled="adding" @click="add">
+        <button
+          class="button small"
+          :disabled="adding || !editor.body.value"
+          @click="add"
+        >
           <AppIcon name="bookmark" :size="17" />{{
             adding ? "Adding…" : "Add to my collection"
           }}
         </button>
+        <p v-for="problem in editor.problems.value" :key="problem" class="add-failure error">
+          {{ EDIT_PROBLEM[problem] }}
+        </p>
         <div
           v-if="addFailure"
           role="alert"

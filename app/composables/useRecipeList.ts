@@ -39,7 +39,8 @@ export const summaryOf = (recipe: SavedRecipe): RecipeSummary => ({
 /**
  * The cached listing, for reading it without fetching it — the header shows a
  * count only once something has asked for the list. `add` puts a recipe just
- * written at the top, where the listing would put it. If the list was never
+ * written at the top, where the listing would put it, and `update` replaces
+ * one saved over where it stands. If the list was never
  * loaded there is nothing to update: the first read will include it.
  *
  * Call it in setup: it needs the Nuxt app, which an awaited handler no longer
@@ -56,7 +57,17 @@ export function useRecipeListCache() {
       ],
     };
   }
-  return { data, add };
+  // A recipe saved over keeps its place: the listing is ordered by when a
+  // line was started, not when it was last written.
+  function update(recipe: SavedRecipe) {
+    if (!data.value) return;
+    data.value = {
+      recipes: data.value.recipes.map((entry) =>
+        entry.id === recipe.id ? summaryOf(recipe) : entry,
+      ),
+    };
+  }
+  return { data, add, update };
 }
 
 /**

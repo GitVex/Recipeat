@@ -1,4 +1,5 @@
 import type { ExtractedRecipe, SavedRecipe } from "#shared/types/recipe";
+import type { RecipeBody } from "#shared/utils/recipeDraft";
 
 // Adding an extracted recipe to the collection: one POST, which writes a row
 // every time it is sent. Like useExtraction, it answers in words a person can
@@ -30,8 +31,8 @@ function failureFor(status: number | undefined): SaveFailure {
         message:
           "Saving isn’t available right now. Your recipe can’t be added to a collection on this server.",
       };
-    // 400, 413 and 422 cannot happen for an unedited extraction, so reaching
-    // one is a bug, and so is anything else.
+    // 400, 413 and 422 are stopped in the editor before anything is sent,
+    // so reaching one is a bug, and so is anything else.
     default:
       return {
         action: "none",
@@ -67,10 +68,10 @@ export function useSaveRecipe() {
 
   /**
    * The stored recipe, or null: the save failed (`failure` says why), or one
-   * was already under way. Nothing is reshaped on the way out — the server
-   * rebuilds ids, parts and links itself.
+   * was already under way. The recipe goes as the editor built it — the
+   * server rebuilds ids, parts and links itself.
    */
-  async function save(recipe: ExtractedRecipe): Promise<SavedRecipe | null> {
+  async function save(recipe: RecipeBody): Promise<SavedRecipe | null> {
     // Every POST is another row, so a second one is refused, not queued.
     if (pending.value) return null;
     pending.value = true;

@@ -1000,6 +1000,314 @@ textarea {
 .step-list li.unnumbered {
     padding-left: 30px;
 }
+
+/* Editing in place. A field reads as text until tapped, and is then typed
+   into in the same type and the same place, so nothing around it moves. */
+.editable {
+    cursor: text;
+    border-radius: 4px;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+    transition: background 0.15s;
+}
+.editable:hover {
+    background: #f0f1e7;
+}
+.editable:focus-visible {
+    outline: 2px solid var(--olive);
+    outline-offset: 2px;
+}
+.editable.empty {
+    color: #a3a597;
+    font-style: italic;
+}
+.editable.invalid {
+    text-decoration: underline wavy var(--orange);
+    text-underline-offset: 4px;
+}
+.editable-field {
+    position: relative;
+}
+.editable-field.active,
+.step-list .editable-field {
+    display: inline-block;
+    width: 100%;
+    /* Not on the baseline, which would leave room under it for descenders
+       and push everything below down while it is open. */
+    vertical-align: top;
+}
+.detail-title .editable-field,
+.step-list .editable-field {
+    flex: 1;
+    min-width: 0;
+}
+.eyebrow .editable-field.active,
+h3 small .editable-field.active {
+    width: auto;
+}
+.editable-input {
+    font: inherit;
+    color: inherit;
+    letter-spacing: inherit;
+    line-height: inherit;
+    text-transform: none;
+    background: #f0f1e7;
+    border: none;
+    border-radius: 4px;
+    padding: 0;
+    margin: 0;
+    outline: 1px solid #d3d6c6;
+    outline-offset: 2px;
+    vertical-align: baseline;
+    max-width: 100%;
+    field-sizing: content;
+}
+textarea.editable-input {
+    display: block;
+    width: 100%;
+    resize: none;
+    overflow: hidden;
+}
+.editable-input:focus,
+.editable-input:focus-visible {
+    outline: 2px solid var(--olive);
+}
+input.editable-input {
+    min-width: 3ch;
+}
+.editable-input::placeholder {
+    color: #a3a597;
+    font-style: italic;
+}
+.field-count {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    font-size: 10px;
+    color: var(--muted);
+}
+.ingredient-inputs {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 6px 8px;
+    max-width: 100%;
+}
+/* Room at the end of each row for its controls, there in reading and
+   editing alike so the text never reflows when they appear. */
+.edit-list li {
+    position: relative;
+    padding-right: 96px;
+}
+.row-controls {
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: flex;
+    gap: 2px;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+.edit-list li:hover .row-controls,
+.edit-list li:focus-within .row-controls {
+    opacity: 1;
+}
+@media (hover: none) {
+    .row-controls {
+        opacity: 1;
+    }
+}
+.row-control {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+}
+.row-control:hover:not(:disabled) {
+    background: #f0f1e7;
+    color: var(--ink);
+}
+.row-control:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+.add-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+    font-size: 13px;
+}
+.add-row:disabled {
+    color: var(--muted);
+    cursor: default;
+}
+/* The switches beside the title: reading or editing, and which units. */
+.title-controls {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-shrink: 0;
+}
+.mode-toggle:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Scaling, while a recipe is read. */
+.ingredients-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    margin: 26px 0 10px;
+}
+.detail-content .ingredients-heading h3 {
+    margin: 0;
+}
+.scale-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.portion-control {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: #f0f1e7;
+}
+.portion-control .row-control {
+    border-radius: 50%;
+}
+.portion-count,
+.scale-factor {
+    min-width: 72px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+.scale-factor {
+    min-width: 0;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #f0f1e7;
+}
+.scale-reset {
+    font-size: 12px;
+}
+/* An amount that can be set, to scale the rest to it. */
+.amount.scalable {
+    font: inherit;
+    font-weight: 500;
+    color: var(--ink);
+    background: none;
+    border: none;
+    padding: 0 2px;
+    margin: 0 -2px;
+    border-radius: 4px;
+    cursor: pointer;
+    text-decoration: underline dotted #b9bca9;
+    text-underline-offset: 4px;
+}
+.amount.scalable:hover {
+    background: #f0f1e7;
+}
+/* The line the reader set: the rest follows it. */
+.amount.scalable.anchored {
+    background: var(--olive);
+    color: var(--cream);
+    text-decoration: none;
+    padding: 1px 7px;
+    margin: 0 1px 0 -3px;
+}
+.detail-content li.anchor {
+    color: var(--ink);
+}
+.scale-input {
+    display: inline-flex;
+    align-items: baseline;
+}
+.unscaled-note {
+    margin-left: 6px;
+    font-size: 10px;
+    font-style: italic;
+    color: #a3a597;
+    white-space: nowrap;
+}
+
+/* Unsaved: said at the bottom of the recipe for as long as it is true. */
+.edit-bar {
+    position: sticky;
+    bottom: 16px;
+    z-index: 4;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px 20px;
+    margin: 0 24px 24px;
+    padding: 14px 18px;
+    background: var(--cream);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: 0 12px 40px #17231424;
+}
+.edit-bar-text p {
+    margin: 0;
+    font-size: 13px;
+}
+.edit-bar-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+}
+.unsaved-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--orange);
+}
+.edit-bar-problem {
+    margin-top: 4px !important;
+    color: var(--orange);
+}
+.edit-bar-actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.leave-modal {
+    max-width: 420px;
+}
+.leave-content {
+    padding: 34px 32px 28px;
+}
+.leave-content h2 {
+    font-size: 26px;
+    margin: 0 0 10px;
+}
+.leave-content p {
+    color: var(--muted);
+    font-size: 14px;
+    margin: 0 0 22px;
+}
+.leave-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+}
 .empty-collection {
     text-align: center;
     padding: 55px 20px;
