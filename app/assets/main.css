@@ -937,6 +937,69 @@ textarea {
 .detail-content ol {
     padding-left: 20px;
 }
+.detail-content .amount {
+    color: var(--ink);
+    font-weight: 500;
+}
+.ingredient-extra {
+    color: var(--muted);
+}
+.title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin: 10px 0 18px;
+}
+.detail-content .title-row .detail-title {
+    margin: 0;
+}
+/* Both systems on one switch; the one in use is filled. */
+.unit-toggle {
+    flex-shrink: 0;
+    display: inline-flex;
+    padding: 3px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: #f0f1e7;
+    cursor: pointer;
+    font: inherit;
+}
+.unit-toggle span {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    transition: background 0.15s, color 0.15s;
+}
+.unit-toggle span.active {
+    background: var(--olive);
+    color: var(--cream);
+}
+.unit-toggle:focus-visible {
+    outline: 2px solid var(--olive);
+    outline-offset: 2px;
+}
+/* The number is the source's, so it is printed rather than counted: a step
+   the source left unnumbered keeps its place without taking one. */
+.detail-content .step-list {
+    list-style: none;
+    padding-left: 0;
+}
+.step-list li {
+    display: flex;
+    gap: 8px;
+}
+.step-mark {
+    flex: 0 0 22px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+.step-list li.unnumbered {
+    padding-left: 30px;
+}
 .empty-collection {
     text-align: center;
     padding: 55px 20px;
@@ -1480,5 +1543,232 @@ textarea {
         right: 0;
         bottom: 0;
         font-size: 36px;
+    }
+}
+
+/* The collection: a list on the left, and a preview or the open recipe on the
+   right. Opening a recipe folds the list into a rail of pictures, which opens
+   over the recipe on demand. */
+.collection {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(290px, 370px) minmax(0, 1fr);
+    gap: 40px;
+    align-items: start;
+    padding-block: 42px 60px;
+    transition: grid-template-columns 0.35s ease;
+}
+.collection.folded {
+    grid-template-columns: 72px minmax(0, 1fr);
+}
+.collection.solo {
+    grid-template-columns: minmax(0, 1fr);
+}
+.collection.solo .collection-pane {
+    display: none;
+}
+.collection-list {
+    position: sticky;
+    top: 24px;
+    max-height: calc(100dvh - 48px);
+    overflow-y: auto;
+    min-width: 0;
+}
+.collection-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 22px;
+}
+.collection-heading .eyebrow {
+    font-size: 9px;
+    color: #848975;
+    letter-spacing: 1.7px;
+    margin-bottom: 10px;
+}
+.collection-heading h1 {
+    font-size: 34px;
+    letter-spacing: -0.9px;
+    line-height: 1.2;
+    margin: 0;
+    width: auto;
+    height: auto;
+}
+.collection-entries {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 4px;
+}
+.collection-entry {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 9px;
+    border-radius: 9px;
+    transition: background 0.2s;
+}
+.collection-entry:hover,
+.collection-entry.current {
+    background: #f0f1e7;
+}
+.collection-entry:focus-visible {
+    outline-offset: 0;
+}
+.entry-text {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+}
+.entry-title {
+    font-family: "Playfair Display", Georgia, serif;
+    font-size: 17px;
+    letter-spacing: -0.3px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.entry-meta {
+    font-size: 10px;
+    color: #949486;
+}
+.untitled {
+    font-style: italic;
+    color: var(--muted);
+}
+.recipe-thumb {
+    flex-shrink: 0;
+    width: 54px;
+    height: 54px;
+    border-radius: 7px;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    background: #e4e7db;
+    color: #7b8569;
+}
+.recipe-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.thumb-initial {
+    font-family: "Playfair Display", Georgia, serif;
+    font-size: 24px;
+    text-transform: uppercase;
+}
+.collection-pane {
+    min-width: 0;
+    background: #fffdf8;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    overflow: hidden;
+    min-height: 60vh;
+}
+.collection-preview .detail-content > .button {
+    margin-bottom: 4px;
+}
+.detail-title {
+    margin: 10px 0 18px;
+}
+.saved-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 18px;
+}
+.collection-state {
+    text-align: center;
+    padding: 55px 20px;
+    background: #f0f1e7;
+    border-radius: 10px;
+}
+.collection-state h2 {
+    font-size: 24px;
+    margin-top: 12px;
+}
+.collection-state p {
+    margin: 15px auto 25px;
+    max-width: 340px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.7;
+}
+.collection-pane .collection-state {
+    margin: 24px;
+}
+.rail-toggle {
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.rail-toggle:hover {
+    background: #f0f1e7;
+}
+
+/* Folded: pictures only, with the words still there for a screen reader. */
+.collection.folded:not(.rail-open) .collection-heading > div,
+.collection.folded:not(.rail-open) .entry-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+.collection.folded:not(.rail-open) .collection-heading {
+    justify-content: center;
+}
+.collection.folded:not(.rail-open) .collection-entry {
+    padding: 5px;
+    justify-content: center;
+}
+.collection.folded:not(.rail-open) .collection-list .collection-state {
+    display: none;
+}
+.collection.rail-open .collection-list {
+    position: absolute;
+    top: 30px;
+    left: -12px;
+    width: min(370px, calc(100vw - 40px));
+    z-index: 6;
+    background: var(--cream);
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: 0 20px 60px #17231430;
+}
+
+@media (max-width: 800px) {
+    .collection,
+    .collection.folded {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 24px;
+    }
+    .collection-list {
+        position: static;
+        max-height: none;
+    }
+    /* No pointer to hover with: the list is the page, and an entry opens. */
+    .collection:not(.folded) .collection-pane {
+        display: none;
+    }
+    .collection.folded:not(.rail-open) .collection-entries {
+        display: none;
+    }
+    .collection.folded:not(.rail-open) .collection-heading > div {
+        position: static;
+        width: auto;
+        height: auto;
+        clip-path: none;
+    }
+    .collection.folded:not(.rail-open) .collection-heading {
+        justify-content: space-between;
+        margin-bottom: 0;
+    }
+    .collection.rail-open .collection-list {
+        top: 20px;
+        left: 0;
+        width: 100%;
     }
 }

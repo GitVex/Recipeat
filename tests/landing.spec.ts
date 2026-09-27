@@ -1,23 +1,28 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 
-test('recipe preview, saving, and collection persistence', async ({ page }) => {
+// Before hydration a button does nothing and a link is a full page load, so a
+// click that lands too early tests the server's HTML rather than the app.
+const hydrated = (page: Page) => page.waitForFunction(() => !!(document.querySelector('#__nuxt') as any)?.__vue_app__)
+
+test('the samples are there to look at, and nothing is kept in the browser', async ({ page }) => {
+  // A collection from before #51 was a list of sample ids in localStorage.
+  await page.addInitScript(() => localStorage.setItem('recipeat-saved', '["sample-pasta"]'))
   await page.goto('/')
+  await hydrated(page)
   await page.screenshot({ path: 'test-results/desktop.png', fullPage: true })
   await expect(page.getByRole('heading', { level: 1 })).toContainText('inspiration')
   await page.getByRole('button', { name: 'View Creamy tomato & basil pasta' }).click()
   await expect(page.getByRole('dialog')).toContainText('Creamy tomato & basil pasta')
-  await page.getByRole('button', { name: 'Save to my collection' }).click()
+  await expect(page.getByRole('dialog').getByRole('button', { name: /collection/ })).toHaveCount(0)
   await page.getByRole('button', { name: 'Close recipe' }).click()
-  await page.reload()
-  await page.getByRole('button', { name: 'View your collection' }).click()
-  await expect(page.locator('.recipe-card')).toHaveCount(1)
-  await page.getByRole('button', { name: 'Unsave Creamy tomato & basil pasta' }).click()
-  await expect(page.getByText('Your next favorite belongs here.')).toBeVisible()
+  await expect(page.getByRole('button', { name: /^(Save|Unsave) Creamy/ })).toHaveCount(0)
+  expect(await page.evaluate(() => localStorage.getItem('recipeat-saved'))).toBeNull()
 })
 
 test('mobile layout and navigation', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/')
+  await hydrated(page)
   await page.screenshot({ path: 'test-results/mobile.png', fullPage: true })
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   await page.getByRole('button', { name: 'Toggle navigation' }).click()
@@ -34,6 +39,7 @@ test('signed out, the import dialog asks for a sign-in and keeps keyboard focus'
   let extractions = 0
   await page.route('**/api/extract/**', route => { extractions++; return route.abort() })
   await page.goto('/')
+  await hydrated(page)
   const trigger = page.getByRole('button', { name: 'Save your first recipe' })
   await trigger.click()
   const dialog = page.getByRole('dialog')

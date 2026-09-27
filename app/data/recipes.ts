@@ -1,9 +1,9 @@
 import type { ExtractedRecipe, Ingredient, Step } from "#shared/types/recipe";
 import { photo } from "~/utils/recipePhoto";
 
-// A recipe on the shelf: the shared shape plus an id to find it by. A saved
-// recipe is one of these; so are the samples below, until the shelf reads the
-// collection from the server.
+// A sample on the landing page's shelf: the shared shape plus an id to key it
+// by. These are demonstrations only; a person's own recipes come from the
+// server and live on /recipes.
 export type ShelfRecipe = ExtractedRecipe & { id: string };
 
 // Written as lines, and shaped the way extraction hands a recipe over before

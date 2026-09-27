@@ -92,8 +92,11 @@ the collection yet.
 
 **One type for a recipe.** Settled: `shared/types/recipe.ts` is the one
 definition, and the server re-exports it rather than restating it. The shelf's
-samples are written in it too. What rendering it fully takes — step parts,
-rescaling, units — is still #12.
+samples are written in it too. It renders through `shared/utils/recipeText.ts`:
+amounts from the parsed quantities, steps from their parts, and a restated
+amount from the ingredient it points at, so #44 has one number to rescale.
+An amount whose unit the parser did not know ("4 TL", "2 Zehen") prints as
+written rather than as a bare number.
 
 **Photo import: the image itself.** Extraction works, but nothing keeps the
 photo. `source.objectKey` is null because there is nowhere to put it, and a
@@ -230,9 +233,18 @@ tree, can disagree with it, and earns itself only if the UI shows a number
   than the single-slot Ollama it replaced, but the app still shows the user a
   failure where a retry would do.
 - **Unit ambiguity.** `cup`, `tbsp`, `tsp` and `fl_oz` are stored unresolved
-  because a line cannot say whether it means US or metric. Display has to pick,
-  probably from `source_lang`. `c` is disambiguated by magnitude: below 90 it is
-  a cup, at or above it is Celsius.
+  because a line cannot say whether it means US or metric. Display picks from
+  `source_lang`: bare `en` and `en-US` are US measures, `en-AU` has the 20 ml
+  tablespoon, everything else is metric (imperial for a fluid ounce). That
+  decides how many millilitres a cup is when the reader switches the recipe to
+  metric. `c` is disambiguated by magnitude: below 90 it is a cup, at or above
+  it is Celsius; a written degree sign makes it a temperature outright.
+- **Imperial or metric.** A toggle beside the title, "US | Met", converts
+  cups, fluid ounces, ounces, pounds, °F and inches to their metric
+  counterparts and back, rounded to what a kitchen measures in. Spoons are on neither side and stay as
+  written. Converting into imperial means US measures. Each recipe opens in the
+  system it was written in until the reader picks one; the pick is a cookie,
+  so the server renders the same amounts, and it holds for every recipe after.
 - **Ingredient linking.** Matching falls back to the head noun, so two
   ingredients sharing a noun and an amount — `"1 cup white sugar"` and
   `"1 cup brown sugar"` in one step — are separated only by proximity.
@@ -250,6 +262,8 @@ tree, can disagree with it, and earns itself only if the UI shows a number
   in the EEA.
 - **Step numbering comes back inside the step.** The model returns
   `"1. Gurken längsweise vierteln."`, numbering included, and at least one page
-  folded two steps into one and left a gap in the sequence. Worth deciding
-  whether the prompt should strip the numbers or the UI should stop adding
-  its own.
+  folded two steps into one and left a gap in the sequence. Settled (#55): the
+  text keeps the number, since it is what the source said, and the page takes
+  it out and shows it once. When the source numbered its steps, its numbers
+  are the ones shown and a step it left unnumbered ("Marinade: …") stays
+  unnumbered; when it numbered none, the page counts from one.

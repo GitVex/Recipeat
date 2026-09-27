@@ -1,58 +1,29 @@
 <script setup lang="ts">
 import type { ShelfRecipe } from "~/data/recipes";
-const props = defineProps<{ recipes: ShelfRecipe[]; saved: string[] }>();
-const collectionOnly = defineModel<boolean>("collectionOnly", {
-  required: true,
-});
-const emit = defineEmits<{
-  select: [recipe: ShelfRecipe];
-  save: [recipe: ShelfRecipe];
-}>();
-const visibleRecipes = computed(() =>
-  collectionOnly.value
-    ? props.recipes.filter((recipe) => props.saved.includes(recipe.id))
-    : props.recipes,
-);
+// The landing page's samples: there to show what a recipe looks like here,
+// not to be kept. A person's own recipes are on /recipes.
+defineProps<{ recipes: ShelfRecipe[] }>();
+const emit = defineEmits<{ select: [recipe: ShelfRecipe] }>();
 </script>
 
 <template>
   <section id="recipes" class="recipes-section page-width">
     <div class="section-heading">
       <div>
-        <div class="eyebrow">
-          {{
-            collectionOnly
-              ? "SAVED FOR SOMETHING GOOD"
-              : "THE INSPIRATION SHELF"
-          }}
-        </div>
-        <h2>
-          {{ collectionOnly ? "Your little" : "Meet your next" }}
-          <em>{{ collectionOnly ? "collection." : "“make again.”" }}</em>
-        </h2>
+        <div class="eyebrow">THE INSPIRATION SHELF</div>
+        <h2>Meet your next <em>“make again.”</em></h2>
       </div>
-      <button class="text-button" @click="collectionOnly = !collectionOnly">
-        {{ collectionOnly ? "Explore recipes" : "View your collection" }}
-        <AppIcon name="arrow" :size="18" />
-      </button>
+      <NuxtLink class="text-button" to="/recipes">
+        View your collection <AppIcon name="arrow" :size="18" />
+      </NuxtLink>
     </div>
-    <div v-if="visibleRecipes.length" class="recipe-grid">
+    <div class="recipe-grid">
       <RecipeCard
-        v-for="recipe in visibleRecipes"
+        v-for="recipe in recipes"
         :key="recipe.id"
         :recipe="recipe"
-        :saved="saved.includes(recipe.id)"
         @select="emit('select', $event)"
-        @save="emit('save', $event)"
       />
-    </div>
-    <div v-else class="empty-collection">
-      <AppIcon name="book" :size="35" />
-      <h3>Your next favorite belongs here.</h3>
-      <p>Tap the bookmark on a recipe to save it to your collection.</p>
-      <button class="button" @click="collectionOnly = false">
-        Find some inspiration <AppIcon name="arrow" />
-      </button>
     </div>
   </section>
 </template>

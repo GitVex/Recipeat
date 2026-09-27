@@ -1,33 +1,27 @@
 <script setup lang="ts">
-defineProps<{ savedCount: number }>();
-const emit = defineEmits<{ import: []; collection: []; browse: [] }>();
+const emit = defineEmits<{ import: [] }>();
 const mobileNav = ref(false);
+// Shown once the collection has been read, never fetched for its own sake: a
+// signed-out visit to the landing page should not cost a request that 401s.
+const { data } = useRecipeListCache();
+const count = computed(() => data.value?.recipes.length ?? 0);
 </script>
 
 <template>
   <header class="header page-width">
-    <a class="logo" href="#" aria-label="Recipeat home"
+    <NuxtLink class="logo" to="/" aria-label="Recipeat home"
       ><span class="logo-mark"><AppIcon name="book" :size="23" /></span
-      >recipeat<span class="logo-dot">.</span></a
+      >recipeat<span class="logo-dot">.</span></NuxtLink
     >
     <nav :class="{ open: mobileNav }" aria-label="Main navigation">
-      <a href="#how-it-works" @click="mobileNav = false">How it works</a
-      ><a
-        href="#recipes"
-        @click="
-          mobileNav = false;
-          emit('browse');
-        "
-        >The inspiration shelf</a
-      ><button
-        @click="
-          mobileNav = false;
-          emit('collection');
-        "
-      >
+      <NuxtLink to="/#how-it-works" @click="mobileNav = false"
+        >How it works</NuxtLink
+      ><NuxtLink to="/#recipes" @click="mobileNav = false"
+        >The inspiration shelf</NuxtLink
+      ><NuxtLink to="/recipes" @click="mobileNav = false">
         My collection
-        <span v-if="savedCount" class="count">{{ savedCount }}</span>
-      </button>
+        <span v-if="count" class="count">{{ count }}</span>
+      </NuxtLink>
       <AuthControls />
     </nav>
     <button
