@@ -85,6 +85,29 @@ test('opening a recipe folds the list into a rail and gives it its own address',
   await expect(page.locator('.collection')).not.toHaveClass(/rail-open/)
 })
 
+test('opening the rail lays itself over the recipe, which stays where and as wide as it was', async ({ page }) => {
+  await mockApi(page, { status: 200, body: { recipes: listing } })
+  await openCollection(page)
+  await page.locator('.collection-entry').nth(2).click()
+  await expect(page.locator('.collection-pane')).toContainText('flour for Ragù')
+
+  // Desktop, and then a phone: the viewport changes under the open recipe, so
+  // the mocks still answer.
+  for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(viewport)
+    const pane = page.locator('.collection-pane')
+    // The fold animates the columns; measure once it has settled.
+    await page.waitForTimeout(400)
+    const closed = await pane.boundingBox()
+    await page.getByRole('button', { name: 'Show your recipes' }).click()
+    await expect(page.locator('.collection-entry').nth(0).locator('.entry-title')).toBeVisible()
+    expect(await pane.boundingBox()).toEqual(closed)
+    await page.screenshot({ path: `test-results/collection-rail-${viewport.width}.png` })
+    await page.getByRole('button', { name: 'Hide your recipes' }).click()
+    expect(await pane.boundingBox()).toEqual(closed)
+  }
+})
+
 test('an empty collection says so, and offers a way in', async ({ page }) => {
   await mockApi(page, { status: 200, body: { recipes: [] } })
   await openCollection(page)
