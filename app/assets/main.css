@@ -2689,3 +2689,125 @@ a.history-title:hover {
     }
 }
 
+/* How a version differs from the original of its line (#31): what tells two
+   versions with the same title apart, on the path and in the tree alike. */
+.history-changes,
+.lineage-changes {
+    display: grid;
+    gap: 1px;
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--olive);
+}
+.changes-from {
+    font-size: 9px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    font-weight: 650;
+    color: #a0a392;
+}
+.lineage-changes {
+    margin-top: 4px;
+    padding-top: 6px;
+    border-top: 1px dashed var(--line);
+}
+
+/* Read aloud, not shown: the word a mark or a strike-through stands for. */
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+/* The lineage node's itemised changes: an ingredient's amount before and
+   after, and a step's number with the words that changed in it. */
+.change-headline {
+    color: var(--olive);
+}
+.change-list {
+    list-style: none;
+    margin: 4px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 5px;
+    font-size: 11px;
+    line-height: 1.45;
+    color: var(--ink);
+}
+.change {
+    display: grid;
+    grid-template-columns: 12px minmax(0, 1fr);
+    gap: 4px;
+}
+.change.step {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1px;
+}
+.change-mark {
+    font-weight: 650;
+    color: var(--muted);
+}
+.change.added .change-mark {
+    color: var(--olive);
+}
+.change.removed .change-mark,
+.change.removed .change-step {
+    color: var(--orange);
+}
+.change-text {
+    overflow-wrap: anywhere;
+}
+.change-text strong {
+    font-weight: 600;
+}
+/* Which ingredient on its own line, and what happened to its amount under
+   it, so a long amount wraps as a whole rather than mid-phrase. */
+.change-name {
+    display: block;
+}
+.change-amount {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 4px;
+    white-space: pre;
+}
+.change del,
+.snippet del {
+    color: var(--orange);
+    text-decoration-thickness: 1px;
+}
+.change ins,
+.snippet ins {
+    text-decoration: none;
+    background: #e3ead3;
+    color: var(--olive);
+    border-radius: 3px;
+    padding: 0 2px;
+}
+.change-by {
+    margin-left: 2px;
+    padding: 0 5px;
+    border-radius: 10px;
+    background: #eef0e6;
+    font-size: 10px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.change-step {
+    font-size: 9px;
+    letter-spacing: 1.1px;
+    text-transform: uppercase;
+    font-weight: 650;
+    color: #848975;
+}
+.snippet {
+    color: var(--muted);
+}
+.change-more {
+    font-size: 10px;
+    color: var(--muted);
+}

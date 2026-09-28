@@ -1,4 +1,5 @@
-import type { RecipeBranch, RecipeHistory, RecipeVersion } from "#shared/types/recipe";
+import type { RecipeBranch, RecipeChanges, RecipeHistory, RecipeVersion } from "#shared/types/recipe";
+import { describeChanges } from "#shared/utils/recipeDiff";
 
 // A line's history as the view walks it: who was made from whom, what branched
 // off where, and what each version is called. The server sends the line flat
@@ -61,3 +62,27 @@ export const formatSaved = (iso: string) => WHEN.format(new Date(iso));
 export const versionName = (label: string | undefined) =>
   !label ? "this version" : label === "Original" ? "the original" : label.toLowerCase();
 
+// What a lineage node says above its lists: the changes that are not an
+// ingredient or a step. "Same as the original" when there is nothing at all.
+export function changeHeadline(changes: RecipeChanges): string | null {
+  const phrases = describeChanges({
+    ...changes,
+    ingredients: { added: 0, removed: 0, changed: 0, items: [] },
+    steps: { added: 0, removed: 0, changed: 0, items: [] },
+  });
+  if (phrases.length) return phrases.join(" · ");
+  const quiet = !changes.ingredients.items.length && !changes.steps.items.length;
+  return quiet ? "Same as the original" : null;
+}
+
+// How many more changed than a node lists.
+export const unlisted = (list: RecipeChanges["ingredients"] | RecipeChanges["steps"]) =>
+  list.added + list.removed + list.changed - list.items.length;
+
+// How a version differs from the original of its line, as one line of text:
+// what tells two versions with the same title apart. Null on the original.
+export function changeSummary(version: RecipeVersion): string | null {
+  if (!version.changes) return null;
+  const phrases = describeChanges(version.changes);
+  return phrases.length ? phrases.join(" · ") : "Same as the original";
+}

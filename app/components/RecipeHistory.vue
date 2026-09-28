@@ -101,6 +101,9 @@ const meta = (version: RecipeVersion) =>
                 <span :class="{ untitled: !version.title }">{{ recipeTitle(version) }}</span>
               </NuxtLink>
               <span class="history-meta">{{ meta(version) }}</span>
+              <span v-if="changeSummary(version)" class="history-changes">
+                <span class="changes-from">Since the original</span>{{ changeSummary(version) }}
+              </span>
               <span class="history-tags">
                 <span v-if="version.id === current" class="history-tag">Open now</span>
                 <span v-if="version.pinned" class="history-tag pinned">

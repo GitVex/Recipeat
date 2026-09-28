@@ -166,6 +166,11 @@ test('the recipe page shows the straight path from the original to it, and no mo
   await expect(panel.locator('.history-more')).toContainText('The full lineage also has 1 other version and 1 separate recipe.')
 
   const spelt = version(page, 'Bread, spelt')
+  // Each version says how it differs from the original; the original says
+  // nothing, and a version that reads the same says so.
+  await expect(spelt.locator('.history-changes')).toHaveText('Since the originalRenamed · +1 ingredient · 1 ingredient changed · 1 step changed · Serves 2 → 4')
+  await expect(version(page, 'Bread, wetter').locator('.history-changes')).toContainText('Same as the original')
+  await expect(version(page, 'Original').locator('.history-changes')).toHaveCount(0)
   await expect(spelt).toContainText('Open now')
   await expect(spelt).toContainText('In your collection')
   await expect(pins(page)).toHaveCount(1)
@@ -320,6 +325,19 @@ test('the lineage page draws the whole tree: both branches, the pin, and what br
   await expect(node(page, 'Bread, spelt')).toContainText('You came from here')
   await expect(node(page, 'Bread, spelt')).toContainText('In your collection')
   await expect(canvas(page).locator('.history-tag.pinned')).toHaveCount(1)
+  // Itemised: which ingredient and by how much, which step and what in it.
+  const changes = node(page, 'Bread, spelt').locator('.lineage-changes')
+  await expect(changes.locator('.change-headline')).toHaveText('Renamed · Serves 2 → 4')
+  const ingredients = changes.getByRole('list', { name: 'Ingredients that changed' }).getByRole('listitem')
+  await expect(ingredients).toHaveText([/flour\s*500 g\s*→\s*550 g\s*\+50 g/, /Added: 100 g spelt/])
+  await expect(ingredients.first().locator('del')).toHaveText('500 g')
+  await expect(ingredients.first().locator('ins')).toHaveText('550 g')
+  const steps = changes.getByRole('list', { name: 'Steps that changed' }).getByRole('listitem')
+  await expect(steps).toHaveText([/Step 2\s*Knead for 10 15 minutes\./])
+  await expect(steps.first().locator('del')).toHaveText('10')
+  await expect(steps.first().locator('ins')).toHaveText('15')
+  // Wetter reads the same as the original, and says so.
+  await expect(node(page, 'Bread, wetter').locator('.change-headline')).toHaveText('Same as the original')
   // Grown downwards, and still clear of the generation below.
   const boxes = await canvas(page).locator('.lineage-node').evaluateAll(nodes => Object.fromEntries(nodes.map((node) => {
     const box = node.getBoundingClientRect()
@@ -327,6 +345,9 @@ test('the lineage page draws the whole tree: both branches, the pin, and what br
   })))
   expect(boxes['Bread']!.bottom).toBeLessThan(boxes['Bread, wetter']!.top)
   expect(boxes['Bread, wetter']!.bottom).toBeLessThan(boxes['Bread, spelt']!.top)
+  await expect(node(page, 'Bread').locator('.lineage-changes')).toHaveCount(0)
+  // A separate recipe is its own line, and is not counted against this one.
+  await expect(node(page, 'Flatbread, charred').locator('.lineage-changes')).toHaveCount(0)
   await expect(canvas(page).getByRole('button', { name: /^Pin / })).toHaveCount(3)
   await expect(canvas(page).getByRole('button', { name: /^Delete / })).toHaveCount(4)
   expect(reads.filter(read => read !== id(4))).toEqual([])

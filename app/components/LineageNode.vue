@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Handle, Position } from "@vue-flow/core";
 import type { LineageNodeData } from "~/utils/lineageLayout";
+import { changeHeadline, unlisted } from "~/utils/recipeHistory";
 
 // One node of the lineage page's tree. A version of this line can be opened,
 // pinned and deleted from here; a separate recipe and the recipe this line
@@ -21,6 +22,15 @@ const meta = computed(() => {
     `${v.stepCount} step${v.stepCount === 1 ? "" : "s"}`,
   ].join(" · ");
 });
+// Itemised here, where there is room to grow downwards: which ingredient and
+// by how much, which step and the words that changed in it.
+const changes = computed(() => version.value?.changes ?? null);
+const headline = computed(() => (changes.value ? changeHeadline(changes.value) : null));
+const STEP: Record<"added" | "removed" | "changed", string> = {
+  added: "added",
+  removed: "removed",
+  changed: "",
+};
 const eyebrow = computed(() =>
   node.value.kind === "variant"
     ? "Separate recipe"
@@ -52,6 +62,56 @@ const eyebrow = computed(() =>
       >{{ recipeTitle({ title }) }}</NuxtLink
     >
     <span v-if="meta" class="lineage-meta">{{ meta }}</span>
+    <div v-if="changes" class="lineage-changes">
+      <span class="changes-from">Since the original</span>
+      <p v-if="headline" class="change-headline">{{ headline }}</p>
+
+      <ul v-if="changes.ingredients.items.length" class="change-list" aria-label="Ingredients that changed">
+        <li
+          v-for="(item, index) in changes.ingredients.items"
+          :key="index"
+          class="change"
+          :class="item.kind"
+        >
+          <span class="change-mark" aria-hidden="true">{{
+            item.kind === "added" ? "+" : item.kind === "removed" ? "−" : "~"
+          }}</span>
+          <span v-if="item.kind === 'added'" class="change-text"
+            ><span class="visually-hidden">Added: </span>{{ item.text }}</span
+          >
+          <span v-else-if="item.kind === 'removed'" class="change-text"
+            ><span class="visually-hidden">Removed: </span><del>{{ item.text }}</del></span
+          >
+          <span v-else class="change-text">
+            <strong class="change-name">{{ item.name }}</strong>
+            <span v-if="item.amount" class="change-amount"
+              ><del>{{ item.amount.from ?? "no amount" }}</del>{{ " → "
+              }}<ins>{{ item.amount.to ?? "no amount" }}</ins
+              ><span v-if="item.amount.by" class="change-by">{{ item.amount.by }}</span></span
+            >
+            <ChangeSnippet v-else-if="item.snippet" :snippet="item.snippet" />
+          </span>
+        </li>
+        <li v-if="unlisted(changes.ingredients)" class="change-more">
+          and {{ unlisted(changes.ingredients) }} more
+        </li>
+      </ul>
+
+      <ul v-if="changes.steps.items.length" class="change-list" aria-label="Steps that changed">
+        <li
+          v-for="(item, index) in changes.steps.items"
+          :key="index"
+          class="change step"
+          :class="item.kind"
+        >
+          <span class="change-step">Step {{ item.number }}<template v-if="STEP[item.kind]"> {{ STEP[item.kind] }}</template></span>
+          <ChangeSnippet class="change-text" :snippet="item.snippet" />
+        </li>
+        <li v-if="unlisted(changes.steps)" class="change-more">
+          and {{ unlisted(changes.steps) }} more
+        </li>
+      </ul>
+    </div>
     <span v-if="version && (data.current || version.pinned)" class="history-tags">
       <span v-if="data.current" class="history-tag">You came from here</span>
       <span v-if="version.pinned" class="history-tag pinned">
