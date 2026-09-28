@@ -10,6 +10,7 @@ app startup. Nothing else talks to it.
 | `docker/compose.db.yaml` | The Postgres service, its volume and its network |
 | `server/database/migrations/` | Plain `.sql`, applied in filename order |
 | `001_recipes.sql` | The `recipes` table, its lineage columns and its triggers |
+| `002_collections.sql` | `collections`, and `collection_recipes`: which lines are in each, in what order |
 | `server/database/migrate.ts` | The runner: a ledger, an advisory lock, one transaction per file |
 | `server/plugins/database.ts` | Runs the above at startup and holds requests until it is done |
 | `server/utils/database.ts` | The shared connection pool |
@@ -38,6 +39,27 @@ live in a namespace Coolify tears down with the resource.
 It is not on `recipeat-fetch-net`. That network exists to contain the fetcher,
 which opens connections to URLs a user supplies and has no SSRF guard; a
 database is exactly what it must not be able to reach.
+
+## Collections
+
+A collection holds lines, not versions, so it always shows what each line has
+pinned. A membership names a line by its root's id, because that is the one
+version whose `id` is its own `line_id`, and the one whose deletion ends the
+line. Its foreign key is `(line_id, line_id, owner_sub)` against
+`recipes (id, line_id, owner_sub)`, which does three things with no route
+involved:
+
+- only a root matches, so a progression's id is refused
+- only the collection owner's recipe matches, as with lineage
+- deleting the root takes the line out of every collection, while deleting a
+  later version leaves it in
+
+Deleting a collection deletes its memberships and never a recipe.
+
+Names are unique per owner regardless of case, one line, trimmed, and at most
+80 characters. `position` ascends within a collection but may have gaps. Two
+rows can't share one, and that check is deferred to commit, so a reorder can
+rewrite the positions in any order inside one transaction.
 
 ## A fresh database
 
