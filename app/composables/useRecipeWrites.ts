@@ -1,8 +1,8 @@
 import type { RecipeDeletion, SavedRecipe } from "#shared/types/recipe";
 import type { RecipeEditor } from "~/composables/useRecipeEditor";
 
-// What a recipe page writes: an edit saved one of three ways (#30), and the
-// recipe deleted (#50). Each answers in words a person can act on, and none
+// What a recipe page writes: an edit saved one of three ways (#30), a version
+// deleted (#50) — this one, or another in its line from its history (#31). Each answers in words a person can act on, and none
 // says it happened until the server has said so.
 
 export type SaveAction = "progression" | "variant" | "overwrite";
@@ -60,13 +60,16 @@ const isGone = (error: unknown) => (error as Failure).statusCode === 404;
 /**
  * `id` is the version on the page. `show` puts a recipe on the page: the one
  * an overwrite returned, in place; `open` goes to another one — a new version,
- * a new recipe, or what is left of the line after a delete.
+ * a new recipe, or what is left of the line after a delete. `pruned` hears
+ * about a deletion that left this version standing, so the history it was
+ * made from can be read again.
  */
 export function useRecipeWrites(
   id: string,
   editor: RecipeEditor,
   show: (recipe: SavedRecipe) => void,
   open: (path: string) => Promise<unknown>,
+  pruned: () => unknown = () => {},
 ) {
   const list = useRecipeListCache();
   const cache = useRecipeCache();
@@ -125,41 +128,47 @@ export function useRecipeWrites(
 
   // ── Deleting ─────────────────────────────────────────────────────────────
 
-  // Asked about: how many versions would go, read before anything goes.
-  const deleting = ref<{ count: number } | null>(null);
+  // Asked about: which version, and how many would go with it, read before
+  // anything goes.
+  const deleting = ref<{ id: string; count: number } | null>(null);
   const deletePending = ref(false);
   const deleteError = ref<string | null>(null);
 
   // Gone already, or never theirs: either way it is not there any more, which
   // is what was asked for.
+  // Only a deletion that took the version on the page leaves it; one made
+  // from its history further down the line stays where it is.
   async function gone(ids: string[], pinned: string | null) {
     deleting.value = null;
-    const { [id]: _removed, ...rest } = cache.value;
-    cache.value = Object.fromEntries(Object.entries(rest).filter(([key]) => !ids.includes(key)));
+    cache.value = Object.fromEntries(Object.entries(cache.value).filter(([key]) => !ids.includes(key)));
     for (const removed of ids) clearNuxtData(`recipe:${removed}`);
+    if (!ids.includes(id)) {
+      await Promise.all([relist(), pruned()]);
+      return;
+    }
     editor.reset();
     await relist();
     await open(pinned ? `/recipes/${pinned}` : "/recipes");
   }
 
-  async function askDelete() {
+  async function askDelete(target = id) {
     if (deletePending.value) return;
     deletePending.value = true;
     deleteError.value = null;
     try {
-      const { deletion } = await $fetch<{ deletion: RecipeDeletion }>(`/api/recipes/${id}`, {
+      const { deletion } = await $fetch<{ deletion: RecipeDeletion }>(`/api/recipes/${target}`, {
         method: "DELETE",
         query: { dryRun: "true" },
         retry: 0,
       });
-      deleting.value = { count: deletion.count };
+      deleting.value = { id: target, count: deletion.count };
     } catch (error) {
       if (isGone(error)) {
-        notify("That recipe was already deleted");
-        await gone([id], null);
+        notify(target === id ? "That recipe was already deleted" : "That version was already deleted");
+        await gone([target], null);
       } else {
         // Nothing to confirm yet, so the reason goes where the question would.
-        deleting.value = { count: 0 };
+        deleting.value = { id: target, count: 0 };
         deleteError.value = deleteMessage(error);
       }
     } finally {
@@ -168,20 +177,22 @@ export function useRecipeWrites(
   }
 
   async function confirmDelete() {
-    if (deletePending.value) return;
+    const target = deleting.value?.id;
+    if (deletePending.value || !target) return;
     deletePending.value = true;
     deleteError.value = null;
+    const deleted = target === id ? "Recipe deleted" : "Version deleted";
     try {
-      const { deletion } = await $fetch<{ deletion: RecipeDeletion }>(`/api/recipes/${id}`, {
+      const { deletion } = await $fetch<{ deletion: RecipeDeletion }>(`/api/recipes/${target}`, {
         method: "DELETE",
         retry: 0,
       });
-      notify(deletion.count > 1 ? `Deleted ${deletion.count} versions` : "Recipe deleted");
+      notify(deletion.count > 1 ? `Deleted ${deletion.count} versions` : deleted);
       await gone(deletion.ids, deletion.pinned);
     } catch (error) {
       if (isGone(error)) {
-        notify("Recipe deleted");
-        await gone([id], null);
+        notify(deleted);
+        await gone([target], null);
       } else deleteError.value = deleteMessage(error);
     } finally {
       deletePending.value = false;

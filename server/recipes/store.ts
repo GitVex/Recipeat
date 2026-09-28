@@ -2,10 +2,10 @@ import type { Kysely } from 'kysely'
 import type { Sql } from 'postgres'
 import { boolean, integer, json, numeric, text, type Database, type RecipeRow } from '../database/schema.ts'
 import { fail } from '../extraction/errors.ts'
-import type { ExtractedRecipe, RecipeDeletion, RecipeSummary, SavedRecipe } from '../../shared/types/recipe.ts'
+import type { ExtractedRecipe, RecipeBranch, RecipeDeletion, RecipeHistory, RecipeSummary, RecipeVersion, SavedRecipe } from '../../shared/types/recipe.ts'
 
 // Shared with the app, which renders what these routes return.
-export type { RecipeDeletion, RecipeSummary, SavedRecipe } from '../../shared/types/recipe.ts'
+export type { RecipeDeletion, RecipeHistory, RecipeSummary, SavedRecipe } from '../../shared/types/recipe.ts'
 
 // The row as the table defines it. Restating it here is how it drifts from
 // the migration, so it is imported instead.
@@ -299,4 +299,108 @@ export async function findRecipe(sql: Sql, ownerSub: string, id: string): Promis
     SELECT * FROM recipes WHERE id = ${id} AND owner_sub = ${ownerSub}
   `
   return row ? asRecipe(row) : null
+}
+
+/**
+ * A version's history: every version in its line, what branched off any of
+ * them, and what the line itself branched off. The line is one scan of
+ * recipes_line_idx, and each version is its card fields rather than the whole
+ * row — a line of thirty progressions is not thirty recipes on the wire.
+ *
+ * A variant is shown by its own entry point, which is the pinned version of
+ * the line it started, and nothing below that. A line whose origin was
+ * deleted has `variant_of` null on its root and answers with no origin.
+ *
+ * Null means no such version, or not theirs.
+ */
+export async function readHistory(sql: Sql, ownerSub: string, id: string): Promise<RecipeHistory | null> {
+  const line = await sql<(Pick<Row, 'id' | 'title' | 'line_id' | 'progression_of' | 'variant_of' | 'pinned' | 'created_at' | 'updated_at'> & { ingredient_count: number, step_count: number })[]>`
+    SELECT id, title, line_id, progression_of, variant_of, pinned, created_at, updated_at,
+           jsonb_array_length(ingredients) AS ingredient_count,
+           jsonb_array_length(steps) AS step_count
+    FROM recipes
+    WHERE owner_sub = ${ownerSub}
+      AND line_id = (SELECT line_id FROM recipes WHERE id = ${id} AND owner_sub = ${ownerSub})
+    ORDER BY created_at, id
+  `
+  if (!line.some(row => row.id === id)) return null
+  const lineId = line[0]!.line_id
+  // The root is the row the line is named after; only it can be a variant.
+  const from = line.find(row => row.id === lineId)?.variant_of ?? null
+
+  const [variants, origin] = await Promise.all([
+    sql<{ id: string, title: string | null, created_at: Date, variant_of: string }[]>`
+      -- The variant's own row stands in for an entry point only if its line
+      -- somehow has none; a title can be null, so it is not coalesced.
+      SELECT coalesce(entry.id, variant.id) AS id,
+             CASE WHEN entry.id IS NULL THEN variant.title ELSE entry.title END AS title,
+             variant.created_at, variant.variant_of
+      FROM recipes variant
+      LEFT JOIN recipes entry
+        ON entry.line_id = variant.id AND entry.pinned AND entry.owner_sub = variant.owner_sub
+      WHERE variant.owner_sub = ${ownerSub} AND variant.variant_of = ANY(${line.map(row => row.id)})
+      ORDER BY variant.created_at, variant.id
+    `,
+    from
+      ? sql<{ id: string, title: string | null }[]>`SELECT id, title FROM recipes WHERE id = ${from} AND owner_sub = ${ownerSub}`
+      : Promise.resolve([]),
+  ])
+
+  return {
+    lineId,
+    versions: line.map((row): RecipeVersion => ({
+      id: row.id,
+      title: row.title,
+      progressionOf: row.progression_of,
+      pinned: row.pinned,
+      ingredientCount: row.ingredient_count,
+      stepCount: row.step_count,
+      createdAt: row.created_at.toISOString(),
+      updatedAt: row.updated_at.toISOString(),
+    })),
+    variants: variants.map((row): RecipeBranch => ({
+      id: row.id,
+      title: row.title,
+      variantOf: row.variant_of,
+      createdAt: row.created_at.toISOString(),
+    })),
+    origin: origin[0] ?? null,
+  }
+}
+
+/**
+ * **Pin.** Makes a version the entry point of its line: the one the
+ * collection shows. The only write besides a new progression that moves a pin,
+ * and the way back to a version reached by going backwards without making
+ * another one off it.
+ *
+ * The line is locked first, as a deletion locks it, so a progression or a
+ * deletion racing this one lands wholly before or wholly after it. Pinning
+ * the version already pinned changes nothing.
+ *
+ * Null means no such version, or not theirs.
+ */
+export async function pinRecipe(sql: Sql, ownerSub: string, id: string): Promise<{ pinned: string, lineId: string } | null> {
+  try {
+    return await sql.begin(async (tx) => {
+      const line = await tx<Pick<Row, 'id' | 'line_id' | 'pinned'>[]>`
+        SELECT id, line_id, pinned FROM recipes
+        WHERE line_id = (SELECT line_id FROM recipes WHERE id = ${id} AND owner_sub = ${ownerSub})
+          AND owner_sub = ${ownerSub}
+        FOR UPDATE
+      `
+      const target = line.find(row => row.id === id)
+      if (!target) return null
+      if (!target.pinned) {
+        await tx`UPDATE recipes SET pinned = false WHERE line_id = ${target.line_id} AND pinned AND owner_sub = ${ownerSub}`
+        await tx`UPDATE recipes SET pinned = true WHERE id = ${id} AND owner_sub = ${ownerSub}`
+      }
+      return { pinned: id, lineId: target.line_id }
+    })
+  } catch (error) {
+    if ((error as { constraint_name?: string }).constraint_name === 'recipes_line_pin_idx') {
+      throw fail(409, 'This recipe changed while it was being pinned. Try again.', error)
+    }
+    throw error
+  }
 }

@@ -99,3 +99,28 @@ export type RecipeDeletion = {
   ids: string[]
   pinned: string | null
 }
+
+// One version in a line, as its history lists it: enough to tell it apart and
+// to open it, and not the recipe itself. A line of thirty is thirty of these,
+// and reading one of them in full is the detail route's job.
+export type RecipeVersion = Pick<SavedRecipe, 'id' | 'title' | 'progressionOf' | 'pinned' | 'createdAt' | 'updatedAt'> & {
+  ingredientCount: number
+  stepCount: number
+}
+
+// A recipe that branched off a version in the line, shown by its entry point
+// and nothing more: its own history is its own business. `variantOf` is the
+// version in this line it came from.
+export type RecipeBranch = Pick<SavedRecipe, 'id' | 'title' | 'createdAt'> & {
+  variantOf: string
+}
+
+// Everything a history view draws: the line's versions, oldest first, for the
+// tree; what branched off them; and what the line itself branched off, while
+// that still exists.
+export type RecipeHistory = {
+  lineId: string
+  versions: RecipeVersion[]
+  variants: RecipeBranch[]
+  origin: Pick<SavedRecipe, 'id' | 'title'> | null
+}

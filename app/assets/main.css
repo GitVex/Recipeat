@@ -2201,3 +2201,242 @@ input.editable-input {
         box-shadow: 0 20px 60px #17231430;
     }
 }
+
+/* A recipe's history (#31): folded under the recipe, a tree when opened.
+   Rows run down a single rule, and a fork steps in once per branch. */
+.earlier-version {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px 20px;
+    margin: 0 0 22px;
+    padding: 14px 18px;
+    background: #f5ede3;
+    border: 1px solid #ead7c4;
+    border-radius: 10px;
+    font-size: 13px;
+    line-height: 1.6;
+}
+.earlier-version p {
+    max-width: 440px;
+}
+.earlier-version .button {
+    gap: 8px;
+}
+.recipe-history {
+    margin: 0 38px 32px;
+    border-top: 1px solid var(--line);
+    padding-top: 18px;
+}
+.history-heading {
+    font-family: inherit;
+    font-size: inherit;
+}
+.history-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    background: transparent;
+    padding: 6px 0;
+    font-size: 13px;
+    font-weight: 550;
+}
+.history-summary {
+    color: var(--muted);
+    font-weight: 400;
+}
+.history-toggle:hover {
+    color: var(--orange);
+}
+.history-panel {
+    padding-top: 14px;
+}
+.history-note,
+.history-origin {
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--muted);
+    max-width: 520px;
+    margin-bottom: 14px;
+}
+.history-origin {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    color: var(--ink);
+}
+.history-origin a,
+.history-variants a {
+    border-bottom: 1px solid #c8cebd;
+}
+.history-origin a:hover,
+.history-variants a:hover {
+    color: var(--orange);
+}
+.history-chain,
+.history-forks,
+.history-variants {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.history-version {
+    position: relative;
+    padding: 0 0 4px 26px;
+}
+/* The line itself: a rule from each dot to the next. The last version of a
+   run has nothing below it unless the line forks there. */
+.history-version::before {
+    content: "";
+    position: absolute;
+    left: 5px;
+    top: 20px;
+    bottom: -14px;
+    width: 1px;
+    background: #d3d6c6;
+}
+.history-chain > .history-version:last-child:not(:has(> .history-forks))::before {
+    display: none;
+}
+.history-dot {
+    position: absolute;
+    left: 0;
+    top: 14px;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    border: 1.5px solid #9aa28a;
+    background: #fffdf8;
+}
+.history-version.pinned > .history-dot {
+    background: var(--olive);
+    border-color: var(--olive);
+}
+.history-version.current > .history-dot {
+    box-shadow: 0 0 0 3px #f0d8c9;
+    border-color: var(--orange);
+}
+.history-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 10px;
+    border-radius: 9px;
+}
+.history-version.current > .history-row {
+    background: #f0f1e7;
+}
+.history-text {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+.history-label {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    font-weight: 650;
+    text-transform: uppercase;
+    color: #848975;
+}
+.history-title {
+    font-family: "Playfair Display", Georgia, serif;
+    font-size: 16px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+a.history-title:hover {
+    color: var(--orange);
+}
+.history-meta {
+    font-size: 10px;
+    color: #949486;
+}
+.history-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.history-tags:empty {
+    display: none;
+}
+.history-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 3px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 10px;
+    background: #e4e7db;
+}
+.history-tag.pinned {
+    background: var(--olive);
+    color: #fff;
+}
+.history-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+.history-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 32px;
+    padding: 0 9px;
+    border-radius: 6px;
+    background: transparent;
+    font-size: 11px;
+}
+.history-action:hover {
+    background: #e9ebdf;
+}
+.history-action.delete {
+    color: var(--orange);
+}
+.history-variants li {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 2px 10px 8px;
+    font-size: 12px;
+    color: var(--muted);
+}
+.history-variants a {
+    color: var(--ink);
+}
+.history-variant-kind {
+    font-size: 9px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    font-weight: 650;
+}
+.history-forks {
+    display: grid;
+    gap: 2px;
+    padding: 4px 0 0 4px;
+}
+.history-forks > li {
+    position: relative;
+}
+@media (max-width: 800px) {
+    .recipe-history {
+        margin: 0 20px 24px;
+    }
+    .history-row {
+        flex-direction: column;
+        gap: 4px;
+    }
+    .history-actions {
+        margin-left: -9px;
+    }
+    .history-title {
+        white-space: normal;
+    }
+}
