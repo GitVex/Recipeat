@@ -322,6 +322,50 @@ rather than 403: whether an id exists is not theirs to learn.
 | 400 | The id is not a UUID |
 | 404 | No such recipe, or not yours |
 
+### `GET /api/collections`
+
+```
+GET {{app}}/api/collections
+Cookie: nuxt-oidc-auth=<value>
+```
+
+Answers `{ "collections": [ … ] }`, newest first. Each has `id`, `name`,
+`count`, the timestamps, and `thumbnails`: up to four `{ id, title, image }`
+from the start of the collection's order. A thumbnail is the version that was
+added, not whatever its line has pinned since. `image` can be null, and a
+collection with fewer than four recipes has fewer thumbnails.
+
+### `POST /api/collections`
+
+```
+POST {{app}}/api/collections
+Content-Type: application/json
+Cookie: nuxt-oidc-auth=<value>
+
+{ "name": "Weeknight" }
+```
+
+Answers **201** and `{ "collection": { "id", "name", "createdAt", "updatedAt" } }`.
+The name is trimmed first.
+
+### `PATCH /api/collections/{id}`
+
+Same body. Renames the collection and answers `{ "collection": { … } }`. A
+rename can change only the case of a name.
+
+### `DELETE /api/collections/{id}`
+
+No body. Answers **204**. The recipes in the collection stay; only the
+grouping goes.
+
+| Status | Meaning |
+|---|---|
+| 400 | The id is not a UUID; the name is missing, blank or more than one line |
+| 404 | No such collection, or not yours — the same answer either way |
+| 409 | You already have a collection with that name, in any case |
+| 413 | The name is over 80 characters |
+| 415 | Content type is not JSON (POST and PATCH) |
+
 ### Auth routes
 
 Browser flows, listed so they are not mistaken for API endpoints. Following

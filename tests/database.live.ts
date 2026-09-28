@@ -8,6 +8,7 @@ import { applyMigrations } from '../server/database/migrate.ts'
 import type { Database } from '../server/database/schema.ts'
 import { normalizeRecipe, parseExtraction } from '../server/utils/extraction.ts'
 import { deleteRecipe, findRecipe, insertProgression, insertRecipe, insertVariant, listRecipes, updateRecipe } from '../server/recipes/store.ts'
+import { createCollection, deleteCollection, listCollections, renameCollection } from '../server/collections/store.ts'
 
 // The half of the runner that needs a database. Everything here happens inside
 // a schema of its own, so a development database keeps its own
@@ -669,5 +670,121 @@ describe('collections schema', { skip: url ? false : 'NUXT_DATABASE_URL is not s
         .map(row => row['QUERY PLAN']).join('\n')
     })
     assert.match(plan, /collection_recipes_position_key/, plan)
+  })
+})
+
+// The collection writes and the listing in #68, minus the session and the
+// HTTP envelope. Memberships are written by hand: adding and ordering is #69.
+describe('collections store', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () => {
+  const SCHEMA = 'collections_store_check'
+  let admin: Sql
+  let sql: Sql
+  let db: Kysely<Database>
+
+  before(async () => {
+    admin = postgres(url!, { max: 1, onnotice: () => {} })
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin`CREATE SCHEMA ${admin(SCHEMA)}`
+    sql = postgres(url!, { max: 5, onnotice: () => {}, connection: { search_path: SCHEMA } })
+    db = new Kysely<Database>({ dialect: new PostgresJSDialect({ postgres: sql }) })
+    await applyMigrations(sql, ['001_recipes.sql', '002_collections.sql'].map(version => ({
+      version,
+      sql: readFileSync(new URL(`../server/database/migrations/${version}`, import.meta.url), 'utf8'),
+    })))
+  })
+
+  after(async () => {
+    await sql?.end()
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin?.end()
+  })
+
+  const recipe = (title: string, image: string | null = null) => ({
+    ...normalizeRecipe(parseExtraction({
+      title,
+      source_lang: 'en',
+      ingredients: [{ originalText: 'bread', name: 'bread' }],
+      steps: ['Toast it.'],
+    }, { type: 'text', originalText: title })),
+    image,
+  })
+  const add = (collectionId: string, recipeId: string, position: number) =>
+    sql`INSERT INTO collection_recipes (collection_id, recipe_id, owner_sub, position) VALUES (${collectionId}, ${recipeId}, 'user_a', ${position})`
+  const status = (statusCode: number) => (error: unknown) => (error as { statusCode: number }).statusCode === statusCode
+
+  test('a new collection is empty, and listed with a count of 0', async () => {
+    const made = await createCollection(db, 'user_a', 'Weeknight')
+    assert.equal(made.name, 'Weeknight')
+    assert.equal(made.createdAt, made.updatedAt)
+    assert.deepEqual(await listCollections(db, 'user_a'), [{ ...made, count: 0, thumbnails: [] }])
+  })
+
+  test('a second collection of the same name, in any case, is a 409', async () => {
+    await assert.rejects(() => createCollection(db, 'user_a', 'WEEKNIGHT'), status(409))
+    // Someone else's is theirs.
+    await createCollection(db, 'user_b', 'Weeknight')
+  })
+
+  test('the listing is newest first, and only the owner\'s', async () => {
+    await createCollection(db, 'user_a', 'Christmas 2026')
+    assert.deepEqual((await listCollections(db, 'user_a')).map(c => c.name), ['Christmas 2026', 'Weeknight'])
+    assert.deepEqual((await listCollections(db, 'user_b')).map(c => c.name), ['Weeknight'])
+  })
+
+  test('a card carries the count and the first four versions, in order', async () => {
+    const id = (await createCollection(db, 'user_a', 'Soups')).id
+    const soups = []
+    for (const [i, title] of ['Leek', 'Tomato', 'Pea', 'Onion', 'Miso'].entries()) {
+      const saved = await insertRecipe(db, 'user_a', recipe(title, i === 1 ? null : `https://example.com/${title}.jpg`))
+      soups.push(saved)
+      // Added in reverse, so position order and insertion order disagree.
+      await add(id, saved.id, 10 - i)
+    }
+    const card = (await listCollections(db, 'user_a')).find(c => c.id === id)!
+    assert.equal(card.count, 5)
+    assert.deepEqual(card.thumbnails.map(t => t.title), ['Miso', 'Onion', 'Pea', 'Tomato'])
+    // A version with no picture is still a thumbnail, for the card to fill.
+    assert.equal(card.thumbnails[3]!.image, null)
+    assert.equal(card.thumbnails[0]!.image, 'https://example.com/Miso.jpg')
+  })
+
+  test('a thumbnail is the version that went in, not the line\'s newest', async () => {
+    const id = (await createCollection(db, 'user_a', 'Curries')).id
+    const first = await insertRecipe(db, 'user_a', recipe('Curry', 'https://example.com/first.jpg'))
+    await add(id, first.id, 0)
+    await insertProgression(db, 'user_a', first.id, recipe('Curry, milder', 'https://example.com/second.jpg'))
+    const card = (await listCollections(db, 'user_a')).find(c => c.id === id)!
+    assert.deepEqual(card.thumbnails, [{ id: first.id, title: 'Curry', image: 'https://example.com/first.jpg' }])
+  })
+
+  test('a rename moves updated_at and nothing else', async () => {
+    const made = await createCollection(db, 'user_a', 'Fridays')
+    const renamed = await renameCollection(db, 'user_a', made.id, 'Friday nights')
+    assert.equal(renamed!.name, 'Friday nights')
+    assert.equal(renamed!.createdAt, made.createdAt)
+    assert.ok(renamed!.updatedAt > made.updatedAt)
+  })
+
+  test('a rename can change only the case, but not take another\'s name', async () => {
+    const made = await createCollection(db, 'user_a', 'brunch')
+    assert.equal((await renameCollection(db, 'user_a', made.id, 'Brunch'))!.name, 'Brunch')
+    await assert.rejects(() => renameCollection(db, 'user_a', made.id, 'weeknight'), status(409))
+  })
+
+  test('someone else\'s collection cannot be renamed or deleted, and says nothing about itself', async () => {
+    const theirs = (await listCollections(db, 'user_b'))[0]!
+    assert.equal(await renameCollection(db, 'user_a', theirs.id, 'Mine now'), null)
+    assert.equal(await deleteCollection(db, 'user_a', theirs.id), false)
+    assert.equal((await listCollections(db, 'user_b'))[0]!.name, 'Weeknight')
+  })
+
+  test('deleting a collection keeps every recipe that was in it', async () => {
+    const id = (await createCollection(db, 'user_a', 'Doomed')).id
+    const kept = await insertRecipe(db, 'user_a', recipe('Kept'))
+    await add(id, kept.id, 0)
+    assert.equal(await deleteCollection(db, 'user_a', id), true)
+    assert.equal(await deleteCollection(db, 'user_a', id), false)
+    assert.ok(await findRecipe(sql, 'user_a', kept.id))
+    assert.equal((await listCollections(db, 'user_a')).some(c => c.id === id), false)
   })
 })
