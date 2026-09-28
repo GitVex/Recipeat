@@ -17,6 +17,9 @@
     "test:recipes": "node --experimental-strip-types --test tests/recipes.node.ts tests/recipeText.node.ts tests/recipeDraft.node.ts tests/recipeScale.node.ts tests/recipeDiff.node.ts"
   },
   "dependencies": {
+    "@vue-flow/background": "^1.3.2",
+    "@vue-flow/controls": "^1.1.3",
+    "@vue-flow/core": "^1.48.2",
     "kysely": "^0.29.6",
     "kysely-postgres-js": "^5.0.1",
     "nuxt": "^4.0.0",

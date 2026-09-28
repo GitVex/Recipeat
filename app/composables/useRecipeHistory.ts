@@ -88,6 +88,7 @@ export function useRecipeHistory(id: string) {
     tree,
     pinnedId,
     status: request.status,
+    error: request.error,
     refresh: request.refresh,
     pinning,
     pinError,

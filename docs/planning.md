@@ -156,6 +156,16 @@ lineage view shows a recipe's own progressions in full and its variants only as
 far as their entry point: a variant is a different recipe, and its history is
 its own business.
 
+### Seeing a line
+
+Two views, settled in #31. A recipe page shows only the straight path from the
+root down to the version on it — how this one came to be — folded away unless
+the version is an earlier one, and absent for a recipe with no history. The
+whole tree is a page of its own, `/recipes/{id}/lineage`, drawn with Vue Flow:
+forks, the versions after this one, and each variant by its entry point. Both
+read the same `GET /api/recipes/{id}/history`, which sends card fields rather
+than recipes, and both can pin and delete any version they show.
+
 ### Progressions are copies
 
 A progression stores the whole recipe, not a delta. Reading a version is one

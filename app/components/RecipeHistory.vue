@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import type { RecipeHistory } from "#shared/types/recipe";
-import type { HistoryContext, HistoryTree } from "~/utils/recipeHistory";
+import type { RecipeHistory, RecipeVersion } from "#shared/types/recipe";
+import type { HistoryTree } from "~/utils/recipeHistory";
 
-// A recipe's history on its own page: every version in its line as a tree,
-// what branched off it, and where it came from. Folded away by default — the
-// point of the page is the recipe — and open from the start when the recipe on
-// the page is an earlier version, which is the one time the reader is already
-// in the history.
+// A recipe's history on its own page: the straight path from the original
+// down to the version on the page, and no more. The whole tree — forks, the
+// versions after this one, what branched off as separate recipes — is the
+// lineage page, one link away. Folded by default, since the point of the page
+// is the recipe, and open from the start on an earlier version, which is the
+// one time the reader is already in the history.
 const props = defineProps<{
   history: RecipeHistory;
   tree: HistoryTree;
@@ -17,30 +18,39 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ pin: [id: string]; delete: [id: string] }>();
 
-const earlier = computed(
-  () => !props.history.versions.find((version) => version.id === props.current)?.pinned,
-);
+const path = computed(() => pathTo(props.history, props.current));
+const earlier = computed(() => !path.value.at(-1)?.pinned);
 const open = ref(earlier.value);
 
+const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
 const summary = computed(() => {
   const versions = props.history.versions.length;
   const variants = props.history.variants.length;
   return [
-    versions > 1 ? `${versions} versions` : null,
-    variants ? `${variants} separate recipe${variants === 1 ? "" : "s"}` : null,
+    versions > 1 ? plural(versions, "version") : null,
+    variants ? plural(variants, "separate recipe") : null,
   ]
     .filter(Boolean)
     .join(", ");
 });
+// What the lineage page has that this does not, said so the link is worth
+// following — or plainly not, when the path is the whole of it.
+const beyond = computed(() => {
+  const versions = props.history.versions.length - path.value.length;
+  const variants = props.history.variants.length;
+  const parts = [
+    versions ? plural(versions, "other version") : null,
+    variants ? plural(variants, "separate recipe") : null,
+  ].filter(Boolean);
+  return parts.length ? `The full lineage also has ${parts.join(" and ")}.` : null;
+});
 
-const context = computed<HistoryContext>(() => ({
-  tree: props.tree,
-  current: props.current,
-  pinning: props.pinning,
-  deleting: props.deleting,
-  pin: (id) => emit("pin", id),
-  remove: (id) => emit("delete", id),
-}));
+const meta = (version: RecipeVersion) =>
+  [
+    formatSaved(version.createdAt),
+    plural(version.ingredientCount, "ingredient"),
+    plural(version.stepCount, "step"),
+  ].join(" · ");
 </script>
 
 <template>
@@ -68,12 +78,69 @@ const context = computed<HistoryContext>(() => ({
         }}</NuxtLink>.
       </p>
       <p class="history-note">
-        The version marked <strong>In your collection</strong> is the one your
-        collection shows. Each version is a whole copy: changing one never
-        changes the versions made from it.
+        How this version came to be, from the original. Each version is a whole
+        copy: changing one never changes the versions made from it.
       </p>
       <p v-if="pinError" class="edit-bar-problem" role="alert">{{ pinError }}</p>
-      <RecipeHistoryChain :start="tree.root" :context="context" />
+
+      <ol class="history-chain" aria-label="From the original to this version">
+        <li
+          v-for="version in path"
+          :key="version.id"
+          class="history-version"
+          :class="{ current: version.id === current, pinned: version.pinned }"
+        >
+          <span class="history-dot" aria-hidden="true" />
+          <div class="history-row">
+            <div class="history-text">
+              <span class="history-label">{{ tree.label(version.id) }}</span>
+              <span v-if="version.id === current" class="history-title" aria-current="page">
+                <span :class="{ untitled: !version.title }">{{ recipeTitle(version) }}</span>
+              </span>
+              <NuxtLink v-else class="history-title" :to="`/recipes/${version.id}`">
+                <span :class="{ untitled: !version.title }">{{ recipeTitle(version) }}</span>
+              </NuxtLink>
+              <span class="history-meta">{{ meta(version) }}</span>
+              <span class="history-tags">
+                <span v-if="version.id === current" class="history-tag">Open now</span>
+                <span v-if="version.pinned" class="history-tag pinned">
+                  <AppIcon name="bookmark" :size="11" />In your collection
+                </span>
+              </span>
+            </div>
+            <div class="history-actions">
+              <button
+                v-if="!version.pinned"
+                type="button"
+                class="history-action"
+                :aria-label="`Pin ${tree.label(version.id)}`"
+                title="Show this version in your collection"
+                :disabled="!!pinning"
+                @click="emit('pin', version.id)"
+              >
+                <AppIcon name="bookmark" :size="14" />{{ pinning === version.id ? "Pinning…" : "Pin" }}
+              </button>
+              <button
+                type="button"
+                class="history-action delete"
+                :aria-label="`Delete ${tree.label(version.id)}`"
+                title="Delete this version"
+                :disabled="deleting"
+                @click="emit('delete', version.id)"
+              >
+                <AppIcon name="trash" :size="14" />
+              </button>
+            </div>
+          </div>
+        </li>
+      </ol>
+
+      <div class="history-more">
+        <p v-if="beyond">{{ beyond }}</p>
+        <NuxtLink class="button small" :to="`/recipes/${current}/lineage`">
+          <AppIcon name="branch" :size="15" />Open the full lineage
+        </NuxtLink>
+      </div>
     </div>
   </section>
 </template>

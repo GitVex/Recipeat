@@ -37,6 +37,17 @@ export function historyTree(history: RecipeHistory): HistoryTree | null {
   };
 }
 
+// The straight path from the original down to a version, oldest first: what
+// a recipe page shows of its line. The rest of the tree is the lineage page's.
+export function pathTo(history: RecipeHistory, id: string): RecipeVersion[] {
+  const byId = new Map(history.versions.map((version) => [version.id, version]));
+  const path: RecipeVersion[] = [];
+  for (let at = byId.get(id); at; at = at.progressionOf ? byId.get(at.progressionOf) : undefined) {
+    path.unshift(at);
+  }
+  return path;
+}
+
 // Whether there is anything to look back on. Most recipes are one version,
 // never branched and from nowhere; they show no history at all.
 export const hasHistory = (history: RecipeHistory) =>
@@ -45,20 +56,8 @@ export const hasHistory = (history: RecipeHistory) =>
 const WHEN = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
 export const formatSaved = (iso: string) => WHEN.format(new Date(iso));
 
-// What every row of the tree needs from the page it is on, handed down the
-// recursion whole rather than as five props at every level.
-export type HistoryContext = {
-  tree: HistoryTree;
-  // The version on the page.
-  current: string;
-  // Which version is being pinned, if any, and whether a deletion is out.
-  pinning: string | null;
-  deleting: boolean;
-  pin: (id: string) => void;
-  remove: (id: string) => void;
-};
-
 // A version's label as it reads inside a sentence: "Delete version 3?",
 // "Delete the original?".
 export const versionName = (label: string | undefined) =>
   !label ? "this version" : label === "Original" ? "the original" : label.toLowerCase();
+

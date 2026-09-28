@@ -2202,8 +2202,8 @@ input.editable-input {
     }
 }
 
-/* A recipe's history (#31): folded under the recipe, a tree when opened.
-   Rows run down a single rule, and a fork steps in once per branch. */
+/* A recipe's history (#31): folded under the recipe, and when opened the
+   path from the original down to it, one row per version on a single rule. */
 .earlier-version {
     display: flex;
     flex-wrap: wrap;
@@ -2267,17 +2267,13 @@ input.editable-input {
     gap: 6px;
     color: var(--ink);
 }
-.history-origin a,
-.history-variants a {
+.history-origin a {
     border-bottom: 1px solid #c8cebd;
 }
-.history-origin a:hover,
-.history-variants a:hover {
+.history-origin a:hover {
     color: var(--orange);
 }
-.history-chain,
-.history-forks,
-.history-variants {
+.history-chain {
     list-style: none;
     margin: 0;
     padding: 0;
@@ -2286,8 +2282,7 @@ input.editable-input {
     position: relative;
     padding: 0 0 4px 26px;
 }
-/* The line itself: a rule from each dot to the next. The last version of a
-   run has nothing below it unless the line forks there. */
+/* The line itself: a rule from each dot to the next. */
 .history-version::before {
     content: "";
     position: absolute;
@@ -2297,7 +2292,7 @@ input.editable-input {
     width: 1px;
     background: #d3d6c6;
 }
-.history-chain > .history-version:last-child:not(:has(> .history-forks))::before {
+.history-chain > .history-version:last-child::before {
     display: none;
 }
 .history-dot {
@@ -2399,31 +2394,20 @@ a.history-title:hover {
 .history-action.delete {
     color: var(--orange);
 }
-.history-variants li {
+.history-more {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     flex-wrap: wrap;
-    gap: 6px;
-    padding: 2px 10px 8px;
+    gap: 12px 20px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--line);
     font-size: 12px;
     color: var(--muted);
 }
-.history-variants a {
-    color: var(--ink);
-}
-.history-variant-kind {
-    font-size: 9px;
-    letter-spacing: 1.2px;
-    text-transform: uppercase;
-    font-weight: 650;
-}
-.history-forks {
-    display: grid;
-    gap: 2px;
-    padding: 4px 0 0 4px;
-}
-.history-forks > li {
-    position: relative;
+.history-more .button {
+    gap: 8px;
 }
 @media (max-width: 800px) {
     .recipe-history {
@@ -2540,3 +2524,168 @@ a.history-title:hover {
         gap: 24px;
     }
 }
+
+/* A recipe's whole lineage (#31): a page of its own, the tree drawn by Vue
+   Flow across the full width, time running top to bottom. */
+.flip {
+    transform: scaleX(-1);
+}
+.lineage {
+    display: flex;
+    flex-direction: column;
+    padding-top: 30px;
+    /* The page is the window under the site header, and the canvas takes
+       what the lineage header leaves of it — so nothing of the tree starts
+       below the fold. */
+    min-height: calc(100dvh - 106px);
+}
+.lineage-header {
+    display: grid;
+    gap: 14px;
+    margin-bottom: 22px;
+}
+.lineage-back {
+    justify-self: start;
+    gap: 8px;
+}
+.lineage-header .eyebrow {
+    font-size: 9px;
+    color: #848975;
+    letter-spacing: 1.7px;
+}
+.lineage-heading {
+    font-size: 38px;
+    letter-spacing: -1px;
+    width: auto;
+    margin: 8px 0 0;
+}
+.lineage-legend {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 22px;
+    font-size: 11px;
+    color: var(--muted);
+}
+.lineage-legend li {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+.lineage-key {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    border: 1.5px solid #c7cbb8;
+    background: #fffdf8;
+}
+.lineage-key.pinned {
+    border-color: var(--olive);
+    background: var(--olive);
+}
+.lineage-key.current {
+    border-color: var(--orange);
+    box-shadow: 0 0 0 3px #f0d8c9;
+}
+.lineage-key.variant {
+    border-style: dashed;
+}
+.lineage-canvas {
+    flex: 1 1 auto;
+    min-height: 460px;
+    position: relative;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    background: #f6f5ee;
+}
+/* Vue Flow sizes itself as 100% of its parent's height, which a flex item's
+   grown height is not; pinned to the canvas's edges instead, or it is 0 tall
+   and clips the whole tree. */
+.lineage-canvas > .vue-flow {
+    position: absolute;
+    inset: 0;
+}
+.lineage-node {
+    width: 290px;
+    display: grid;
+    gap: 4px;
+    padding: 12px 14px;
+    background: #fffdf8;
+    border: 1.5px solid #d6d9c8;
+    border-radius: 11px;
+    text-align: left;
+    color: var(--ink);
+    box-shadow: 0 6px 18px #1723140d;
+}
+.lineage-node.pinned {
+    border-color: var(--olive);
+}
+.lineage-node.current {
+    border-color: var(--orange);
+    box-shadow: 0 0 0 4px #f0d8c9;
+}
+.lineage-node.variant,
+.lineage-node.origin {
+    border-style: dashed;
+    background: #fbfaf4;
+}
+.lineage-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    font-weight: 650;
+    text-transform: uppercase;
+    color: #848975;
+}
+.lineage-title {
+    font-family: "Playfair Display", Georgia, serif;
+    font-size: 17px;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+}
+.lineage-title:hover {
+    color: var(--orange);
+}
+.lineage-meta {
+    font-size: 10px;
+    color: #949486;
+}
+.lineage-actions {
+    display: flex;
+    gap: 4px;
+    margin: 4px 0 -4px -9px;
+}
+.lineage-node .vue-flow__handle {
+    opacity: 0;
+    pointer-events: none;
+}
+.vue-flow__node-lineage {
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: default;
+    /* Vue Flow gives a node that is neither draggable nor selectable
+       pointer-events: none, inline, which would leave its link and buttons
+       under the pane. These are read-only, and still have to be clickable. */
+    pointer-events: all !important;
+}
+.lineage-edge path.vue-flow__edge-path {
+    stroke: #9aa28a;
+    stroke-width: 1.5;
+}
+.lineage-edge.variant path.vue-flow__edge-path {
+    stroke-dasharray: 6 5;
+}
+@media (max-width: 600px) {
+    .lineage-heading {
+        font-size: 28px;
+    }
+    .lineage-canvas {
+        min-height: 400px;
+    }
+}
+
