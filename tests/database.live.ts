@@ -529,8 +529,18 @@ describe('recipes lineage writes', { skip: url ? false : 'NUXT_DATABASE_URL is n
     assert.deepEqual(history!.versions.map(version => version.progressionOf), [null, root.id, second!.id, second!.id])
     assert.deepEqual(history!.versions.map(version => version.pinned), [false, false, false, true])
     // Card fields, not recipes.
-    assert.deepEqual(Object.keys(history!.versions[0]!).sort(), ['createdAt', 'id', 'ingredientCount', 'pinned', 'progressionOf', 'stepCount', 'title', 'updatedAt'])
+    assert.deepEqual(Object.keys(history!.versions[0]!).sort(), ['changes', 'createdAt', 'id', 'ingredientCount', 'pinned', 'progressionOf', 'stepCount', 'title', 'updatedAt'])
     assert.equal(history!.versions[0]!.ingredientCount, 1)
+    // Each is counted against the original; the original against nothing.
+    // These differ from it by title alone.
+    assert.equal(history!.versions[0]!.changes, null)
+    for (const version of history!.versions.slice(1)) {
+      assert.deepEqual(version.changes, {
+        title: true, portions: null, totalTime: null,
+        ingredients: { added: 0, removed: 0, changed: 0, items: [] },
+        steps: { added: 0, removed: 0, changed: 0, items: [] },
+      })
+    }
     assert.deepEqual(history!.variants, [])
     assert.equal(history!.origin, null)
   })

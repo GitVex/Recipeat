@@ -2,6 +2,7 @@ import type { Kysely } from 'kysely'
 import type { Sql } from 'postgres'
 import { boolean, integer, json, numeric, text, type Database, type RecipeRow } from '../database/schema.ts'
 import { fail } from '../extraction/errors.ts'
+import { recipeChanges } from '../../shared/utils/recipeDiff.ts'
 import type { ExtractedRecipe, RecipeBranch, RecipeDeletion, RecipeHistory, RecipeSummary, RecipeVersion, SavedRecipe } from '../../shared/types/recipe.ts'
 
 // Shared with the app, which renders what these routes return.
@@ -307,6 +308,11 @@ export async function findRecipe(sql: Sql, ownerSub: string, id: string): Promis
  * recipes_line_idx, and each version is its card fields rather than the whole
  * row — a line of thirty progressions is not thirty recipes on the wire.
  *
+ * The content is read all the same, to say how each version differs from
+ * the line's original, and goes no further than here: the answer carries the
+ * counts and the changed lines, not the recipes. Compared on every read rather than stored, so a version overwritten
+ * since is compared as it is now.
+ *
  * A variant is shown by its own entry point, which is the pinned version of
  * the line it started, and nothing below that. A line whose origin was
  * deleted has `variant_of` null on its root and answers with no origin.
@@ -314,10 +320,9 @@ export async function findRecipe(sql: Sql, ownerSub: string, id: string): Promis
  * Null means no such version, or not theirs.
  */
 export async function readHistory(sql: Sql, ownerSub: string, id: string): Promise<RecipeHistory | null> {
-  const line = await sql<(Pick<Row, 'id' | 'title' | 'line_id' | 'progression_of' | 'variant_of' | 'pinned' | 'created_at' | 'updated_at'> & { ingredient_count: number, step_count: number })[]>`
+  const line = await sql<Pick<Row, 'id' | 'title' | 'line_id' | 'progression_of' | 'variant_of' | 'pinned' | 'created_at' | 'updated_at' | 'source_lang' | 'portions' | 'total_time' | 'ingredients' | 'steps'>[]>`
     SELECT id, title, line_id, progression_of, variant_of, pinned, created_at, updated_at,
-           jsonb_array_length(ingredients) AS ingredient_count,
-           jsonb_array_length(steps) AS step_count
+           source_lang, portions, total_time, ingredients, steps
     FROM recipes
     WHERE owner_sub = ${ownerSub}
       AND line_id = (SELECT line_id FROM recipes WHERE id = ${id} AND owner_sub = ${ownerSub})
@@ -326,7 +331,17 @@ export async function readHistory(sql: Sql, ownerSub: string, id: string): Promi
   if (!line.some(row => row.id === id)) return null
   const lineId = line[0]!.line_id
   // The root is the row the line is named after; only it can be a variant.
-  const from = line.find(row => row.id === lineId)?.variant_of ?? null
+  const root = line.find(row => row.id === lineId)
+  const from = root?.variant_of ?? null
+  const content = (row: (typeof line)[number]) => ({
+    title: row.title,
+    source_lang: row.source_lang,
+    portions: row.portions === null ? null : Number(row.portions),
+    totalTime: row.total_time,
+    ingredients: row.ingredients,
+    steps: row.steps,
+  })
+  const original = root ? content(root) : null
 
   const [variants, origin] = await Promise.all([
     sql<{ id: string, title: string | null, created_at: Date, variant_of: string }[]>`
@@ -353,8 +368,9 @@ export async function readHistory(sql: Sql, ownerSub: string, id: string): Promi
       title: row.title,
       progressionOf: row.progression_of,
       pinned: row.pinned,
-      ingredientCount: row.ingredient_count,
-      stepCount: row.step_count,
+      ingredientCount: row.ingredients.length,
+      stepCount: row.steps.length,
+      changes: original && row.id !== lineId ? recipeChanges(original, content(row)) : null,
       createdAt: row.created_at.toISOString(),
       updatedAt: row.updated_at.toISOString(),
     })),
