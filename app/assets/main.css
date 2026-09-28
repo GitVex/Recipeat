@@ -2440,3 +2440,103 @@ a.history-title:hover {
         white-space: normal;
     }
 }
+
+/* The account page (#11): who is signed in, beside what they have kept. */
+.profile {
+    display: grid;
+    grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+    gap: 40px;
+    align-items: start;
+    padding-block: 42px 60px;
+}
+.profile > .collection-state {
+    grid-column: 1 / -1;
+}
+.profile .collection-state h1 {
+    font-size: 30px;
+    margin: 12px auto 0;
+    letter-spacing: -0.5px;
+}
+.profile-card {
+    background: #fffdf8;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 30px 28px;
+}
+.profile-avatar {
+    display: grid;
+    place-items: center;
+    width: 64px;
+    height: 64px;
+    margin-bottom: 20px;
+    border-radius: 50%;
+    background: var(--olive);
+    color: #fff;
+    font-family: "Playfair Display", Georgia, serif;
+    font-size: 28px;
+}
+.profile-card .eyebrow {
+    font-size: 9px;
+    color: #848975;
+    letter-spacing: 1.7px;
+}
+.profile-name {
+    font-size: 32px;
+    letter-spacing: -0.8px;
+    width: auto;
+    margin: 8px 0 22px;
+    overflow-wrap: anywhere;
+}
+.profile-details {
+    display: grid;
+    gap: 4px;
+    margin: 0 0 26px;
+    font-size: 13px;
+}
+.profile-details dt {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 10px;
+}
+.profile-details dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+.profile-recipes-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.profile-recipes-heading h2 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 26px;
+}
+.profile-recipes-heading h2 .count {
+    font-family: "DM Sans", sans-serif;
+}
+.profile-recipes-state {
+    padding: 30px 20px;
+    background: #f0f1e7;
+    border-radius: 10px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.7;
+}
+.profile-recipes-state .text-button {
+    margin-top: 12px;
+    display: inline-flex;
+}
+.profile-entries {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+@media (max-width: 800px) {
+    .profile {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 24px;
+    }
+}
