@@ -7,13 +7,13 @@ import { test, expect, type Page, type Route } from '@playwright/test'
 const id = (n: number) => `${String(n).padStart(8, '0')}-0000-4000-8000-000000000000`
 
 type Row = {
-  id: string, title: string | null, lineId: string, progressionOf: string | null, variantOf: string | null,
+  id: string, title: string | null, tags: string[], lineId: string, progressionOf: string | null, variantOf: string | null,
   pinned: boolean, createdAt: string,
   // How the server would count it against the line's original.
   changes?: unknown,
 }
 const row = (n: number, title: string, extra: Partial<Row> = {}): Row => ({
-  id: id(n), title, lineId: id(n), progressionOf: null, variantOf: null, pinned: true,
+  id: id(n), title, tags: [], lineId: id(n), progressionOf: null, variantOf: null, pinned: true,
   createdAt: `2026-09-${String(n).padStart(2, '0')}T12:00:00.000Z`, ...extra,
 })
 const full = (r: Row) => ({

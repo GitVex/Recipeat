@@ -17,7 +17,7 @@ const recipe = (id: string, title: string) => ({
   ...entry(id, title), source_lang: 'en',
   ingredients: [{ id: 'ingredient_1', originalText: 'flour', name: 'flour', quantityText: null, quantity: null, extra: null }],
   steps: [{ id: 'step_1', originalText: 'Mix it.', parts: [{ type: 'text', value: 'Mix it.' }], quantities: {} }],
-  source: { type: 'text', originalText: '' }, lineId: id, progressionOf: null, variantOf: null,
+  source: { type: 'text', originalText: '' }, tags: [], lineId: id, progressionOf: null, variantOf: null,
 })
 
 type Fake = { name: string, recipes: ReturnType<typeof entry>[], calls: string[], gone: boolean }

@@ -50,10 +50,27 @@ export type CollectionRecipesTable = {
   added_at: Generated<Date>
 }
 
+// A person's tags, and which lines wear them — see 003_tags.sql.
+export type TagsTable = {
+  id: Generated<string>
+  owner_sub: string
+  name: string
+  created_at: Generated<Date>
+}
+
+export type RecipeTagsTable = {
+  line_id: string
+  tag_id: string
+  owner_sub: string
+  added_at: Generated<Date>
+}
+
 export type Database = {
   recipes: RecipesTable
   collections: CollectionsTable
   collection_recipes: CollectionRecipesTable
+  tags: TagsTable
+  recipe_tags: RecipeTagsTable
 }
 
 export type RecipeRow = Selectable<RecipesTable>
@@ -70,6 +87,7 @@ export const text = (value: string | null) => sql<string | null>`${value}::text`
 export const numeric = (value: number | null) => sql<string | null>`${value}::numeric`
 export const integer = (value: number | null) => sql<number | null>`${value}::int`
 export const boolean = (value: boolean) => sql<boolean>`${value}::boolean`
+export const uuid = (value: string) => sql<string>`${value}::uuid`
 
 /**
  * A document for a `jsonb` column: the value itself, cast.

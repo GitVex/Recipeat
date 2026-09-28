@@ -24,7 +24,7 @@ const focaccia = () => ({
     { id: 'step_3', originalText: '2. Bake.', parts: [text('2. Bake.')], quantities: {} },
   ],
   source: { type: 'text', originalText: '' },
-  lineId: ids[0], progressionOf: null, variantOf: null, pinned: true,
+  tags: [], lineId: ids[0], progressionOf: null, variantOf: null, pinned: true,
 })
 const other = () => ({ ...focaccia(), ...summary(ids[1], 'Ragù'), lineId: ids[1] })
 
@@ -185,7 +185,7 @@ test('a fresh import is edited before it is first added', async ({ page }) => {
   // An import waiting out a sign-in comes back as it was: the one way into the
   // dialog with a fresh recipe that needs no extraction route.
   const fresh = { ...focaccia(), title: 'Imported bread' } as Record<string, unknown>
-  for (const key of ['id', 'lineId', 'progressionOf', 'variantOf', 'pinned', 'createdAt', 'updatedAt', 'ingredientCount', 'stepCount']) delete fresh[key]
+  for (const key of ['id', 'tags', 'lineId', 'progressionOf', 'variantOf', 'pinned', 'createdAt', 'updatedAt', 'ingredientCount', 'stepCount']) delete fresh[key]
   await page.addInitScript(recipe => sessionStorage.setItem('recipeat-unsaved-recipe', recipe), JSON.stringify(fresh))
   let sent: any
   await page.route('**/api/recipes', async (route) => {

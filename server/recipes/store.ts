@@ -1,7 +1,8 @@
 import type { Kysely } from 'kysely'
 import type { Sql } from 'postgres'
-import { boolean, integer, json, numeric, text, type Database, type RecipeRow } from '../database/schema.ts'
+import { boolean, integer, json, numeric, text, uuid, type Database, type RecipeRow } from '../database/schema.ts'
 import { fail } from '../extraction/errors.ts'
+import { lineTags } from '../tags/store.ts'
 import { recipeChanges } from '../../shared/utils/recipeDiff.ts'
 import type { ExtractedRecipe, RecipeBranch, RecipeDeletion, RecipeHistory, RecipeSummary, RecipeVersion, SavedRecipe } from '../../shared/types/recipe.ts'
 
@@ -14,8 +15,9 @@ type Row = RecipeRow
 
 // NUMERIC arrives as a string, because it is arbitrary precision and a double
 // is not. Portions are small, so reading it back into a number loses nothing.
-const asRecipe = (row: Row): SavedRecipe => ({
+const asRecipe = (row: Row, tags: string[]): SavedRecipe => ({
   id: row.id,
+  tags,
   title: row.title,
   source_lang: row.source_lang,
   portions: row.portions === null ? null : Number(row.portions),
@@ -66,6 +68,15 @@ const selected = (ownerSub: string, recipe: ExtractedRecipe) => [
   json(recipe.source).as('source'),
 ] as const
 
+// A line's tags, as lineTags reads them, for the statements written against
+// postgres.js directly rather than through Kysely. `table` is the name or
+// alias the recipes row is in scope as.
+const tagsOf = (sql: Sql, table: string) => sql`(
+  SELECT coalesce(array_agg(t.name ORDER BY lower(t.name), t.name), '{}')
+  FROM recipe_tags rt JOIN tags t ON t.id = rt.tag_id
+  WHERE rt.line_id = ${sql(table)}.line_id AND rt.owner_sub = ${sql(table)}.owner_sub
+)`
+
 /**
  * Writes a recipe as the first version of a line of its own: no parent, and
  * pinned, because a line whose only version is not the entry point would
@@ -80,7 +91,8 @@ export async function insertRecipe(db: Kysely<Database>, ownerSub: string, recip
     .values({ ...content(ownerSub, recipe), pinned: true })
     .returningAll()
     .executeTakeFirstOrThrow()
-  return asRecipe(row)
+  // A line that did not exist a moment ago has no tags.
+  return asRecipe(row, [])
 }
 
 /**
@@ -97,15 +109,15 @@ export async function insertRecipe(db: Kysely<Database>, ownerSub: string, recip
  * Null means no such row, or not theirs.
  */
 export async function updateRecipe(sql: Sql, ownerSub: string, id: string, recipe: ExtractedRecipe): Promise<SavedRecipe | null> {
-  const [row] = await sql<Row[]>`
+  const [row] = await sql<(Row & { tags: string[] })[]>`
     UPDATE recipes SET
       title = ${recipe.title}, source_lang = ${recipe.source_lang}, portions = ${recipe.portions},
       image = ${recipe.image}, total_time = ${recipe.totalTime},
       ingredients = ${sql.json(recipe.ingredients)}, steps = ${sql.json(recipe.steps)}, source = ${sql.json(recipe.source)}
     WHERE id = ${id} AND owner_sub = ${ownerSub}
-    RETURNING *
+    RETURNING *, ${tagsOf(sql, 'recipes')} AS tags
   `
-  return row ? asRecipe(row) : null
+  return row ? asRecipe(row, row.tags) : null
 }
 
 /**
@@ -156,9 +168,11 @@ export async function insertProgression(db: Kysely<Database>, ownerSub: string, 
           .where('parent.id', '=', parentId)
           .where('parent.owner_sub', '=', ownerSub))
         .returningAll()
+        // The line's, which it joined: a progression is still the same dish.
+        .returning(lineTags('recipes').as('tags'))
         .executeTakeFirst()
     })
-    return row ? asRecipe(row) : null
+    return row ? asRecipe(row, row.tags) : null
   } catch (error) {
     // Two progressions racing in one line: both unpinned, both inserted, and
     // recipes_line_pin_idx let exactly one of them through. The loser is a
@@ -177,10 +191,36 @@ export async function insertProgression(db: Kysely<Database>, ownerSub: string, 
  * row, which is exactly what "its own line" means.
  *
  * One statement, so there is no window in which the parent could be checked
- * and then deleted. Null means no such parent, or not theirs.
+ * and then deleted. It starts with a copy of the tags its parent's line had,
+ * which are its own from then on. Null means no such parent, or not theirs.
  */
 export async function insertVariant(db: Kysely<Database>, ownerSub: string, parentId: string, recipe: ExtractedRecipe): Promise<SavedRecipe | null> {
-  const row = await db
+  return db.transaction().execute(async (tx) => {
+    const row = await insertBranch(tx, ownerSub, parentId, recipe)
+    if (!row) return null
+    await tx
+      .insertInto('recipe_tags')
+      .columns(['line_id', 'tag_id', 'owner_sub'])
+      .expression(eb => eb
+        .selectFrom('recipe_tags as rt')
+        .innerJoin('recipes as parent', join => join.onRef('parent.line_id', '=', 'rt.line_id').onRef('parent.owner_sub', '=', 'rt.owner_sub'))
+        // In the order of the columns above: INSERT ... SELECT goes by position.
+        .select([uuid(row.id).as('line_id'), 'rt.tag_id', 'rt.owner_sub'])
+        .where('parent.id', '=', parentId)
+        .where('parent.owner_sub', '=', ownerSub))
+      .execute()
+    const { tags } = await tx
+      .selectFrom('recipes')
+      .select(lineTags('recipes').as('tags'))
+      .where('id', '=', row.id)
+      .executeTakeFirstOrThrow()
+    return asRecipe(row, tags)
+  })
+}
+
+// The variant's own row, written from its parent's in one statement.
+const insertBranch = (db: Kysely<Database>, ownerSub: string, parentId: string, recipe: ExtractedRecipe) =>
+  db
     .insertInto('recipes')
     .columns([
       'owner_sub', 'title', 'source_lang', 'portions', 'image', 'total_time',
@@ -197,8 +237,6 @@ export async function insertVariant(db: Kysely<Database>, ownerSub: string, pare
       .where('parent.owner_sub', '=', ownerSub))
     .returningAll()
     .executeTakeFirst()
-  return row ? asRecipe(row) : null
-}
 
 /**
  * **Delete.** The version named and every progression descended from it;
@@ -265,14 +303,16 @@ export async function deleteRecipe(sql: Sql, ownerSub: string, id: string, { dry
 
 // What a card is read from, wherever the card appears: the listing here, and a
 // collection's entries in server/collections/store.ts.
-export type SummaryRow = Pick<Row, 'id' | 'title' | 'image' | 'total_time' | 'portions' | 'created_at' | 'updated_at'> & { ingredient_count: number, step_count: number }
+export type SummaryRow = Pick<Row, 'id' | 'line_id' | 'title' | 'image' | 'total_time' | 'portions' | 'created_at' | 'updated_at'> & { ingredient_count: number, step_count: number, tags: string[] }
 
 export const asSummary = (row: SummaryRow): RecipeSummary => ({
   id: row.id,
+  lineId: row.line_id,
   title: row.title,
   image: row.image,
   totalTime: row.total_time,
   portions: row.portions === null ? null : Number(row.portions),
+  tags: row.tags,
   ingredientCount: row.ingredient_count,
   stepCount: row.step_count,
   createdAt: row.created_at.toISOString(),
@@ -286,9 +326,10 @@ export const asSummary = (row: SummaryRow): RecipeSummary => ({
  */
 export async function listRecipes(sql: Sql, ownerSub: string, limit = 200): Promise<RecipeSummary[]> {
   const rows = await sql<SummaryRow[]>`
-    SELECT id, title, image, total_time, portions, created_at, updated_at,
+    SELECT id, line_id, title, image, total_time, portions, created_at, updated_at,
            jsonb_array_length(ingredients) AS ingredient_count,
-           jsonb_array_length(steps) AS step_count
+           jsonb_array_length(steps) AS step_count,
+           ${tagsOf(sql, 'recipes')} AS tags
     FROM recipes
     WHERE owner_sub = ${ownerSub} AND pinned
     ORDER BY created_at DESC
@@ -302,10 +343,10 @@ export async function listRecipes(sql: Sql, ownerSub: string, limit = 200): Prom
  * rather than forbidden: whether a given id exists is not theirs to learn.
  */
 export async function findRecipe(sql: Sql, ownerSub: string, id: string): Promise<SavedRecipe | null> {
-  const [row] = await sql<Row[]>`
-    SELECT * FROM recipes WHERE id = ${id} AND owner_sub = ${ownerSub}
+  const [row] = await sql<(Row & { tags: string[] })[]>`
+    SELECT *, ${tagsOf(sql, 'recipes')} AS tags FROM recipes WHERE id = ${id} AND owner_sub = ${ownerSub}
   `
-  return row ? asRecipe(row) : null
+  return row ? asRecipe(row, row.tags) : null
 }
 
 /**

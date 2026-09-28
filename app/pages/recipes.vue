@@ -134,6 +134,7 @@ useHead({ title: "My recipes — Recipeat" });
                 recipeTitle(recipe)
               }}</span>
               <span class="entry-meta">{{ meta(recipe).join(" · ") }}</span>
+              <TagList :tags="recipe.tags" />
             </span>
           </NuxtLink>
           <!-- Beside the link rather than in it: a button inside a link is

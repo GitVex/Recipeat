@@ -345,9 +345,9 @@ Cookie: nuxt-oidc-auth=<value>
 ```
 
 Answers `{ "recipes": [ … ] }`, newest first, at most 200. One entry per line:
-the pinned version, with `id`, `title`, `image`, `totalTime`, `portions`,
-`ingredientCount`, `stepCount` and the timestamps — what a card needs, not the
-whole recipe. Earlier versions of a line are not here; they are reachable by
+the pinned version, with `id`, `lineId`, `title`, `image`, `totalTime`,
+`portions`, `tags`, `ingredientCount`, `stepCount` and the timestamps — what a
+card needs, not the whole recipe. Earlier versions of a line are not here; they are reachable by
 id.
 
 ### `GET /api/recipes/{id}`
@@ -359,6 +359,10 @@ Cookie: nuxt-oidc-auth=<value>
 
 Answers `{ "recipe": { … } }`, whole. Another user's recipe answers **404**
 rather than 403: whether an id exists is not theirs to learn.
+
+`tags` is the line's, A to Z: every version of a recipe wears the same set.
+It is read-only here. A recipe sent to a save route may carry it, and it is
+ignored; tags are set with `PUT /api/recipes/{id}/tags`.
 
 | Status | Meaning |
 |---|---|
@@ -458,6 +462,43 @@ missing one, with an extra, or naming one that is not in the collection is a
 | 409 | The order is not exactly the current members |
 | 413 | More than 1 000 ids in `recipeIds` |
 | 415 | Content type is not JSON (the order) |
+
+### `GET /api/tags`
+
+```
+GET {{app}}/api/tags
+Cookie: nuxt-oidc-auth=<value>
+```
+
+Answers `{ "tags": [ { "name", "count" }, … ] }`: every tag at least one of
+your recipes wears, A to Z whatever the case, with how many recipes wear it.
+A tag no recipe wears any more is not listed.
+
+### `PUT /api/recipes/{id}/tags`
+
+```
+PUT {{app}}/api/recipes/6f1e9b3c-…/tags
+Content-Type: application/json
+Cookie: nuxt-oidc-auth=<value>
+
+{ "tags": ["weeknight", "Vegan"] }
+```
+
+Replaces the whole set of tags on the line this version belongs to, and
+answers `{ "tags": [ … ] }` as stored, A to Z. Each name is trimmed and its
+inner whitespace made one space. Names are case-folded: one you already have
+in another case is that tag, and keeps the case it was first typed in. Two
+names that differ only in case are kept once. `[]` takes every tag off.
+
+A new variant starts with a copy of its parent line's tags. From then on they
+are its own.
+
+| Status | Meaning |
+|---|---|
+| 400 | The id is not a UUID; `tags` is not an array of strings; a name is blank or has a control character |
+| 404 | No such recipe, or not yours |
+| 413 | A name over 40 characters, or more than 20 tags |
+| 415 | Content type is not JSON |
 
 ### `GET /api/recipes/{id}/collections`
 

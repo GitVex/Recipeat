@@ -2,9 +2,9 @@ import type { ExtractedRecipe, Ingredient, Step } from "#shared/types/recipe";
 import { photo } from "~/utils/recipePhoto";
 
 // A sample on the landing page's shelf: the shared shape plus an id to key it
-// by. These are demonstrations only; a person's own recipes come from the
-// server and live on /recipes.
-export type ShelfRecipe = ExtractedRecipe & { id: string };
+// by, and the tags a person might have given it. These are demonstrations
+// only; a person's own recipes come from the server and live on /recipes.
+export type ShelfRecipe = ExtractedRecipe & { id: string; tags: string[] };
 
 // Written as lines, and shaped the way extraction hands a recipe over before
 // the amounts are read out of it. Nothing on the shelf needs more yet.
@@ -29,6 +29,7 @@ const steps = (lines: string[]): Step[] =>
 export const recipes: ShelfRecipe[] = [
   {
     id: "sample-pasta",
+    tags: ["Weeknight", "Vegetarian"],
     title: "Creamy tomato & basil pasta",
     source_lang: "en",
     portions: 2,
@@ -57,6 +58,7 @@ export const recipes: ShelfRecipe[] = [
   },
   {
     id: "sample-bowl",
+    tags: ["Lunch", "Vegan"],
     title: "The sunshine nourish bowl",
     source_lang: "en",
     portions: 2,
@@ -79,6 +81,7 @@ export const recipes: ShelfRecipe[] = [
   },
   {
     id: "sample-pancakes",
+    tags: ["Breakfast", "Weekend"],
     title: "Slow Sunday pancakes",
     source_lang: "en",
     portions: 2,

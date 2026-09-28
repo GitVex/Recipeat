@@ -4,6 +4,7 @@ import { jsonArrayFrom } from 'kysely/helpers/postgres'
 import type { Database } from '../database/schema.ts'
 import { fail } from '../extraction/errors.ts'
 import { asSummary, type SummaryRow } from '../recipes/store.ts'
+import { lineTags } from '../tags/store.ts'
 import type { Collection, CollectionDetail, CollectionEntry, CollectionSummary, CollectionThumbnail } from '../../shared/types/collection.ts'
 
 export type { Collection, CollectionDetail, CollectionEntry, CollectionSummary, CollectionThumbnail } from '../../shared/types/collection.ts'
@@ -124,9 +125,10 @@ const RECIPE_REFERENCE = 'collection_recipes_recipe_id_owner_sub_fkey'
 
 const entries = async (db: Kysely<Database> | Transaction<Database>, ownerSub: string, id: string): Promise<CollectionEntry[]> => {
   const { rows } = await sql<SummaryRow & { pinned: boolean, pinned_id: string | null }>`
-    SELECT r.id, r.title, r.image, r.total_time, r.portions, r.created_at, r.updated_at,
+    SELECT r.id, r.line_id, r.title, r.image, r.total_time, r.portions, r.created_at, r.updated_at,
            jsonb_array_length(r.ingredients) AS ingredient_count,
            jsonb_array_length(r.steps) AS step_count,
+           ${lineTags('r')} AS tags,
            r.pinned, p.id AS pinned_id
     FROM collection_recipes m
     JOIN recipes r ON r.id = m.recipe_id AND r.owner_sub = m.owner_sub

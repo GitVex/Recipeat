@@ -22,7 +22,7 @@ const full = (id: string) => {
     ingredients: [{ id: 'ingredient_1', originalText: `flour for ${entry.title ?? 'untitled'}`, name: `flour for ${entry.title ?? 'untitled'}`, quantityText: null, quantity: null, extra: null }],
     steps: [{ id: 'step_1', originalText: 'Mix it.', parts: [{ type: 'text', value: 'Mix it.' }], quantities: {} }],
     source: { type: 'text', originalText: '' },
-    lineId: id, progressionOf: null, variantOf: null, pinned: true,
+    tags: [], lineId: id, progressionOf: null, variantOf: null, pinned: true,
   }
 }
 

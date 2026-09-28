@@ -159,6 +159,9 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", warnBeforeUnloa
         scalable
         title-id="open-recipe-title"
       >
+        <!-- Changed in place rather than replaced: a new recipe object is a
+             new edit, and an unsaved one would be lost to a tag. -->
+        <TagEditor :recipe="recipe" @change="(tags) => (recipe!.tags = tags)" />
         <!-- Reached by going back down the line. Saying so here, before
              anything is changed, is what keeps an edit to it from looking like
              an edit to the recipe the collection shows. -->

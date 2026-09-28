@@ -74,6 +74,9 @@ export type ExtractedRecipe = {
 // fields are read-only here — #29 owns the writes that move them.
 export type SavedRecipe = ExtractedRecipe & {
   id: string
+  // The line's, not this version's: every version of a recipe wears the same
+  // set, A to Z. Written on their own, never with the recipe (#13).
+  tags: string[]
   lineId: string
   progressionOf: string | null
   variantOf: string | null
@@ -85,7 +88,7 @@ export type SavedRecipe = ExtractedRecipe & {
 // What a collection card needs and no more. The rows carry whole recipes in
 // JSONB, and a listing that returns fifty of them to render fifty titles is
 // paying for the detail route twice.
-export type RecipeSummary = Pick<SavedRecipe, 'id' | 'title' | 'image' | 'totalTime' | 'portions' | 'createdAt' | 'updatedAt'> & {
+export type RecipeSummary = Pick<SavedRecipe, 'id' | 'lineId' | 'title' | 'image' | 'totalTime' | 'portions' | 'tags' | 'createdAt' | 'updatedAt'> & {
   ingredientCount: number
   stepCount: number
 }
