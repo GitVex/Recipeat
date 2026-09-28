@@ -18,7 +18,10 @@ const paths: Record<string, string> = {
   down: 'm6 9 6 6 6-6',
   plus: 'M12 5v14M5 12h14',
   minus: 'M5 12h14',
-  trash: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3'
+  trash: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
+  history: 'M3 12a9 9 0 1 0 2.6-6.4L3 8M3 3v5h5M12 7v5l3 2',
+  branch: 'M6 3v18M6 15c0-5 12-4 12-9M18 6a2 2 0 1 0 0-.01',
+  user: 'M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0M4 21a8 8 0 0 1 16 0'
 }
 </script>
 <template><svg :width="size || 20" :height="size || 20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path :d="paths[name] || paths.sparkle" /></svg></template>

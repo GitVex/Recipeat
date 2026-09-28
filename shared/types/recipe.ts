@@ -99,3 +99,64 @@ export type RecipeDeletion = {
   ids: string[]
   pinned: string | null
 }
+
+// A few words either side of what changed in a line of text. `removed` and
+// `added` are the words that differ; `before` and `after` are unchanged
+// context, and start or end with an ellipsis where they were cut.
+export type Snippet = { before: string, removed: string, added: string, after: string }
+
+// One ingredient that differs from the original: by name, since ids are
+// positional. A change is to its amount — with the difference where the
+// units allow one — or, when the amount is the same, to its wording.
+export type IngredientChange =
+  | { kind: 'added' | 'removed', name: string, text: string }
+  | {
+    kind: 'changed'
+    name: string
+    amount: { from: string | null, to: string | null, by: string | null } | null
+    snippet: Snippet | null
+  }
+
+// One step that differs, by its number: in the newer version, or for a
+// removed one, where it stood in the original.
+export type StepChange = { kind: 'added' | 'removed' | 'changed', number: number, snippet: Snippet }
+
+type Changed<T> = { added: number, removed: number, changed: number, items: T[] }
+
+// What changed between two versions. `portions` and `totalTime` are
+// [before, after] when they differ. The counts are whole; `items` stops at a
+// dozen, so a version rewritten end to end does not carry itself along.
+export type RecipeChanges = {
+  title: boolean
+  portions: [number | null, number | null] | null
+  totalTime: [number | null, number | null] | null
+  ingredients: Changed<IngredientChange>
+  steps: Changed<StepChange>
+}
+
+// One version in a line, as its history lists it: enough to tell it apart and
+// to open it, and not the recipe itself. A line of thirty is thirty of these,
+// and reading one of them in full is the detail route's job. `changes` is
+// how it differs from the original of its line, and null on the original.
+export type RecipeVersion = Pick<SavedRecipe, 'id' | 'title' | 'progressionOf' | 'pinned' | 'createdAt' | 'updatedAt'> & {
+  ingredientCount: number
+  stepCount: number
+  changes: RecipeChanges | null
+}
+
+// A recipe that branched off a version in the line, shown by its entry point
+// and nothing more: its own history is its own business. `variantOf` is the
+// version in this line it came from.
+export type RecipeBranch = Pick<SavedRecipe, 'id' | 'title' | 'createdAt'> & {
+  variantOf: string
+}
+
+// Everything a history view draws: the line's versions, oldest first, for the
+// tree; what branched off them; and what the line itself branched off, while
+// that still exists.
+export type RecipeHistory = {
+  lineId: string
+  versions: RecipeVersion[]
+  variants: RecipeBranch[]
+  origin: Pick<SavedRecipe, 'id' | 'title'> | null
+}

@@ -6,7 +6,7 @@ const name = computed(() => String(user.value?.userInfo?.name || user.value?.use
 <template>
   <div class="auth-controls">
     <template v-if="loggedIn">
-      <span class="account-name" :title="name">{{ name }}</span>
+      <NuxtLink class="account-name" to="/profile" :title="name">{{ name }}</NuxtLink>
       <button @click="logout('zitadel')">Sign out</button>
     </template>
     <button v-else @click="login('zitadel')">Sign in</button>
@@ -16,4 +16,5 @@ const name = computed(() => String(user.value?.userInfo?.name || user.value?.use
 <style scoped>
 .auth-controls { display: flex; align-items: center; gap: 12px; }
 .account-name { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 11px; }
+.account-name:hover { color: var(--orange); }
 </style>
