@@ -195,8 +195,8 @@ pointer would otherwise reveal.
 | Profile | `/profile` | Who is signed in, and what they have kept |
 
 Laid over any of them: the import dialog; the recipe dialog, for samples and
-fresh imports; the confirmations — leave without saving, delete; and the
-toast.
+fresh imports; the collection picker, opened from a list entry or a recipe;
+the confirmations — leave without saving, delete; and the toast.
 
 On a phone the collection is one column. The list is the page, and opening
 a recipe replaces it; the rail is a heading with a way back.

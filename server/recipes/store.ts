@@ -263,13 +263,29 @@ export async function deleteRecipe(sql: Sql, ownerSub: string, id: string, { dry
   }
 }
 
+// What a card is read from, wherever the card appears: the listing here, and a
+// collection's entries in server/collections/store.ts.
+export type SummaryRow = Pick<Row, 'id' | 'title' | 'image' | 'total_time' | 'portions' | 'created_at' | 'updated_at'> & { ingredient_count: number, step_count: number }
+
+export const asSummary = (row: SummaryRow): RecipeSummary => ({
+  id: row.id,
+  title: row.title,
+  image: row.image,
+  totalTime: row.total_time,
+  portions: row.portions === null ? null : Number(row.portions),
+  ingredientCount: row.ingredient_count,
+  stepCount: row.step_count,
+  createdAt: row.created_at.toISOString(),
+  updatedAt: row.updated_at.toISOString(),
+})
+
 /**
  * One entry per line: the pinned version, newest first. This is the query the
  * partial index exists for, and the reason an unpinned version reaches no
  * listing, no filter count and no search result.
  */
 export async function listRecipes(sql: Sql, ownerSub: string, limit = 200): Promise<RecipeSummary[]> {
-  const rows = await sql<(Pick<Row, 'id' | 'title' | 'image' | 'total_time' | 'portions' | 'created_at' | 'updated_at'> & { ingredient_count: number, step_count: number })[]>`
+  const rows = await sql<SummaryRow[]>`
     SELECT id, title, image, total_time, portions, created_at, updated_at,
            jsonb_array_length(ingredients) AS ingredient_count,
            jsonb_array_length(steps) AS step_count
@@ -278,17 +294,7 @@ export async function listRecipes(sql: Sql, ownerSub: string, limit = 200): Prom
     ORDER BY created_at DESC
     LIMIT ${limit}
   `
-  return rows.map(row => ({
-    id: row.id,
-    title: row.title,
-    image: row.image,
-    totalTime: row.total_time,
-    portions: row.portions === null ? null : Number(row.portions),
-    ingredientCount: row.ingredient_count,
-    stepCount: row.step_count,
-    createdAt: row.created_at.toISOString(),
-    updatedAt: row.updated_at.toISOString(),
-  }))
+  return rows.map(asSummary)
 }
 
 /**

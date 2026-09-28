@@ -7,6 +7,7 @@ const route = useRoute();
 const { openImport } = useDialogs();
 const { login } = useOidcAuth();
 const { data, error, status, refresh } = useRecipeList();
+const picker = useCollectionPicker();
 
 const recipes = computed(() => data.value?.recipes ?? []);
 const failure = computed(() =>
@@ -135,6 +136,18 @@ useHead({ title: "Your collection — Recipeat" });
               <span class="entry-meta">{{ meta(recipe).join(" · ") }}</span>
             </span>
           </NuxtLink>
+          <!-- Beside the link rather than in it: a button inside a link is
+               two controls in one, and neither works well by keyboard. The
+               list only shows pinned versions. -->
+          <button
+            type="button"
+            class="entry-add icon-button"
+            :aria-label="`Add ${recipeTitle(recipe)} to a collection`"
+            title="Add to a collection"
+            @click="picker.open({ id: recipe.id, title: recipeTitle(recipe), pinned: true })"
+          >
+            <AppIcon name="bookmark" :size="16" />
+          </button>
         </li>
       </ul>
     </aside>

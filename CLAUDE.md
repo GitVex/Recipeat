@@ -36,3 +36,16 @@ node --env-file=.env --experimental-strip-types --test tests/database.live.ts
 
 The live tests work in schemas of their own and drop them afterwards, so the
 development database is untouched.
+
+The browser tests run against the container, with the API mocked per test:
+
+```sh
+npx playwright test
+```
+
+**If every browser test times out on `page.goto('/')`,** something other than
+the container is holding port 8100 on IPv6. The container publishes on
+`127.0.0.1` only, and `localhost` resolves to `::1` first, so a leftover
+`nuxt dev` listening on `[::1]:8100` catches every request. Find it with
+`Get-NetTCPConnection -LocalPort 8100` and ask before stopping it; don't
+start a `nuxt dev` alongside the container.
