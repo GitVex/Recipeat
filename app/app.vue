@@ -7,10 +7,13 @@ const { message: toast, notify } = useToast();
 const list = useRecipeListCache();
 const adding = useSaveRecipe();
 const { login } = useOidcAuth();
+const picker = useCollectionPicker();
 // Which dialog is open, not which recipe: a fresh import turning into its
 // stored row is the same dialog, and focus stays where the user left it.
 useDialogFocus(
-  computed(() => (importing.value ? "import" : selected.value ? "recipe" : null)),
+  computed(() =>
+    importing.value ? "import" : selected.value ? "recipe" : picker.target.value ? "picker" : null,
+  ),
 );
 // A failure belongs to the recipe it happened to.
 watch(selected, () => (adding.failure.value = null));
@@ -69,5 +72,6 @@ function signInToAdd(recipe: ExtractedRecipe) {
       @add="addToCollection"
       @sign-in="signInToAdd"
     />
+    <CollectionPicker />
   </div>
 </template>

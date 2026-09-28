@@ -80,6 +80,7 @@ const writes = useRecipeWrites(
   () => lineage.refresh(),
 );
 const { saving, saveError, deleting, deletePending, deleteError } = writes;
+const picker = useCollectionPicker();
 const save = () => writes.save(choice.value);
 
 // Deleting the recipe on the page is deleting "this recipe"; deleting another
@@ -188,6 +189,15 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", warnBeforeUnloa
           @discard="editor.reset()"
         />
         <div v-else class="recipe-actions">
+          <!-- This version, whichever it is: the picker says so when it is not
+               the one the line is entered by. -->
+          <button
+            type="button"
+            class="text-button add-to-collection"
+            @click="picker.open({ id, title: recipeTitle(recipe), pinned })"
+          >
+            <AppIcon name="bookmark" :size="15" />Add to collection
+          </button>
           <button
             type="button"
             class="text-button delete-recipe"

@@ -1370,8 +1370,17 @@ input.editable-input {
 }
 .recipe-actions {
     display: flex;
+    flex-wrap: wrap;
     justify-content: flex-end;
+    gap: 14px 28px;
     padding: 0 38px 28px;
+}
+.add-to-collection {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--ink);
 }
 .delete-recipe {
     display: inline-flex;
@@ -2030,6 +2039,45 @@ input.editable-input {
 .collection-entry:focus-visible {
     outline-offset: 0;
 }
+/* Add to a collection (#70): beside each entry, over its right edge, shown
+   where a pointer rests or focus lands — and always without a pointer. Not in
+   the rail, which has no room for it. */
+.collection-entries li {
+    position: relative;
+}
+.collection:not(.folded) .collection-entry {
+    padding-right: 46px;
+}
+.entry-add {
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    translate: 0 -50%;
+    border-radius: 50%;
+    color: var(--muted);
+    opacity: 0;
+    transition:
+        opacity 0.12s ease-in,
+        background 0.2s,
+        color 0.2s;
+}
+.collection-entries li:hover .entry-add,
+.entry-add:focus-visible {
+    opacity: 1;
+    transition-duration: 0.2s;
+}
+.entry-add:hover {
+    color: var(--olive);
+    background: #e4e7db;
+}
+.collection.folded .entry-add {
+    visibility: hidden;
+}
+@media (hover: none) {
+    .entry-add {
+        opacity: 1;
+    }
+}
 .entry-text {
     display: grid;
     gap: 5px;
@@ -2208,6 +2256,132 @@ input.editable-input {
 }
 .earlier-version .button {
     gap: 8px;
+}
+
+/* The collection picker (#70): one tick per collection, and a way to make a
+   new one without leaving. */
+.picker-modal {
+    max-width: 460px;
+}
+.picker-content {
+    padding: 34px 32px 28px;
+}
+.picker-eyebrow {
+    display: block;
+    font-size: 9px;
+    color: #848975;
+    letter-spacing: 1.7px;
+    text-transform: uppercase;
+    /* Clear of the close button, and one line however long the title. */
+    margin-right: 40px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.picker-content h2 {
+    font-size: 26px;
+    margin: 10px 0 18px;
+}
+.picker-earlier {
+    margin: 0 0 18px;
+}
+.picker-state {
+    margin: 0 0 20px;
+    padding: 18px;
+    background: #f0f1e7;
+    border-radius: 10px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.6;
+}
+.picker-state p {
+    margin: 0 0 12px;
+}
+.picker-state .text-button {
+    display: inline-flex;
+}
+.picker-list {
+    list-style: none;
+    margin: 0 0 22px;
+    padding: 0;
+    display: grid;
+    gap: 2px;
+    max-height: min(290px, 40dvh);
+    overflow-y: auto;
+}
+.picker-option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 12px;
+    border-radius: 9px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.picker-option:hover {
+    background: #f0f1e7;
+}
+.picker-option input {
+    flex-shrink: 0;
+    width: 17px;
+    height: 17px;
+    margin: 0;
+    accent-color: var(--olive);
+    cursor: pointer;
+}
+.picker-option.pending {
+    opacity: 0.6;
+    cursor: progress;
+}
+.picker-name {
+    flex: 1;
+    min-width: 0;
+    font-size: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.picker-count {
+    flex-shrink: 0;
+    font-size: 10px;
+    color: #949486;
+}
+.picker-new-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 9px;
+}
+.picker-new-row input {
+    flex: 1;
+    min-width: 0;
+    padding: 13px;
+    border: 1px solid #d5d8c9;
+    border-radius: 6px;
+    background: #fffdf9;
+    color: var(--ink);
+    font-size: 12px;
+}
+.picker-new-row .button {
+    flex-shrink: 0;
+}
+.picker-new-row .button:disabled {
+    transform: none;
+}
+.picker-problem {
+    margin: 14px 0 0;
+}
+.picker-actions {
+    justify-content: flex-end;
+    margin-top: 24px;
+}
+@media (max-width: 600px) {
+    .picker-content {
+        padding: 30px 22px 22px;
+    }
+    .picker-new-row {
+        flex-direction: column;
+    }
 }
 .recipe-history {
     margin: 0 38px 32px;
