@@ -1,9 +1,15 @@
 import type { RecipeSummary, SavedRecipe } from "#shared/types/recipe";
+import { filtersToQuery, hasFilters, type RecipeFilters } from "#shared/utils/recipeFilters";
 
 // The collection as GET /api/recipes answers it: one entry per line, the
 // pinned version, newest first. One key, so the collection page, the header's
 // count and the import flow all read and write the same copy.
 const KEY = "recipes";
+
+// A filtered listing (#14) is a copy of its own, keyed by its query, so the
+// header's count and the profile's are always of every recipe. Which one the
+// collection page is showing is kept here, for the writes below to find it.
+const SHOWN = "recipe-list-shown";
 
 type Listing = { recipes: RecipeSummary[] };
 
@@ -18,8 +24,32 @@ export function failureOf(status: number | undefined): ListFailure {
   return "failed";
 }
 
+// `defer`: a second read of the same key while one is on its way waits for
+// it, rather than cancelling it and asking again. The collection page reads
+// this key twice when nothing is filtered — see below.
 export function useRecipeList() {
-  return useFetch<Listing>("/api/recipes", { key: KEY, retry: 0 });
+  return useFetch<Listing>("/api/recipes", { key: KEY, retry: 0, dedupe: "defer" });
+}
+
+/**
+ * The listing narrowed by `filters`, read again whenever they change. With
+ * none set it is the one above, under its key. The filtering is the server's:
+ * nothing is fetched whole to be sifted here.
+ *
+ * The whole listing is held as well, for the header's count. Without that,
+ * moving to a filtered key would leave the whole listing with nothing holding
+ * it, and Nuxt would drop it. With no filters the two are one request.
+ */
+export function useFilteredRecipeList(filters: Ref<RecipeFilters>) {
+  useRecipeList();
+  const query = computed(() => filtersToQuery(filters.value));
+  const key = computed(() =>
+    hasFilters(filters.value) ? `${KEY}:${JSON.stringify(query.value)}` : KEY,
+  );
+  const shown = useState<string>(SHOWN, () => KEY);
+  shown.value = key.value;
+  watch(key, (value) => (shown.value = value));
+  return useFetch<Listing>("/api/recipes", { key, query, retry: 0, dedupe: "defer" });
 }
 
 // The card fields of a recipe already in hand, so a new one can join the list
@@ -45,11 +75,20 @@ export const summaryOf = (recipe: SavedRecipe): RecipeSummary => ({
  * one saved over where it stands. If the list was never
  * loaded there is nothing to update: the first read will include it.
  *
+ * A filtered listing on screen is read again instead of patched: whether a
+ * recipe still matches after it changed is the server's question. `relist`
+ * reads both again, for a change that moves a pin.
+ *
  * Call it in setup: it needs the Nuxt app, which an awaited handler no longer
  * has.
  */
 export function useRecipeListCache() {
   const { data } = useNuxtData<Listing>(KEY);
+  const shown = useState<string>(SHOWN, () => KEY);
+  const filtered = () => (shown.value === KEY ? [] : [shown.value]);
+  const relist = () => refreshNuxtData([KEY, ...filtered()]);
+  // A new recipe is not in a filtered view until the filters are changed:
+  // appearing in one it might not match would be the wrong answer.
   function add(recipe: SavedRecipe) {
     if (!data.value) return;
     data.value = {
@@ -62,6 +101,7 @@ export function useRecipeListCache() {
   // A recipe saved over keeps its place: the listing is ordered by when a
   // line was started, not when it was last written.
   function update(recipe: SavedRecipe) {
+    if (filtered().length) void refreshNuxtData(filtered());
     if (!data.value) return;
     data.value = {
       recipes: data.value.recipes.map((entry) =>
@@ -72,6 +112,7 @@ export function useRecipeListCache() {
   // Tags belong to a line, so whichever version was tagged, the entry that
   // shows its line wears them.
   function retag(lineId: string, tags: string[]) {
+    if (filtered().length) void refreshNuxtData(filtered());
     if (!data.value) return;
     data.value = {
       recipes: data.value.recipes.map((entry) =>
@@ -79,21 +120,24 @@ export function useRecipeListCache() {
       ),
     };
   }
-  return { data, add, update, retag };
+  return { data, add, update, retag, relist };
 }
+
+// The entries the collection page is showing, filtered or not: provided by
+// the page, for the preview beside it.
+export const SHOWN_RECIPES: InjectionKey<Ref<RecipeSummary[]>> = Symbol("shown-recipes");
 
 /**
  * The entry the collection's preview shows. Set by hover and by focus, and
  * left where it was when the pointer leaves, so that moving towards the
- * preview does not empty it. Until anything is highlighted, the newest.
+ * preview does not empty it. Until anything is highlighted, the newest of
+ * `recipes` — the ones on screen, so a filter never previews one it hid.
  */
-export function useHighlightedRecipe() {
-  const { data } = useRecipeListCache();
+export function useHighlightedRecipe(recipes: Ref<RecipeSummary[]>) {
   const id = useState<string | null>("collection-highlight", () => null);
-  const current = computed(() => {
-    const recipes = data.value?.recipes ?? [];
-    return recipes.find((recipe) => recipe.id === id.value) ?? recipes[0] ?? null;
-  });
+  const current = computed(
+    () => recipes.value.find((recipe) => recipe.id === id.value) ?? recipes.value[0] ?? null,
+  );
   return { id, current };
 }
 

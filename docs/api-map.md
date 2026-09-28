@@ -350,6 +350,30 @@ the pinned version, with `id`, `lineId`, `title`, `image`, `totalTime`,
 card needs, not the whole recipe. Earlier versions of a line are not here; they are reachable by
 id.
 
+Filters narrow the list (#14). Each one narrows what the others left, and a
+key given twice means both. The collection page's address uses the same query
+string, so a filtered view can be linked:
+
+```
+GET {{app}}/api/recipes?q=soup&tag=Winter&tag=soup&ingredient=leek&maxTime=60&minPortions=2&maxPortions=4&source=website
+```
+
+| Parameter | Keeps a recipe when |
+|---|---|
+| `q` | Its title contains this, in any case |
+| `tag` | Its line has every tag given, in any case |
+| `ingredient` | An ingredient's name contains this, for every one given |
+| `maxTime` | It states a total time, and it is this many minutes or fewer |
+| `minPortions`, `maxPortions` | It states portions, and they are in range |
+| `source` | It came from any of these: `website`, `photo`, `text` |
+
+Terms are trimmed. A term given twice in different cases counts once. A
+filter the server cannot read is a **400**, rather than being dropped. That
+covers a number that is not a whole number from 1 up, an unknown source, a
+term over 100 characters, a search over 200, and more than 10 terms of one
+kind. Filtering happens in the query, on the owner's pinned rows, read newest
+first through `recipes_owner_pinned_idx`.
+
 ### `GET /api/recipes/{id}`
 
 ```

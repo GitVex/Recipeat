@@ -4,6 +4,7 @@ import { boolean, integer, json, numeric, text, uuid, type Database, type Recipe
 import { fail } from '../extraction/errors.ts'
 import { lineTags } from '../tags/store.ts'
 import { recipeChanges } from '../../shared/utils/recipeDiff.ts'
+import { NO_FILTERS, type RecipeFilters } from '../../shared/utils/recipeFilters.ts'
 import type { ExtractedRecipe, RecipeBranch, RecipeDeletion, RecipeHistory, RecipeSummary, RecipeVersion, SavedRecipe } from '../../shared/types/recipe.ts'
 
 // Shared with the app, which renders what these routes return.
@@ -319,23 +320,56 @@ export const asSummary = (row: SummaryRow): RecipeSummary => ({
   updatedAt: row.updated_at.toISOString(),
 })
 
+// A term as an ILIKE pattern that finds it anywhere, with the three
+// characters LIKE gives a meaning to taken literally.
+const containing = (term: string) => `%${term.replace(/[\\%_]/g, char => `\\${char}`)}%`
+
 /**
  * One entry per line: the pinned version, newest first. This is the query the
  * partial index exists for, and the reason an unpinned version reaches no
  * listing, no filter count and no search result.
+ *
+ * Filters narrow it (#14), each on top of the others. They are conditions on
+ * the row the index hands over, never a different way in: the scan is still
+ * the owner's pinned rows newest first, and the limit still stops it early.
+ * A line's tags are matched in any case, and it has to wear all of them.
  */
-export async function listRecipes(sql: Sql, ownerSub: string, limit = 200): Promise<RecipeSummary[]> {
-  const rows = await sql<SummaryRow[]>`
+export async function listRecipes(sql: Sql, ownerSub: string, filters: RecipeFilters = NO_FILTERS, limit = 200): Promise<RecipeSummary[]> {
+  return (await listing(sql, ownerSub, filters, limit)).map(asSummary)
+}
+
+// The statement listRecipes runs, unrun: the tests explain this rather than a
+// copy of it that could drift.
+export function listing(sql: Sql, ownerSub: string, filters: RecipeFilters, limit: number) {
+  const where = [
+    filters.q ? sql`AND title ILIKE ${containing(filters.q)}` : sql``,
+    filters.tags.length
+      ? sql`AND (
+          SELECT count(DISTINCT lower(t.name)) FROM recipe_tags rt JOIN tags t ON t.id = rt.tag_id
+          WHERE rt.line_id = recipes.line_id AND rt.owner_sub = recipes.owner_sub
+            AND lower(t.name) IN (SELECT lower(name) FROM unnest(${filters.tags}::text[]) AS name)
+        ) = (SELECT count(DISTINCT lower(name)) FROM unnest(${filters.tags}::text[]) AS name)`
+      : sql``,
+    ...filters.ingredients.map(term => sql`AND EXISTS (
+      SELECT 1 FROM jsonb_array_elements(ingredients) AS ingredient
+      WHERE ingredient->>'name' ILIKE ${containing(term)}
+    )`),
+    filters.maxTime !== null ? sql`AND total_time <= ${filters.maxTime}` : sql``,
+    filters.minPortions !== null ? sql`AND portions >= ${filters.minPortions}` : sql``,
+    filters.maxPortions !== null ? sql`AND portions <= ${filters.maxPortions}` : sql``,
+    filters.sources.length ? sql`AND source->>'type' = ANY(${filters.sources}::text[])` : sql``,
+  ]
+  return sql<SummaryRow[]>`
     SELECT id, line_id, title, image, total_time, portions, created_at, updated_at,
            jsonb_array_length(ingredients) AS ingredient_count,
            jsonb_array_length(steps) AS step_count,
            ${tagsOf(sql, 'recipes')} AS tags
     FROM recipes
     WHERE owner_sub = ${ownerSub} AND pinned
+    ${where.reduce((all, condition) => sql`${all} ${condition}`)}
     ORDER BY created_at DESC
     LIMIT ${limit}
   `
-  return rows.map(asSummary)
 }
 
 /**

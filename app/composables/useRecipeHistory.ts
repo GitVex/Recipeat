@@ -39,6 +39,7 @@ export function useRecipeHistory(id: string) {
   );
 
   const cache = useRecipeCache();
+  const { relist } = useRecipeListCache();
   const { notify } = useToast();
   const pinning = ref<string | null>(null);
   const pinError = ref<string | null>(null);
@@ -70,7 +71,7 @@ export function useRecipeHistory(id: string) {
         ]),
       );
       // The collection's entry for this line is a different version now.
-      await refreshNuxtData("recipes");
+      await relist();
       notify("Pinned. My recipes shows this version now");
       return true;
     } catch (error) {

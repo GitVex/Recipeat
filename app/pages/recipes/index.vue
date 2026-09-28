@@ -4,7 +4,10 @@ import type { SavedRecipe } from "#shared/types/recipe";
 // The collection's preview: the entry under the pointer or focus, as it will
 // read once opened. The card fields are on screen at once; the rest is one read
 // per recipe the pointer stops on, kept for when it is opened.
-const { current } = useHighlightedRecipe();
+// The entries the page beside this is showing, so a filtered list previews
+// one of its own.
+const { current } = useHighlightedRecipe(inject(SHOWN_RECIPES, ref([])));
+const route = useRoute();
 const cache = useRecipeCache();
 const full = computed(() => (current.value ? cache.value[current.value.id] : undefined));
 
@@ -43,7 +46,7 @@ onBeforeUnmount(() => clearTimeout(timer));
       >
         <RecipeBody v-if="full" :recipe="full" title-id="preview-title">
           <TagList :tags="full.tags" />
-          <NuxtLink class="button small" :to="`/recipes/${current.id}`">
+          <NuxtLink class="button small" :to="{ path: `/recipes/${current.id}`, query: route.query }">
             Open recipe <AppIcon name="arrow" :size="16" />
           </NuxtLink>
         </RecipeBody>
@@ -57,7 +60,7 @@ onBeforeUnmount(() => clearTimeout(timer));
               {{ recipeTitle(current) }}
             </h2>
             <TagList :tags="current.tags" />
-            <NuxtLink class="button small" :to="`/recipes/${current.id}`">
+            <NuxtLink class="button small" :to="{ path: `/recipes/${current.id}`, query: route.query }">
               Open recipe <AppIcon name="arrow" :size="16" />
             </NuxtLink>
           </div>
