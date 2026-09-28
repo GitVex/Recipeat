@@ -26,10 +26,12 @@ export function useRecipeList() {
 // without the list being read again.
 export const summaryOf = (recipe: SavedRecipe): RecipeSummary => ({
   id: recipe.id,
+  lineId: recipe.lineId,
   title: recipe.title,
   image: recipe.image,
   totalTime: recipe.totalTime,
   portions: recipe.portions,
+  tags: recipe.tags,
   ingredientCount: recipe.ingredients.length,
   stepCount: recipe.steps.length,
   createdAt: recipe.createdAt,
@@ -67,7 +69,17 @@ export function useRecipeListCache() {
       ),
     };
   }
-  return { data, add, update };
+  // Tags belong to a line, so whichever version was tagged, the entry that
+  // shows its line wears them.
+  function retag(lineId: string, tags: string[]) {
+    if (!data.value) return;
+    data.value = {
+      recipes: data.value.recipes.map((entry) =>
+        entry.lineId === lineId ? { ...entry, tags } : entry,
+      ),
+    };
+  }
+  return { data, add, update, retag };
 }
 
 /**

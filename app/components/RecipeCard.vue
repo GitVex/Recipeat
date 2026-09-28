@@ -28,15 +28,14 @@ const emit = defineEmits<{ select: [recipe: ShelfRecipe] }>();
       <button class="recipe-title" @click="emit('select', recipe)">
         {{ recipeTitle(recipe) }}
       </button>
-      <div class="recipe-meta">
-        <template v-if="recipe.totalTime"
-          ><span
-            ><AppIcon name="clock" :size="14" />{{
-              formatMinutes(recipe.totalTime)
-            }}</span
-          ><span class="meta-dot">·</span></template
-        ><span>Simple ingredients, big smiles</span>
+      <div v-if="recipe.totalTime" class="recipe-meta">
+        <span
+          ><AppIcon name="clock" :size="14" />{{
+            formatMinutes(recipe.totalTime)
+          }}</span
+        >
       </div>
+      <TagList :tags="recipe.tags" />
     </div>
   </article>
 </template>

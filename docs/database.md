@@ -11,6 +11,7 @@ app startup. Nothing else talks to it.
 | `server/database/migrations/` | Plain `.sql`, applied in filename order |
 | `001_recipes.sql` | The `recipes` table, its lineage columns and its triggers |
 | `002_collections.sql` | `collections`, and `collection_recipes`: which lines are in each, in what order |
+| `003_tags.sql` | `tags`, and `recipe_tags`: which lines wear each |
 | `server/database/migrate.ts` | The runner: a ledger, an advisory lock, one transaction per file |
 | `server/plugins/database.ts` | Runs the above at startup and holds requests until it is done |
 | `server/utils/database.ts` | The shared connection pool |
@@ -55,6 +56,23 @@ Names are unique per owner regardless of case, one line, trimmed, and at most
 80 characters. `position` ascends within a collection but may have gaps. Two
 rows can't share one, and that check is deferred to commit, so a reorder can
 rewrite the positions in any order inside one transaction.
+
+## Tags
+
+A tag hangs on a line, not a version. `recipe_tags.line_id` references the
+line's root, which exists as long as the line does, since deleting the root
+takes the whole line. Saving a progression or moving the pin keeps a recipe's
+tags. A variant is a line of its own and starts with a copy of its parent
+line's tags.
+
+Tags are per owner, and so are both foreign keys, so a line cannot wear
+someone else's tag. Names are unique per owner regardless of case. The first
+spelling typed is the one kept. A name is one line, trimmed, with no runs of
+whitespace, and at most 40 characters.
+
+A tag that no line wears any more keeps its row. Deleting it would race a
+write that has just found it to reuse. `GET /api/tags` lists only tags in use,
+so a leftover row costs nothing, and typing the name again reuses it.
 
 ## A fresh database
 

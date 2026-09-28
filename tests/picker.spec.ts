@@ -16,7 +16,7 @@ const full = (id: string, pinned = true) => ({
   ingredients: [{ id: 'ingredient_1', originalText: 'flour', name: 'flour', quantityText: null, quantity: null, extra: null }],
   steps: [{ id: 'step_1', originalText: 'Mix it.', parts: [{ type: 'text', value: 'Mix it.' }], quantities: {} }],
   source: { type: 'text', originalText: '' },
-  lineId: id, progressionOf: null, variantOf: null, pinned,
+  tags: [], lineId: id, progressionOf: null, variantOf: null, pinned,
 })
 
 type Fake = { collections: { id: string, name: string, members: string[] }[], calls: string[] }

@@ -15,7 +15,7 @@ const recipe = (id: string, title: string, extra: Record<string, unknown> = {}) 
   ingredients: [{ id: 'ingredient_1', originalText: '500 g flour', name: 'flour', quantityText: '500 g', quantity: { value: 500, maxValue: null, unit: 'g' }, extra: null }],
   steps: [{ id: 'step_1', originalText: 'Bake.', parts: [{ type: 'text', value: 'Bake.' }], quantities: {} }],
   source: { type: 'text', originalText: '' },
-  lineId: id, progressionOf: null, variantOf: null, pinned: true,
+  tags: [], lineId: id, progressionOf: null, variantOf: null, pinned: true,
   createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z',
   ...extra,
 })

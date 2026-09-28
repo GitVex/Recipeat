@@ -9,6 +9,7 @@ import type { Database } from '../server/database/schema.ts'
 import { normalizeRecipe, parseExtraction } from '../server/utils/extraction.ts'
 import { deleteRecipe, findRecipe, insertProgression, insertRecipe, insertVariant, listRecipes, pinRecipe, readHistory, updateRecipe } from '../server/recipes/store.ts'
 import { addToCollection, collectionsContaining, createCollection, deleteCollection, listCollections, readCollection, removeFromCollection, renameCollection, reorderCollection } from '../server/collections/store.ts'
+import { listTags, setTags } from '../server/tags/store.ts'
 
 // The half of the runner that needs a database. Everything here happens inside
 // a schema of its own, so a development database keeps its own
@@ -20,6 +21,14 @@ import { addToCollection, collectionsContaining, createCollection, deleteCollect
 // docs/database.md has the container it points at.
 const url = process.env.NUXT_DATABASE_URL
 const SCHEMA = 'migration_test'
+
+// The real files, read as the runner reads them at startup.
+const migrations = (...versions: string[]) => versions.map(version => ({
+  version,
+  sql: readFileSync(new URL(`../server/database/migrations/${version}`, import.meta.url), 'utf8'),
+}))
+// What the stores need under them.
+const STORE = ['001_recipes.sql', '002_collections.sql', '003_tags.sql']
 
 describe('migration runner', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () => {
   let admin: Sql
@@ -230,9 +239,9 @@ describe('recipes store', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }
     // Kysely over the same instance, so both layers see the same search_path
     // and the same pool — which is how the app wires them too.
     db = new Kysely<Database>({ dialect: new PostgresJSDialect({ postgres: sql }) })
-    const version = '001_recipes.sql'
-    const body = readFileSync(new URL(`../server/database/migrations/${version}`, import.meta.url), 'utf8')
-    await applyMigrations(sql, [{ version, sql: body }])
+    // Every migration, not only the recipes table's: a read carries the
+    // line's tags, so the tables they live in have to be there.
+    await applyMigrations(sql, migrations(...STORE))
   })
 
   after(async () => {
@@ -312,9 +321,9 @@ describe('recipes lineage writes', { skip: url ? false : 'NUXT_DATABASE_URL is n
     // Kysely over the same instance, so both layers see the same search_path
     // and the same pool — which is how the app wires them too.
     db = new Kysely<Database>({ dialect: new PostgresJSDialect({ postgres: sql }) })
-    const version = '001_recipes.sql'
-    const body = readFileSync(new URL(`../server/database/migrations/${version}`, import.meta.url), 'utf8')
-    await applyMigrations(sql, [{ version, sql: body }])
+    // Every migration, not only the recipes table's: a read carries the
+    // line's tags, so the tables they live in have to be there.
+    await applyMigrations(sql, migrations(...STORE))
   })
 
   after(async () => {
@@ -636,11 +645,9 @@ describe('collections schema', { skip: url ? false : 'NUXT_DATABASE_URL is not s
     await admin`CREATE SCHEMA ${admin(SCHEMA)}`
     sql = postgres(url!, { max: 5, onnotice: () => {}, connection: { search_path: SCHEMA } })
     db = new Kysely<Database>({ dialect: new PostgresJSDialect({ postgres: sql }) })
-    const migrations = ['001_recipes.sql', '002_collections.sql'].map(version => ({
-      version,
-      sql: readFileSync(new URL(`../server/database/migrations/${version}`, import.meta.url), 'utf8'),
-    }))
-    assert.deepEqual(await applyMigrations(sql, migrations), ['001_recipes.sql', '002_collections.sql'])
+    // Every one of them: the recipes written here are written by the store,
+    // which reads a line's tags back with them.
+    assert.deepEqual(await applyMigrations(sql, migrations(...STORE)), STORE)
   })
 
   after(async () => {
@@ -792,10 +799,7 @@ describe('collections store', { skip: url ? false : 'NUXT_DATABASE_URL is not se
     await admin`CREATE SCHEMA ${admin(SCHEMA)}`
     sql = postgres(url!, { max: 5, onnotice: () => {}, connection: { search_path: SCHEMA } })
     db = new Kysely<Database>({ dialect: new PostgresJSDialect({ postgres: sql }) })
-    await applyMigrations(sql, ['001_recipes.sql', '002_collections.sql'].map(version => ({
-      version,
-      sql: readFileSync(new URL(`../server/database/migrations/${version}`, import.meta.url), 'utf8'),
-    })))
+    await applyMigrations(sql, migrations(...STORE))
   })
 
   after(async () => {
@@ -907,10 +911,7 @@ describe('collection membership', { skip: url ? false : 'NUXT_DATABASE_URL is no
     await admin`CREATE SCHEMA ${admin(SCHEMA)}`
     sql = postgres(url!, { max: 10, onnotice: () => {}, connection: { search_path: SCHEMA } })
     db = new Kysely<Database>({ dialect: new PostgresJSDialect({ postgres: sql }) })
-    await applyMigrations(sql, ['001_recipes.sql', '002_collections.sql'].map(version => ({
-      version,
-      sql: readFileSync(new URL(`../server/database/migrations/${version}`, import.meta.url), 'utf8'),
-    })))
+    await applyMigrations(sql, migrations(...STORE))
   })
 
   after(async () => {
@@ -1023,5 +1024,139 @@ describe('collection membership', { skip: url ? false : 'NUXT_DATABASE_URL is no
     assert.deepEqual((await collectionsContaining(db, 'user_a', toast.id))!.sort(), [one, two].sort())
     assert.equal(await collectionsContaining(db, 'user_b', toast.id), null)
     assert.equal(await collectionsContaining(db, 'user_a', crypto.randomUUID()), null)
+  })
+})
+
+// Tags (#13): what 003_tags.sql refuses, and what setting a line's tags does
+// to every version of it, to its variants, and to the owner's list.
+describe('tags', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () => {
+  const SCHEMA = 'tags_check'
+  let admin: Sql
+  let sql: Sql
+  let db: Kysely<Database>
+
+  before(async () => {
+    admin = postgres(url!, { max: 1, onnotice: () => {} })
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin`CREATE SCHEMA ${admin(SCHEMA)}`
+    sql = postgres(url!, { max: 10, onnotice: () => {}, connection: { search_path: SCHEMA } })
+    db = new Kysely<Database>({ dialect: new PostgresJSDialect({ postgres: sql }) })
+    await applyMigrations(sql, migrations(...STORE))
+  })
+
+  after(async () => {
+    await sql?.end()
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin?.end()
+  })
+
+  const recipe = (title: string) => normalizeRecipe(parseExtraction({
+    title,
+    source_lang: 'en',
+    portions: 2,
+    totalTime: 25,
+    ingredients: [{ originalText: '200 g flour', quantity: '200 g', name: 'flour' }],
+    steps: ['Mix the 200 g flour in.'],
+  }, { type: 'text', originalText: title }))
+
+  const refuses = (write: () => Promise<unknown>, pattern: RegExp) =>
+    assert.rejects(write, (error: Error) => pattern.test(`${error.message} ${(error as { constraint_name?: string }).constraint_name ?? ''}`))
+
+  test('a tag name is one tidy line of at most 40 characters', async () => {
+    for (const name of ['', ' quick', 'quick ', 'quick  dinner', 'qu\u0000ick', 'x'.repeat(41)])
+      await refuses(() => sql`INSERT INTO tags (owner_sub, name) VALUES ('user_a', ${name})`, /check|invalid byte/i)
+    await sql`INSERT INTO tags (owner_sub, name) VALUES ('user_a', ${'x'.repeat(40)})`
+  })
+
+  test('a tag is unique per owner whatever its case, and only per owner', async () => {
+    await sql`INSERT INTO tags (owner_sub, name) VALUES ('user_a', 'Vegan')`
+    await refuses(() => sql`INSERT INTO tags (owner_sub, name) VALUES ('user_a', 'VEGAN')`, /tags_owner_name_idx/)
+    await sql`INSERT INTO tags (owner_sub, name) VALUES ('user_b', 'vegan')`
+  })
+
+  test("a line cannot wear someone else's tag", async () => {
+    const mine = await insertRecipe(db, 'user_a', recipe('Mine'))
+    const [theirs] = await sql<{ id: string }[]>`INSERT INTO tags (owner_sub, name) VALUES ('user_b', 'Theirs') RETURNING id`
+    for (const owner of ['user_a', 'user_b'])
+      await refuses(() => sql`INSERT INTO recipe_tags (line_id, tag_id, owner_sub) VALUES (${mine.id}, ${theirs!.id}, ${owner})`, /foreign key/i)
+  })
+
+  test('setting tags makes the set, A to Z, and a name already had keeps its first case', async () => {
+    const bread = await insertRecipe(db, 'user_a', recipe('Bread'))
+    assert.deepEqual(await setTags(db, 'user_a', bread.id, ['weekend', 'Baking']), ['Baking', 'weekend'])
+    const rolls = await insertRecipe(db, 'user_a', recipe('Rolls'))
+    assert.deepEqual(await setTags(db, 'user_a', rolls.id, ['BAKING']), ['Baking'])
+    assert.equal((await sql`SELECT 1 FROM tags WHERE owner_sub = 'user_a' AND lower(name) = 'baking'`).length, 1)
+    // Replacing the set drops what is not in it, and reads back from the recipe.
+    assert.deepEqual(await setTags(db, 'user_a', bread.id, ['Baking']), ['Baking'])
+    assert.deepEqual((await findRecipe(sql, 'user_a', bread.id))!.tags, ['Baking'])
+    assert.deepEqual(await setTags(db, 'user_a', bread.id, []), [])
+    assert.deepEqual((await findRecipe(sql, 'user_a', bread.id))!.tags, [])
+  })
+
+  test('every version of a line wears its tags, and a new progression joins them', async () => {
+    const root = await insertRecipe(db, 'user_a', recipe('Stew'))
+    const later = await insertProgression(db, 'user_a', root.id, recipe('Stew, again'))
+    // Set through the later version; read through the root.
+    await setTags(db, 'user_a', later!.id, ['Winter'])
+    assert.deepEqual((await findRecipe(sql, 'user_a', root.id))!.tags, ['Winter'])
+    const third = await insertProgression(db, 'user_a', root.id, recipe('Stew, a third time'))
+    assert.deepEqual(third!.tags, ['Winter'])
+    const saved = await updateRecipe(sql, 'user_a', third!.id, recipe('Stew, corrected'))
+    assert.deepEqual(saved!.tags, ['Winter'])
+    // Pinning an earlier version is still the same dish.
+    await pinRecipe(sql, 'user_a', root.id)
+    assert.deepEqual((await listRecipes(sql, 'user_a')).find(entry => entry.id === root.id)!.tags, ['Winter'])
+  })
+
+  test('a variant starts with a copy of its tags, and they are its own after', async () => {
+    const root = await insertRecipe(db, 'user_a', recipe('Curry'))
+    await setTags(db, 'user_a', root.id, ['Spicy', 'Dinner'])
+    const milder = await insertVariant(db, 'user_a', root.id, recipe('Curry, milder'))
+    assert.deepEqual(milder!.tags, ['Dinner', 'Spicy'])
+    await setTags(db, 'user_a', milder!.id, ['Dinner', 'Mild'])
+    assert.deepEqual((await findRecipe(sql, 'user_a', root.id))!.tags, ['Dinner', 'Spicy'])
+    // A variant of an untagged line starts with none.
+    const plain = await insertRecipe(db, 'user_a', recipe('Plain'))
+    assert.deepEqual((await insertVariant(db, 'user_a', plain.id, recipe('Plain, too')))!.tags, [])
+  })
+
+  test("another owner's recipe cannot be tagged, and neither can one that does not exist", async () => {
+    const mine = await insertRecipe(db, 'user_a', recipe('Private'))
+    assert.equal(await setTags(db, 'user_b', mine.id, ['Stolen']), null)
+    assert.equal(await setTags(db, 'user_a', crypto.randomUUID(), ['Nowhere']), null)
+    assert.deepEqual((await findRecipe(sql, 'user_a', mine.id))!.tags, [])
+    assert.equal((await sql`SELECT 1 FROM tags WHERE lower(name) IN ('stolen', 'nowhere')`).length, 0)
+  })
+
+  test("the list is the tags in use, with how many wear each, and only the owner's", async () => {
+    const tagged = await insertRecipe(db, 'user_c', recipe('Soup'))
+    const other = await insertRecipe(db, 'user_c', recipe('Salad'))
+    await setTags(db, 'user_c', tagged.id, ['quick', 'Lunch'])
+    await setTags(db, 'user_c', other.id, ['Quick', 'zesty'])
+    assert.deepEqual(await listTags(db, 'user_c'), [{ name: 'Lunch', count: 1 }, { name: 'quick', count: 2 }, { name: 'zesty', count: 1 }])
+    // A tag nobody wears any more is not offered.
+    await setTags(db, 'user_c', other.id, ['quick'])
+    assert.deepEqual((await listTags(db, 'user_c')).map(tag => tag.name), ['Lunch', 'quick'])
+    // Deleting a line takes its tags off with it.
+    await deleteRecipe(sql, 'user_c', tagged.id)
+    assert.deepEqual(await listTags(db, 'user_c'), [{ name: 'quick', count: 1 }])
+    assert.deepEqual(await listTags(db, 'user_d'), [])
+  })
+
+  test("a collection entry carries its line's tags", async () => {
+    const pie = await insertRecipe(db, 'user_a', recipe('Pie'))
+    await setTags(db, 'user_a', pie.id, ['Dessert'])
+    const id = (await createCollection(db, 'user_a', 'Puddings')).id
+    await addToCollection(db, 'user_a', id, pie.id)
+    assert.deepEqual((await readCollection(db, 'user_a', id))!.recipes[0]!.tags, ['Dessert'])
+  })
+
+  test('two lines taking the same new tag at once share one row', async () => {
+    const [a, b] = await Promise.all(['A', 'B'].map(title => insertRecipe(db, 'user_e', recipe(title))))
+    const [one, two] = await Promise.all([setTags(db, 'user_e', a!.id, ['Fresh']), setTags(db, 'user_e', b!.id, ['FRESH'])])
+    assert.equal(one![0]!.toLowerCase(), 'fresh')
+    assert.deepEqual(one, two)
+    assert.deepEqual(await listTags(db, 'user_e'), [{ name: one![0]!, count: 2 }])
   })
 })

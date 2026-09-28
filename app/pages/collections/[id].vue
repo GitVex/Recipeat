@@ -348,6 +348,7 @@ const recipesIn = (n: number) => `${n} recipe${n === 1 ? "" : "s"}`;
               <span class="entry-text">
                 <span class="entry-title" :class="{ untitled: !entry.title }">{{ titleOf(entry) }}</span>
                 <span class="entry-meta">{{ meta(entry).join(" · ") }}</span>
+                <TagList :tags="entry.tags" />
               </span>
             </NuxtLink>
             <span v-if="!entry.pinned && entry.pinnedId" class="order-earlier">

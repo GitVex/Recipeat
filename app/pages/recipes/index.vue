@@ -42,6 +42,7 @@ onBeforeUnmount(() => clearTimeout(timer));
         aria-label="Preview"
       >
         <RecipeBody v-if="full" :recipe="full" title-id="preview-title">
+          <TagList :tags="full.tags" />
           <NuxtLink class="button small" :to="`/recipes/${current.id}`">
             Open recipe <AppIcon name="arrow" :size="16" />
           </NuxtLink>
@@ -55,6 +56,7 @@ onBeforeUnmount(() => clearTimeout(timer));
             <h2 id="preview-title" class="detail-title" :class="{ untitled: !current.title }">
               {{ recipeTitle(current) }}
             </h2>
+            <TagList :tags="current.tags" />
             <NuxtLink class="button small" :to="`/recipes/${current.id}`">
               Open recipe <AppIcon name="arrow" :size="16" />
             </NuxtLink>
