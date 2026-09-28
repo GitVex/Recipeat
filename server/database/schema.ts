@@ -33,8 +33,27 @@ export type RecipesTable = {
   updated_at: Generated<Date>
 }
 
+export type CollectionsTable = {
+  id: Generated<string>
+  owner_sub: string
+  name: string
+  created_at: Generated<Date>
+  updated_at: Generated<Date>
+}
+
+// One version in a collection — see 002_collections.sql.
+export type CollectionRecipesTable = {
+  collection_id: string
+  recipe_id: string
+  owner_sub: string
+  position: number
+  added_at: Generated<Date>
+}
+
 export type Database = {
   recipes: RecipesTable
+  collections: CollectionsTable
+  collection_recipes: CollectionRecipesTable
 }
 
 export type RecipeRow = Selectable<RecipesTable>

@@ -618,3 +618,161 @@ describe('recipes lineage writes', { skip: url ? false : 'NUXT_DATABASE_URL is n
     assert.equal((await pinnedIn(root.lineId)).length, 1)
   })
 })
+
+// What 002_collections.sql refuses and what it does on its own. Most of it is
+// about the version a membership names: that it stays that version whatever
+// the pin does, that it has to be the collection owner's, and that it goes
+// when the version does.
+describe('collections schema', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () => {
+  const SCHEMA = 'collections_check'
+  let admin: Sql
+  let sql: Sql
+  let db: Kysely<Database>
+
+  before(async () => {
+    admin = postgres(url!, { max: 1, onnotice: () => {} })
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin`CREATE SCHEMA ${admin(SCHEMA)}`
+    sql = postgres(url!, { max: 5, onnotice: () => {}, connection: { search_path: SCHEMA } })
+    db = new Kysely<Database>({ dialect: new PostgresJSDialect({ postgres: sql }) })
+    const migrations = ['001_recipes.sql', '002_collections.sql'].map(version => ({
+      version,
+      sql: readFileSync(new URL(`../server/database/migrations/${version}`, import.meta.url), 'utf8'),
+    }))
+    assert.deepEqual(await applyMigrations(sql, migrations), ['001_recipes.sql', '002_collections.sql'])
+  })
+
+  after(async () => {
+    await sql?.end()
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin?.end()
+  })
+
+  const recipe = (title: string) => normalizeRecipe(parseExtraction({
+    title,
+    source_lang: 'en',
+    ingredients: [{ originalText: 'bread', name: 'bread' }],
+    steps: ['Toast it.'],
+  }, { type: 'text', originalText: title }))
+
+  const collection = async (owner: string, name: string) =>
+    (await sql<{ id: string }[]>`INSERT INTO collections (owner_sub, name) VALUES (${owner}, ${name}) RETURNING id`)[0]!.id
+  const add = (collectionId: string, recipeId: string, position: number, owner = 'user_a') =>
+    sql`INSERT INTO collection_recipes (collection_id, recipe_id, owner_sub, position) VALUES (${collectionId}, ${recipeId}, ${owner}, ${position})`
+  const members = async (collectionId: string) =>
+    (await sql<{ recipe_id: string }[]>`SELECT recipe_id FROM collection_recipes WHERE collection_id = ${collectionId} ORDER BY position`).map(row => row.recipe_id)
+  const refuses = (query: () => Promise<unknown>, pattern: RegExp) => assert.rejects(query, pattern)
+
+  test('a name is one trimmed line of at most 80 characters', async () => {
+    for (const name of ['', ' Weeknight', 'Weeknight ', '\tWeeknight', 'Week\nnight', 'x'.repeat(81)])
+      await refuses(() => collection('user_a', name), /check/i)
+    await collection('user_a', 'x'.repeat(80))
+  })
+
+  test('names are unique per owner, whatever their case', async () => {
+    await collection('user_a', 'Weeknight')
+    await refuses(() => collection('user_a', 'WEEKNIGHT'), /collections_owner_name_idx/)
+    // Someone else's "Weeknight" is theirs.
+    await collection('user_b', 'Weeknight')
+  })
+
+  test('updated_at moves on rename', async () => {
+    const id = await collection('user_a', 'Renamed')
+    const [before] = await sql<{ updated_at: Date }[]>`SELECT updated_at FROM collections WHERE id = ${id}`
+    await sql`UPDATE collections SET name = 'Renamed again' WHERE id = ${id}`
+    const [after] = await sql<{ updated_at: Date }[]>`SELECT updated_at FROM collections WHERE id = ${id}`
+    assert.ok(after!.updated_at.getTime() > before!.updated_at.getTime(), 'updated_at did not move')
+  })
+
+  test('a recipe can be in several collections, and once in each', async () => {
+    const bread = await insertRecipe(db, 'user_a', recipe('Bread'))
+    const [one, two] = [await collection('user_a', 'One'), await collection('user_a', 'Two')]
+    await add(one, bread.id, 0)
+    await add(two, bread.id, 0)
+    await refuses(() => add(one, bread.id, 1), /collection_recipes_pkey/)
+  })
+
+  test('a progression goes in as itself, and stays when the pin moves on', async () => {
+    const root = await insertRecipe(db, 'user_a', recipe('Soup'))
+    const later = await insertProgression(db, 'user_a', root.id, recipe('Soup, again'))
+    const id = await collection('user_a', 'Soups')
+    await add(id, later!.id, 0)
+    // A newer progression takes the pin; the collection keeps the one it had.
+    await insertProgression(db, 'user_a', later!.id, recipe('Soup, a third time'))
+    assert.deepEqual(await members(id), [later!.id])
+    // And another version of the same line can sit beside it.
+    await add(id, root.id, 1)
+    assert.deepEqual(await members(id), [later!.id, root.id])
+  })
+
+  test('a collection cannot hold someone else\'s recipe', async () => {
+    const theirs = await insertRecipe(db, 'user_b', recipe('Theirs'))
+    const mine = await collection('user_a', 'Borrowed')
+    await refuses(() => add(mine, theirs.id, 0, 'user_a'), /foreign key/i)
+    // Nor can a membership claim to be theirs to get past that.
+    await refuses(() => add(mine, theirs.id, 0, 'user_b'), /foreign key/i)
+  })
+
+  test('two recipes cannot share a place, but a reorder can swap them', async () => {
+    const [a, b] = [await insertRecipe(db, 'user_a', recipe('A')), await insertRecipe(db, 'user_a', recipe('B'))]
+    const id = await collection('user_a', 'Ordered')
+    await add(id, a.id, 0)
+    await add(id, b.id, 1)
+    // Deferred to commit, so it is the commit that refuses.
+    const c = await insertRecipe(db, 'user_a', recipe('C'))
+    await refuses(() => add(id, c.id, 1), /collection_recipes_position_key/)
+    // One row at a time, passing through a moment where both are at 0.
+    await sql.begin(async (tx) => {
+      await tx`UPDATE collection_recipes SET position = 0 WHERE collection_id = ${id} AND recipe_id = ${b.id}`
+      await tx`UPDATE collection_recipes SET position = 1 WHERE collection_id = ${id} AND recipe_id = ${a.id}`
+    })
+    assert.deepEqual(await members(id), [b.id, a.id])
+    const d = await insertRecipe(db, 'user_a', recipe('D'))
+    await refuses(() => add(id, d.id, -1), /check/i)
+  })
+
+  test('deleting a version takes it out of its collections, and its progressions with it', async () => {
+    const root = await insertRecipe(db, 'user_a', recipe('Stew'))
+    const middle = await insertProgression(db, 'user_a', root.id, recipe('Stew, again'))
+    const last = await insertProgression(db, 'user_a', middle!.id, recipe('Stew, a third time'))
+    const [one, two] = [await collection('user_a', 'Stews'), await collection('user_a', 'Winter')]
+    await add(one, root.id, 0)
+    await add(one, middle!.id, 1)
+    await add(two, last!.id, 0)
+    // Deleting the middle takes the last along, as it always has.
+    await deleteRecipe(sql, 'user_a', middle!.id)
+    assert.deepEqual(await members(one), [root.id])
+    assert.deepEqual(await members(two), [])
+  })
+
+  test('a variant outlives the version it branched off, in its collections too', async () => {
+    const root = await insertRecipe(db, 'user_a', recipe('Curry'))
+    const variant = await insertVariant(db, 'user_a', root.id, recipe('Curry, milder'))
+    const id = await collection('user_a', 'Curries')
+    await add(id, root.id, 0)
+    await add(id, variant!.id, 1)
+    await deleteRecipe(sql, 'user_a', root.id)
+    assert.deepEqual(await members(id), [variant!.id])
+  })
+
+  test('deleting a collection keeps its recipes', async () => {
+    const kept = await insertRecipe(db, 'user_a', recipe('Kept'))
+    const id = await collection('user_a', 'Doomed')
+    await add(id, kept.id, 0)
+    await sql`DELETE FROM collections WHERE id = ${id}`
+    assert.deepEqual(await members(id), [])
+    assert.ok(await findRecipe(sql, 'user_a', kept.id), 'the recipe went with its collection')
+  })
+
+  test('a collection is read in order through the position index', async () => {
+    // SET LOCAL, inside one transaction: a plain SET would land on one pooled
+    // connection and the EXPLAIN might run on another. A table this small is
+    // otherwise a sequential scan, which says nothing about the index.
+    const plan = await sql.begin(async (tx) => {
+      await tx`SET LOCAL enable_seqscan = off`
+      return (await tx<{ 'QUERY PLAN': string }[]>`EXPLAIN SELECT recipe_id FROM collection_recipes WHERE collection_id = ${crypto.randomUUID()} ORDER BY position`)
+        .map(row => row['QUERY PLAN']).join('\n')
+    })
+    assert.match(plan, /collection_recipes_position_key/, plan)
+  })
+})
