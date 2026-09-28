@@ -409,6 +409,62 @@ grouping goes.
 | 413 | The name is over 80 characters |
 | 415 | Content type is not JSON (POST and PATCH) |
 
+### `GET /api/collections/{id}`
+
+```
+GET {{app}}/api/collections/6f1e9b3c-…
+Cookie: nuxt-oidc-auth=<value>
+```
+
+Answers `{ "collection": { "id", "name", "createdAt", "updatedAt", "recipes": [ … ] } }`.
+`recipes` is in the collection's order, and each entry is the same card
+`GET /api/recipes` returns, plus two fields:
+
+- `pinned`: whether this version is still its line's pinned version
+- `pinnedId`: the version that is. It equals `id` when `pinned` is true.
+
+A collection holds the version that was added, so an entry can be an earlier
+version. The UI marks it as one and links to `pinnedId`.
+
+### `PUT /api/collections/{id}/recipes/{recipeId}`
+
+No body. Adds the version to the end of the collection and answers **204**.
+Adding one that is already there also answers 204, and moves nothing.
+
+### `DELETE /api/collections/{id}/recipes/{recipeId}`
+
+No body. Takes the version out of the collection and answers **204**. The
+recipe itself stays. Removing one that is not there also answers 204.
+
+### `PUT /api/collections/{id}/order`
+
+```
+PUT {{app}}/api/collections/6f1e9b3c-…/order
+Content-Type: application/json
+Cookie: nuxt-oidc-auth=<value>
+
+{ "recipeIds": ["…", "…"] }
+```
+
+Sets the whole order, first to last, and answers with the collection as `GET`
+does. The list must be exactly the collection's current members. A list
+missing one, with an extra, or naming one that is not in the collection is a
+**409** and changes nothing: read the collection again and retry.
+
+| Status | Meaning |
+|---|---|
+| 400 | An id is not a UUID; `recipeIds` is not an array or names a recipe twice |
+| 404 | No such collection, or no such recipe (for `PUT …/recipes/{recipeId}`), or not yours |
+| 409 | The order is not exactly the current members |
+| 413 | More than 1 000 ids in `recipeIds` |
+| 415 | Content type is not JSON (the order) |
+
+### `GET /api/recipes/{id}/collections`
+
+Answers `{ "collections": ["…", …] }`: the ids of every collection this
+version is in, for the ticks in the picker. **404** if the recipe does not
+exist or is not yours.
+
 ### Auth routes
 
 Browser flows, listed so they are not mistaken for API endpoints. Following

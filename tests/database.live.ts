@@ -8,7 +8,7 @@ import { applyMigrations } from '../server/database/migrate.ts'
 import type { Database } from '../server/database/schema.ts'
 import { normalizeRecipe, parseExtraction } from '../server/utils/extraction.ts'
 import { deleteRecipe, findRecipe, insertProgression, insertRecipe, insertVariant, listRecipes, pinRecipe, readHistory, updateRecipe } from '../server/recipes/store.ts'
-import { createCollection, deleteCollection, listCollections, renameCollection } from '../server/collections/store.ts'
+import { addToCollection, collectionsContaining, createCollection, deleteCollection, listCollections, readCollection, removeFromCollection, renameCollection, reorderCollection } from '../server/collections/store.ts'
 
 // The half of the runner that needs a database. Everything here happens inside
 // a schema of its own, so a development database keeps its own
@@ -891,5 +891,137 @@ describe('collections store', { skip: url ? false : 'NUXT_DATABASE_URL is not se
     assert.equal(await deleteCollection(db, 'user_a', id), false)
     assert.ok(await findRecipe(sql, 'user_a', kept.id))
     assert.equal((await listCollections(db, 'user_a')).some(c => c.id === id), false)
+  })
+})
+
+// Adding, removing and ordering in #69, and reading a collection back.
+describe('collection membership', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () => {
+  const SCHEMA = 'collection_membership_check'
+  let admin: Sql
+  let sql: Sql
+  let db: Kysely<Database>
+
+  before(async () => {
+    admin = postgres(url!, { max: 1, onnotice: () => {} })
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin`CREATE SCHEMA ${admin(SCHEMA)}`
+    sql = postgres(url!, { max: 10, onnotice: () => {}, connection: { search_path: SCHEMA } })
+    db = new Kysely<Database>({ dialect: new PostgresJSDialect({ postgres: sql }) })
+    await applyMigrations(sql, ['001_recipes.sql', '002_collections.sql'].map(version => ({
+      version,
+      sql: readFileSync(new URL(`../server/database/migrations/${version}`, import.meta.url), 'utf8'),
+    })))
+  })
+
+  after(async () => {
+    await sql?.end()
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin?.end()
+  })
+
+  const recipe = (title: string) => normalizeRecipe(parseExtraction({
+    title,
+    source_lang: 'en',
+    portions: 2,
+    ingredients: [{ originalText: 'bread', name: 'bread' }, { originalText: 'butter', name: 'butter' }],
+    steps: ['Toast it.'],
+  }, { type: 'text', originalText: title }))
+  const status = (statusCode: number) => (error: unknown) => (error as { statusCode: number }).statusCode === statusCode
+  const titles = async (id: string) => (await readCollection(db, 'user_a', id))!.recipes.map(entry => entry.title)
+
+  test('added versions go on the end, and come back as cards', async () => {
+    const id = (await createCollection(db, 'user_a', 'Breakfast')).id
+    const [toast, eggs] = [await insertRecipe(db, 'user_a', recipe('Toast')), await insertRecipe(db, 'user_a', recipe('Eggs'))]
+    assert.equal(await addToCollection(db, 'user_a', id, toast.id), 'added')
+    assert.equal(await addToCollection(db, 'user_a', id, eggs.id), 'added')
+    const opened = await readCollection(db, 'user_a', id)
+    assert.equal(opened!.name, 'Breakfast')
+    assert.deepEqual(opened!.recipes.map(entry => entry.title), ['Toast', 'Eggs'])
+    // The listing's card, whole, plus where the line stands.
+    const [first] = opened!.recipes
+    assert.deepEqual(first, { ...(await listRecipes(sql, 'user_a')).find(card => card.id === toast.id)!, pinned: true, pinnedId: toast.id })
+    assert.equal(first!.ingredientCount, 2)
+  })
+
+  test('adding twice changes nothing', async () => {
+    const id = (await createCollection(db, 'user_a', 'Twice')).id
+    const [a, b] = [await insertRecipe(db, 'user_a', recipe('A')), await insertRecipe(db, 'user_a', recipe('B'))]
+    await addToCollection(db, 'user_a', id, a.id)
+    await addToCollection(db, 'user_a', id, b.id)
+    assert.equal(await addToCollection(db, 'user_a', id, a.id), 'present')
+    assert.deepEqual(await titles(id), ['A', 'B'])
+  })
+
+  test('an earlier version stays itself, and says which is newer', async () => {
+    const id = (await createCollection(db, 'user_a', 'Curries')).id
+    const first = await insertRecipe(db, 'user_a', recipe('Curry'))
+    await addToCollection(db, 'user_a', id, first.id)
+    const later = await insertProgression(db, 'user_a', first.id, recipe('Curry, milder'))
+    // And the newer one can sit beside it.
+    await addToCollection(db, 'user_a', id, later!.id)
+    const [old, current] = (await readCollection(db, 'user_a', id))!.recipes
+    assert.deepEqual([old!.title, old!.pinned, old!.pinnedId], ['Curry', false, later!.id])
+    assert.deepEqual([current!.title, current!.pinned, current!.pinnedId], ['Curry, milder', true, later!.id])
+  })
+
+  test('someone else\'s recipe, or collection, is not found', async () => {
+    const mine = (await createCollection(db, 'user_a', 'Mine')).id
+    const theirs = await insertRecipe(db, 'user_b', recipe('Theirs'))
+    const theirCollection = (await createCollection(db, 'user_b', 'Theirs')).id
+    const toast = await insertRecipe(db, 'user_a', recipe('Mine'))
+    // Their recipe fails at the foreign key, and says so as a missing recipe.
+    assert.equal(await addToCollection(db, 'user_a', mine, theirs.id), 'recipe')
+    assert.equal(await addToCollection(db, 'user_a', mine, crypto.randomUUID()), 'recipe')
+    assert.equal(await addToCollection(db, 'user_a', theirCollection, toast.id), 'collection')
+    assert.equal(await readCollection(db, 'user_a', theirCollection), null)
+    assert.equal(await removeFromCollection(db, 'user_a', theirCollection, toast.id), false)
+    assert.equal(await reorderCollection(db, 'user_a', theirCollection, []), null)
+    assert.deepEqual(await titles(mine), [])
+  })
+
+  test('two adds at once take two places, not one', async () => {
+    const id = (await createCollection(db, 'user_a', 'Racing')).id
+    const saved = await Promise.all(['One', 'Two', 'Three', 'Four'].map(title => insertRecipe(db, 'user_a', recipe(title))))
+    const results = await Promise.all(saved.map(each => addToCollection(db, 'user_a', id, each.id)))
+    assert.deepEqual(results, ['added', 'added', 'added', 'added'])
+    const positions = (await sql<{ position: number }[]>`SELECT position FROM collection_recipes WHERE collection_id = ${id} ORDER BY position`).map(row => row.position)
+    assert.deepEqual(positions, [0, 1, 2, 3])
+  })
+
+  test('removing leaves the recipe, and removing twice is fine', async () => {
+    const id = (await createCollection(db, 'user_a', 'Removing')).id
+    const [a, b] = [await insertRecipe(db, 'user_a', recipe('Stays')), await insertRecipe(db, 'user_a', recipe('Goes'))]
+    await addToCollection(db, 'user_a', id, a.id)
+    await addToCollection(db, 'user_a', id, b.id)
+    assert.equal(await removeFromCollection(db, 'user_a', id, b.id), true)
+    assert.equal(await removeFromCollection(db, 'user_a', id, b.id), true)
+    assert.deepEqual(await titles(id), ['Stays'])
+    assert.ok(await findRecipe(sql, 'user_a', b.id))
+    // The gap it left does not stop the next one going on the end.
+    await addToCollection(db, 'user_a', id, b.id)
+    assert.deepEqual(await titles(id), ['Stays', 'Goes'])
+  })
+
+  test('a reorder applies the whole order, and anything else is a 409 that changes nothing', async () => {
+    const id = (await createCollection(db, 'user_a', 'Ordering')).id
+    const [a, b, c] = await Promise.all(['A', 'B', 'C'].map(title => insertRecipe(db, 'user_a', recipe(title))))
+    for (const each of [a, b, c]) await addToCollection(db, 'user_a', id, each!.id)
+    const reordered = await reorderCollection(db, 'user_a', id, [c!.id, a!.id, b!.id])
+    assert.deepEqual(reordered!.recipes.map(entry => entry.title), ['C', 'A', 'B'])
+    // Missing one, one too many, or one that is not a member.
+    for (const order of [[c!.id, a!.id], [c!.id, a!.id, b!.id, crypto.randomUUID()], [c!.id, a!.id, crypto.randomUUID()]])
+      await assert.rejects(() => reorderCollection(db, 'user_a', id, order), status(409))
+    assert.deepEqual(await titles(id), ['C', 'A', 'B'])
+  })
+
+  test('which collections a version is in, and only for its owner', async () => {
+    const [one, two] = [(await createCollection(db, 'user_a', 'Picker one')).id, (await createCollection(db, 'user_a', 'Picker two')).id]
+    const toast = await insertRecipe(db, 'user_a', recipe('Picked'))
+    assert.deepEqual(await collectionsContaining(db, 'user_a', toast.id), [])
+    await addToCollection(db, 'user_a', one, toast.id)
+    await addToCollection(db, 'user_a', two, toast.id)
+    assert.deepEqual((await collectionsContaining(db, 'user_a', toast.id))!.sort(), [one, two].sort())
+    assert.equal(await collectionsContaining(db, 'user_b', toast.id), null)
+    assert.equal(await collectionsContaining(db, 'user_a', crypto.randomUUID()), null)
   })
 })
