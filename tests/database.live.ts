@@ -7,7 +7,7 @@ import { PostgresJSDialect } from 'kysely-postgres-js'
 import { applyMigrations } from '../server/database/migrate.ts'
 import type { Database } from '../server/database/schema.ts'
 import { normalizeRecipe, parseExtraction } from '../server/utils/extraction.ts'
-import { deleteRecipe, findRecipe, insertProgression, insertRecipe, insertVariant, listRecipes, updateRecipe } from '../server/recipes/store.ts'
+import { deleteRecipe, findRecipe, insertProgression, insertRecipe, insertVariant, listRecipes, pinRecipe, readHistory, updateRecipe } from '../server/recipes/store.ts'
 import { createCollection, deleteCollection, listCollections, renameCollection } from '../server/collections/store.ts'
 
 // The half of the runner that needs a database. Everything here happens inside
