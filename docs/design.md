@@ -193,6 +193,7 @@ pointer would otherwise reveal.
 | Recipe | `/recipes/:id` | The list folded to a rail of pictures, the recipe in the room it leaves |
 | Lineage | `/recipes/:id/lineage` | Full width: a recipe's versions as a tree |
 | Collections | `/collections` | Full width and quiet: a search bar, then a card per collection, its first four recipes as a 2×2 mosaic |
+| Collection | `/collections/:id` | One column: the recipes in their order, a row each, dragged by a handle or moved by buttons |
 | Profile | `/profile` | Who is signed in, and what they have kept |
 
 Laid over any of them: the import dialog; the recipe dialog, for samples and

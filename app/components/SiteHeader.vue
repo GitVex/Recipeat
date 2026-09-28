@@ -141,11 +141,12 @@ const countOf = (n: number) => `${n} recipe${n === 1 ? "" : "s"}`;
               <p v-else-if="!listed.length" class="nav-collections-state">
                 No collections yet. Add a recipe to one from its page.
               </p>
-              <!-- Not links yet: opening one collection is #72. -->
               <ul v-else class="nav-collections-list">
                 <li v-for="collection in listed.slice(0, SHOWN)" :key="collection.id">
-                  <span class="nav-collection-name">{{ collection.name }}</span>
-                  <span class="nav-collection-count">{{ countOf(collection.count) }}</span>
+                  <NuxtLink class="nav-collection" :to="`/collections/${collection.id}`">
+                    <span class="nav-collection-name">{{ collection.name }}</span>
+                    <span class="nav-collection-count">{{ countOf(collection.count) }}</span>
+                  </NuxtLink>
                 </li>
                 <li v-if="listed.length > SHOWN" class="nav-collections-more">
                   and {{ listed.length - SHOWN }} more

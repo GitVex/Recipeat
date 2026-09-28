@@ -245,7 +245,11 @@ test('by keyboard: focus opens it, Tab walks into it, Escape closes it', async (
   await expect(panel(page)).toBeVisible()
   await page.keyboard.press('Tab')
   await expect(nav(page).getByRole('button', { name: 'Your collections' })).toBeFocused()
+  // Each collection, then the whole page.
   await page.keyboard.press('Tab')
+  await expect(panel(page).getByRole('link', { name: /Weeknight/ })).toBeFocused()
+  await expect(panel(page).getByRole('link', { name: /Weeknight/ })).toHaveAttribute('href', `/collections/${weeknight.id}`)
+  for (let i = 0; i < 3; i++) await page.keyboard.press('Tab')
   await expect(panel(page).getByRole('link', { name: 'All collections' })).toBeFocused()
   await page.keyboard.press('Escape')
   await expect(panel(page)).toBeHidden()

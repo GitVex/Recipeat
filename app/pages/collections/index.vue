@@ -3,11 +3,13 @@ import type { CollectionSummary } from "#shared/types/collection";
 
 // The collections (#71): a quiet page, a search bar on top, and a card for
 // each collection with the first four recipes in it. Made, renamed and
-// deleted from here; filled from a recipe, through the picker (#70).
+// deleted from here; filled from a recipe, through the picker (#70), and
+// opened and ordered on its own page (#72).
 const { login } = useOidcAuth();
 const { notify } = useToast();
 const { data, error, status, refresh } = useCollectionList();
 const list = useCollectionListCache();
+const writes = useCollectionWrites();
 
 const collections = computed(() => data.value?.collections ?? []);
 const failure = computed(() => (error.value ? failureOf(error.value.statusCode) : null));
@@ -21,18 +23,6 @@ const shown = computed(() => {
   const wanted = fold(query.value.trim());
   return wanted ? collections.value.filter((c) => fold(c.name).includes(wanted)) : collections.value;
 });
-
-// What a name the server refused means to a person.
-const nameProblem = (status: number | undefined, name: string) =>
-  status === 409
-    ? `You already have a collection called “${name}”.`
-    : status === 413
-      ? "That name is too long. Keep it under 80 characters."
-      : status === 400
-        ? "A collection needs a name, on one line."
-        : status === 401
-          ? "Your session ended. Sign in again to change your collections."
-          : "That didn’t work. Try again.";
 
 // ── Making one ─────────────────────────────────────────────────────────────
 
@@ -65,7 +55,7 @@ async function create() {
     // A search that would hide the new one is cleared, so it can be seen.
     if (!fold(name).includes(fold(query.value.trim()))) query.value = "";
   } catch (error) {
-    createProblem.value = nameProblem((error as { statusCode?: number }).statusCode, name);
+    createProblem.value = collectionNameProblem((error as { statusCode?: number }).statusCode, name);
   } finally {
     creating.value = false;
   }
@@ -100,17 +90,10 @@ async function rename(collection: CollectionSummary) {
   renamePending.value = true;
   renameProblem.value = null;
   try {
-    const { collection: renamed } = await $fetch<{ collection: { name: string; updatedAt: string } }>(
-      `/api/collections/${collection.id}`,
-      { method: "PATCH", body: { name }, retry: 0 },
-    );
-    if (data.value)
-      data.value = {
-        collections: data.value.collections.map((c) => (c.id === collection.id ? { ...c, ...renamed } : c)),
-      };
+    await writes.rename(collection.id, name);
     await stopRename(collection);
   } catch (error) {
-    renameProblem.value = nameProblem((error as { statusCode?: number }).statusCode, name);
+    renameProblem.value = collectionNameProblem((error as { statusCode?: number }).statusCode, name);
   } finally {
     renamePending.value = false;
   }
@@ -139,18 +122,12 @@ async function confirmDelete() {
   if (!collection || deletePending.value) return;
   deletePending.value = true;
   try {
-    await $fetch(`/api/collections/${collection.id}`, { method: "DELETE", retry: 0 });
-  } catch (error) {
-    // Already gone is what was asked for.
-    if ((error as { statusCode?: number }).statusCode !== 404) {
-      deleteProblem.value = "It couldn’t be deleted. Try again.";
-      deletePending.value = false;
-      return;
-    }
+    await writes.remove(collection.id);
+  } catch {
+    deleteProblem.value = "It couldn’t be deleted. Try again.";
+    deletePending.value = false;
+    return;
   }
-  if (data.value)
-    data.value = { collections: data.value.collections.filter((c) => c.id !== collection.id) };
-  list.forget(collection.id);
   deletePending.value = false;
   deleting.value = null;
   notify(`“${collection.name}” is gone. Its recipes are still in My recipes`);
@@ -255,8 +232,16 @@ useHead({ title: "Your collections — Recipeat" });
       <ul v-if="shown.length" class="collections-grid">
         <li v-for="collection in shown" :key="collection.id" class="collection-card">
           <!-- The first four in the collection's order. Fewer than four leaves
-               quiet tiles, and none leaves one mark, never holes. -->
-          <div class="collection-mosaic" :class="{ empty: !collection.count }" aria-hidden="true">
+               quiet tiles, and none leaves one mark, never holes. The picture
+               opens it as the name does, for a pointer; the name is the one
+               way in for the keyboard. -->
+          <NuxtLink
+            class="collection-mosaic"
+            :class="{ empty: !collection.count }"
+            :to="`/collections/${collection.id}`"
+            tabindex="-1"
+            aria-hidden="true"
+          >
             <template v-if="collection.count">
               <span v-for="index in 4" :key="index" class="mosaic-cell">
                 <RecipeThumb
@@ -267,7 +252,7 @@ useHead({ title: "Your collections — Recipeat" });
               </span>
             </template>
             <AppIcon v-else name="bookmark" :size="28" />
-          </div>
+          </NuxtLink>
 
           <form
             v-if="renaming === collection.id"
@@ -294,7 +279,9 @@ useHead({ title: "Your collections — Recipeat" });
             <p v-if="renameProblem" class="edit-bar-problem" role="alert">{{ renameProblem }}</p>
           </form>
           <template v-else>
-            <h2 class="collection-card-name">{{ collection.name }}</h2>
+            <h2 class="collection-card-name">
+              <NuxtLink :to="`/collections/${collection.id}`">{{ collection.name }}</NuxtLink>
+            </h2>
             <div class="collection-card-footer">
               <span class="collection-card-count">{{ recipesIn(collection.count) }}</span>
               <div :id="`actions-${collection.id}`" class="collection-card-actions">
