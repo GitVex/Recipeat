@@ -89,3 +89,13 @@ export type RecipeSummary = Pick<SavedRecipe, 'id' | 'title' | 'image' | 'totalT
   ingredientCount: number
   stepCount: number
 }
+
+// What a deletion took, or would take. `ids` is the version asked for and
+// every progression descended from it; `pinned` is the version the surviving
+// line is entered by afterwards — its parent when the pin was among them —
+// and null when the line ended with it.
+export type RecipeDeletion = {
+  count: number
+  ids: string[]
+  pinned: string | null
+}

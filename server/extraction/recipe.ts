@@ -8,10 +8,10 @@ import type { ExtractedRecipe, Ingredient, Quantity, RecipeSource } from '../../
 export type { ExtractedRecipe, Ingredient, Quantity, QuantityKind, RecipeSource, Step, StepPart, StepQuantity, Unit } from '../../shared/types/recipe.ts'
 
 // Storage limits. The response schema cannot express them, so they are
-// applied here, on the way from model output to stored document.
-// totalTime is in minutes, capped at a month: a cured ham is days, nothing is
-// longer, and a site that says otherwise is reporting something else.
-export const LIMITS = { title: 300, ingredient: 2000, quantity: 100, extra: 500, ingredients: 200, step: 5000, steps: 100, totalTime: 60 * 24 * 30 }
+// applied here, on the way from model output to stored document. They live in
+// shared/ because the editor enforces the same ones while a person types.
+import { LIMITS } from '../../shared/utils/recipeLimits.ts'
+export { LIMITS }
 
 // What the model is asked for. Untrusted until parseExtraction has run.
 export type IngredientDraft = {

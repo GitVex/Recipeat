@@ -13,7 +13,12 @@ const paths: Record<string, string> = {
   text: 'M4 4h16M12 4v16M8 20h8',
   leaf: 'M20 3C7 2 1 8 5 16c8 5 16-1 15-13M3 21 15 9',
   heart: 'M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8',
-  menu: 'M4 6h16M4 12h16M4 18h16'
+  menu: 'M4 6h16M4 12h16M4 18h16',
+  up: 'm6 15 6-6 6 6',
+  down: 'm6 9 6 6 6-6',
+  plus: 'M12 5v14M5 12h14',
+  minus: 'M5 12h14',
+  trash: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3'
 }
 </script>
 <template><svg :width="size || 20" :height="size || 20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path :d="paths[name] || paths.sparkle" /></svg></template>

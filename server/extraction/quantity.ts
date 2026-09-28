@@ -78,7 +78,7 @@ export const isUnit = (value: unknown): value is Unit =>
 
 function resolveUnit(text: string, value: number): Unit | null {
   const ambiguous = AMBIGUOUS[key(text)]
-  if (ambiguous && !text.includes('°')) return value >= TEMPERATURE_FLOOR ? ambiguous[0] : ambiguous[1]
+  if (ambiguous) return text.includes('°') || value >= TEMPERATURE_FLOOR ? ambiguous[0] : ambiguous[1]
   return unitInfo(text)?.[0] ?? null
 }
 

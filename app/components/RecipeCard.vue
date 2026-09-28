@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import type { ShelfRecipe } from "~/data/recipes";
-defineProps<{ recipe: ShelfRecipe; saved: boolean }>();
-const emit = defineEmits<{
-  select: [recipe: ShelfRecipe];
-  save: [recipe: ShelfRecipe];
-}>();
+defineProps<{ recipe: ShelfRecipe }>();
+const emit = defineEmits<{ select: [recipe: ShelfRecipe] }>();
 </script>
 
 <template>
@@ -25,15 +22,7 @@ const emit = defineEmits<{
         ><AppIcon :name="SOURCE_ICON[recipe.source.type]" :size="13" />{{
           SOURCE_LABEL[recipe.source.type]
         }}</span
-      ><button
-        class="save-button"
-        :class="{ saved: saved }"
-        :aria-label="`${saved ? 'Unsave' : 'Save'} ${recipeTitle(recipe)}`"
-        :aria-pressed="saved"
-        @click="emit('save', recipe)"
       >
-        <AppIcon :name="saved ? 'check' : 'bookmark'" :size="18" />
-      </button>
     </div>
     <div class="recipe-info">
       <button class="recipe-title" @click="emit('select', recipe)">

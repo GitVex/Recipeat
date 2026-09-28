@@ -1,0 +1,165 @@
+import assert from 'node:assert/strict'
+import { test } from 'node:test'
+import { normalizeRecipe, parseExtraction } from '../server/utils/extraction.ts'
+import {
+  convertQuantity, formatQuantity, hasConvertible, ingredientText, partText, recipeSystem, resolveUnit, stepTexts,
+  type UnitSystem,
+} from '../shared/utils/recipeText.ts'
+import type { Ingredient, Quantity, Step } from '../shared/types/recipe.ts'
+
+// What the recipe page prints, from recipes built the way extraction builds
+// them: a draft through parseExtraction and normalizeRecipe.
+const textSource = { type: 'text', originalText: 'source' } as const
+const build = (draft: Record<string, unknown>) =>
+  normalizeRecipe(parseExtraction(structuredClone({ title: 'T', source_lang: 'en', portions: 2, ingredients: [], steps: [], ...draft }), textSource))
+
+const stepText = (recipe: ReturnType<typeof build>, index: number, system: UnitSystem = recipeSystem(recipe)) => {
+  const byId = new Map<string, Ingredient>(recipe.ingredients.map(ingredient => [ingredient.id, ingredient]))
+  const step = recipe.steps[index]!
+  const { number, parts } = stepTexts(recipe.steps)[index]!
+  return { number, text: parts.map(part => partText(part, step, byId, recipe.source_lang, system).text).join('') }
+}
+
+const q = (value: number, unit: Quantity['unit'], maxValue: number | null = null): Quantity => ({ value, maxValue, unit })
+const shown = (quantity: Quantity, lang: string, system: UnitSystem) => formatQuantity(convertQuantity(quantity, lang, system), lang)
+
+test('amounts print in the notation their unit is measured in', () => {
+  assert.equal(formatQuantity(q(1.5, 'cup'), 'en'), '1½ cups')
+  assert.equal(formatQuantity(q(0.25, 'tsp'), 'en'), '¼ tsp')
+  assert.equal(formatQuantity(q(1.2, 'kg'), 'de'), '1,2 kg')
+  assert.equal(formatQuantity(q(2, 'count', 3), 'en'), '2–3')
+  assert.equal(formatQuantity(q(180, 'celsius'), 'en'), '180 °C')
+  assert.equal(formatQuantity(q(1, 'cup'), 'en'), '1 cup')
+  assert.equal(formatQuantity(q(1.5, 'hour', 2.5), 'en'), '1½–2½ h')
+  // A language the runtime cannot format in falls back rather than throwing.
+  assert.equal(formatQuantity(q(1.25, 'g'), 'und'), '1.25 g')
+})
+
+test('an ambiguous unit is resolved from the recipe’s language', () => {
+  assert.equal(resolveUnit('cup', 'en'), 'cup_us')
+  assert.equal(resolveUnit('cup', 'en-US'), 'cup_us')
+  assert.equal(resolveUnit('cup', 'en-GB'), 'cup_metric')
+  assert.equal(resolveUnit('tbsp', 'en-AU'), 'tbsp_au')
+  assert.equal(resolveUnit('tsp', 'de'), 'tsp_metric')
+  assert.equal(resolveUnit('fl_oz', 'en-GB'), 'fl_oz_imperial')
+  assert.equal(resolveUnit('g', 'en'), 'g')
+})
+
+test('imperial amounts read as metric ones, rounded the way a kitchen measures', () => {
+  assert.equal(shown(q(4, 'lb'), 'en', 'metric'), '1.8 kg')
+  assert.equal(shown(q(8, 'oz'), 'en', 'metric'), '225 g')
+  assert.equal(shown(q(1.5, 'cup'), 'en', 'metric'), '355 ml')
+  assert.equal(shown(q(1, 'cup'), 'en-GB', 'metric'), '250 ml')
+  assert.equal(shown(q(350, 'fahrenheit'), 'en', 'metric'), '175 °C')
+  assert.equal(shown(q(0.25, 'inch'), 'en', 'metric'), '6.4 mm')
+  // Both ends of a range in the same unit, chosen by the larger.
+  assert.equal(shown(q(2, 'lb', 3), 'en', 'metric'), '0.9–1.35 kg')
+})
+
+test('metric amounts read as imperial ones, in fractions a measuring cup has', () => {
+  assert.equal(shown(q(1.2, 'kg'), 'de', 'imperial'), '2¾ lb')
+  assert.equal(shown(q(120, 'g'), 'de', 'imperial'), '4¼ oz')
+  assert.equal(shown(q(200, 'ml'), 'de', 'imperial'), '¾ cup')
+  assert.equal(shown(q(500, 'ml'), 'de', 'imperial'), '2 cups')
+  assert.equal(shown(q(30, 'ml'), 'de', 'imperial'), '2 tbsp')
+  assert.equal(shown(q(5, 'ml'), 'de', 'imperial'), '1 tsp')
+  assert.equal(shown(q(180, 'celsius'), 'de', 'imperial'), '355 °F')
+  assert.equal(shown(q(13, 'mm'), 'en', 'imperial'), '½ in')
+})
+
+test('spoons, times and counts are the same in both systems', () => {
+  for (const system of ['metric', 'imperial'] as const) {
+    assert.equal(shown(q(2, 'tbsp'), 'en', system), '2 tbsp')
+    assert.equal(shown(q(0.5, 'tsp'), 'de', system), '½ tsp')
+    assert.equal(shown(q(20, 'minute'), 'en', system), '20 min')
+    assert.equal(shown(q(3, 'count'), 'en', system), '3')
+  }
+  // Already in the system asked for: untouched, not re-rounded.
+  assert.equal(shown(q(123, 'g'), 'de', 'metric'), '123 g')
+})
+
+test('a recipe starts in the system it was written in, and knows when there is nothing to switch', () => {
+  const american = build({ ingredients: [{ originalText: '2 cups flour', quantity: '2 cups', name: 'flour' }, { originalText: '1 lb butter', quantity: '1 lb', name: 'butter' }] })
+  assert.equal(recipeSystem(american), 'imperial')
+  assert.equal(hasConvertible(american), true)
+
+  const german = build({ source_lang: 'de', ingredients: [{ originalText: '1,2 kg Hähnchenfilet', quantity: '1,2 kg', name: 'Hähnchenfilet' }] })
+  assert.equal(recipeSystem(german), 'metric')
+
+  // Spoons alone: switching would change nothing, and the language decides.
+  const spoons = build({ source_lang: 'en-GB', ingredients: [{ originalText: '2 tbsp oil', quantity: '2 tbsp', name: 'oil' }] })
+  assert.equal(hasConvertible(spoons), false)
+  assert.equal(recipeSystem(spoons), 'metric')
+})
+
+test('an ingredient prints its amount in the chosen system, and an unknown unit as written', () => {
+  const recipe = build({
+    source_lang: 'de',
+    ingredients: [
+      { originalText: '1,2 kg Hähnchenfilet', quantity: '1,2 kg', name: 'Hähnchenfilet' },
+      { originalText: '4 TL Rapsöl', quantity: '4 TL', name: 'Rapsöl' },
+      { originalText: '1 Zwiebel, fein gewürfelt', quantity: '1', name: 'Zwiebel', extra: 'fein gewürfelt' },
+    ],
+  })
+  const [chicken, oil, onion] = recipe.ingredients.map(ingredient => ingredientText(ingredient, 'de', 'metric'))
+  assert.deepEqual(chicken, { amount: '1,2 kg', name: 'Hähnchenfilet', extra: null, unscaled: false })
+  // "TL" is not a unit the parser knows, and dropping it would leave "4 Rapsöl".
+  assert.equal(oil!.amount, '4 TL')
+  assert.deepEqual(onion, { amount: '1', name: 'Zwiebel', extra: 'fein gewürfelt', unscaled: false })
+  assert.equal(ingredientText(recipe.ingredients[0]!, 'de', 'imperial').amount, '2¾ lb')
+  assert.equal(ingredientText(recipe.ingredients[1]!, 'de', 'imperial').amount, '4 TL')
+})
+
+test('a step prints from its parts, and a restated amount comes from its ingredient', () => {
+  const recipe = build({
+    ingredients: [{ originalText: '2 cups flour', quantity: '2 cups', name: 'flour' }],
+    steps: ['Whisk 2 cups flour with 1/2 tsp salt, then bake at 350 °F for 20 min.'],
+  })
+  assert.equal(stepText(recipe, 0).text, 'Whisk 2 cups flour with ½ tsp salt, then bake at 350 °F for 20 min.')
+  assert.equal(stepText(recipe, 0, 'metric').text, 'Whisk 475 ml flour with ½ tsp salt, then bake at 175 °C for 20 min.')
+
+  // The ingredient is the one place the amount lives: change it, and the step
+  // follows. This is what #44 rescales.
+  recipe.ingredients[0]!.quantity = q(3, 'cup')
+  assert.match(stepText(recipe, 0).text, /^Whisk 3 cups flour/)
+})
+
+test('a source’s own numbering is shown once, and unnumbered steps do not take a number', () => {
+  const recipe = build({
+    source_lang: 'de',
+    steps: [
+      'Marinade: Jogurt mit Gewürzen vermengen.',
+      '1. Fleisch in Marinade legen.',
+      '2. Zwiebeln anbraten.',
+      'Mit Reis: 1 Tasse Reis kochen.',
+    ],
+  })
+  assert.deepEqual(
+    recipe.steps.map((_, index) => stepText(recipe, index)),
+    [
+      { number: null, text: 'Marinade: Jogurt mit Gewürzen vermengen.' },
+      { number: 1, text: 'Fleisch in Marinade legen.' },
+      { number: 2, text: 'Zwiebeln anbraten.' },
+      { number: null, text: 'Mit Reis: 1 Tasse Reis kochen.' },
+    ],
+  )
+})
+
+test('steps the source did not number are counted, and an amount is not a step number', () => {
+  const recipe = build({ steps: ['1.5 kg flour into a bowl.', 'Step 2 is not numbered like this either.', 'Knead.'] })
+  assert.deepEqual(stepTexts(recipe.steps).map(step => step.number), [1, 2, 3])
+  assert.equal(stepText(recipe, 0, 'metric').text, '1.5 kg flour into a bowl.')
+
+  const labelled = build({ steps: ['Step 1: Mix.', 'Schritt 2. Rühren.', '3) Bake.'] })
+  assert.deepEqual([0, 1, 2].map(index => stepText(labelled, index)), [
+    { number: 1, text: 'Mix.' },
+    { number: 2, text: 'Rühren.' },
+    { number: 3, text: 'Bake.' },
+  ])
+})
+
+test('a step that is only its number, or a reference to nothing, does not break', () => {
+  const step: Step = { id: 'step_1', originalText: '1.', parts: [{ type: 'text', value: '1.' }], quantities: {} }
+  assert.deepEqual(stepTexts([step]), [{ number: 1, parts: [] }])
+  assert.equal(partText({ type: 'ingredientQuantity', ingredientId: 'ingredient_9' }, step, new Map(), 'en', 'metric').text, '')
+})

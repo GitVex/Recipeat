@@ -7,7 +7,7 @@ import { PostgresJSDialect } from 'kysely-postgres-js'
 import { applyMigrations } from '../server/database/migrate.ts'
 import type { Database } from '../server/database/schema.ts'
 import { normalizeRecipe, parseExtraction } from '../server/utils/extraction.ts'
-import { findRecipe, insertProgression, insertRecipe, insertVariant, listRecipes, updateRecipe } from '../server/recipes/store.ts'
+import { deleteRecipe, findRecipe, insertProgression, insertRecipe, insertVariant, listRecipes, updateRecipe } from '../server/recipes/store.ts'
 
 // The half of the runner that needs a database. Everything here happens inside
 // a schema of its own, so a development database keeps its own
@@ -422,5 +422,94 @@ describe('recipes lineage writes', { skip: url ? false : 'NUXT_DATABASE_URL is n
     for (const result of results) {
       if (result.status === 'rejected') assert.equal((result.reason as { statusCode: number }).statusCode, 409)
     }
+  })
+
+  const exists = async (id: string) => (await findRecipe(sql, 'user_a', id)) !== null
+
+  test('deleting the pinned leaf hands the pin back to its parent', async () => {
+    const root = await insertRecipe(db, 'user_a', recipe('Ragu'))
+    const second = await insertProgression(db, 'user_a', root.id, recipe('Ragu, longer'))
+    const deletion = await deleteRecipe(sql, 'user_a', second!.id)
+    assert.deepEqual(deletion, { count: 1, ids: [second!.id], pinned: root.id })
+    assert.deepEqual((await pinnedIn(root.lineId)).map(row => row.id), [root.id])
+  })
+
+  test('a deletion takes its progressions and spares its variants', async () => {
+    const root = await insertRecipe(db, 'user_a', recipe('Curry'))
+    const second = await insertProgression(db, 'user_a', root.id, recipe('Curry, hotter'))
+    const variant = await insertVariant(db, 'user_a', second!.id, recipe('Curry, vegetable'))
+    const third = await insertProgression(db, 'user_a', second!.id, recipe('Curry, hotter still'))
+    const fourth = await insertProgression(db, 'user_a', third!.id, recipe('Curry, hottest'))
+
+    const deletion = await deleteRecipe(sql, 'user_a', second!.id)
+    assert.equal(deletion!.count, 3)
+    assert.deepEqual(new Set(deletion!.ids), new Set([second!.id, third!.id, fourth!.id]))
+    // The pin was two levels below what was deleted, and still lands on the
+    // one version above it.
+    assert.equal(deletion!.pinned, root.id)
+    assert.deepEqual((await pinnedIn(root.lineId)).map(row => row.id), [root.id])
+    for (const gone of deletion!.ids) assert.equal(await exists(gone), false)
+
+    const survivor = await findRecipe(sql, 'user_a', variant!.id)
+    assert.equal(survivor!.variantOf, null)
+    assert.equal(survivor!.pinned, true)
+  })
+
+  test('deleting a branch the pin is not on leaves the pin where it is', async () => {
+    const root = await insertRecipe(db, 'user_a', recipe('Soup'))
+    const abandoned = await insertProgression(db, 'user_a', root.id, recipe('Soup, thin'))
+    const kept = await insertProgression(db, 'user_a', root.id, recipe('Soup, thick'))
+    const deletion = await deleteRecipe(sql, 'user_a', abandoned!.id)
+    assert.deepEqual(deletion, { count: 1, ids: [abandoned!.id], pinned: kept!.id })
+    assert.deepEqual((await pinnedIn(root.lineId)).map(row => row.id), [kept!.id])
+  })
+
+  test('deleting a root ends its line', async () => {
+    const root = await insertRecipe(db, 'user_a', recipe('Bread'))
+    const second = await insertProgression(db, 'user_a', root.id, recipe('Bread, rye'))
+    const variant = await insertVariant(db, 'user_a', root.id, recipe('Bread, sourdough'))
+    const deletion = await deleteRecipe(sql, 'user_a', root.id)
+    assert.equal(deletion!.count, 2)
+    assert.equal(deletion!.pinned, null)
+    assert.equal((await pinnedIn(root.lineId)).length, 0)
+    assert.equal(await exists(second!.id), false)
+    assert.equal((await findRecipe(sql, 'user_a', variant!.id))!.variantOf, null)
+
+    const alone = await insertRecipe(db, 'user_a', recipe('Toast'))
+    assert.deepEqual(await deleteRecipe(sql, 'user_a', alone.id), { count: 1, ids: [alone.id], pinned: null })
+  })
+
+  test('a dry run counts what a deletion would take, and takes nothing', async () => {
+    const root = await insertRecipe(db, 'user_a', recipe('Salsa'))
+    const second = await insertProgression(db, 'user_a', root.id, recipe('Salsa, smoky'))
+    await insertProgression(db, 'user_a', second!.id, recipe('Salsa, smokier'))
+
+    const preview = await deleteRecipe(sql, 'user_a', second!.id, { dryRun: true })
+    assert.equal(preview!.count, 2)
+    assert.equal(preview!.pinned, root.id)
+    for (const id of preview!.ids) assert.equal(await exists(id), true)
+    assert.equal((await pinnedIn(root.lineId)).length, 1)
+
+    const deletion = await deleteRecipe(sql, 'user_a', second!.id)
+    assert.deepEqual(new Set(deletion!.ids), new Set(preview!.ids))
+    assert.equal(deletion!.pinned, preview!.pinned)
+  })
+
+  test('another owner\'s recipe cannot be deleted or counted', async () => {
+    const mine = await insertRecipe(db, 'user_a', recipe('Not yours'))
+    assert.equal(await deleteRecipe(sql, 'user_b', mine.id, { dryRun: true }), null)
+    assert.equal(await deleteRecipe(sql, 'user_b', mine.id), null)
+    assert.equal(await exists(mine.id), true)
+    assert.equal(await deleteRecipe(sql, 'user_a', '6f1e9b3c-0000-4000-8000-000000000000'), null)
+  })
+
+  test('a deletion and a progression at once leave exactly one pin', async () => {
+    const root = await insertRecipe(db, 'user_a', recipe('Race again'))
+    const second = await insertProgression(db, 'user_a', root.id, recipe('Race again, 2'))
+    await Promise.allSettled([
+      deleteRecipe(sql, 'user_a', second!.id),
+      insertProgression(db, 'user_a', root.id, recipe('Race again, 3')),
+    ])
+    assert.equal((await pinnedIn(root.lineId)).length, 1)
   })
 })

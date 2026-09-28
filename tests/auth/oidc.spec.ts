@@ -2,6 +2,8 @@ import { createHash, generateKeyPairSync, randomUUID, sign } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
 import { test, expect } from '@playwright/test'
 import postgres from 'postgres'
+import { bodyOf, editOf } from '../../shared/utils/recipeDraft.ts'
+import type { ExtractedRecipe } from '../../shared/types/recipe.ts'
 
 const issuer = 'http://localhost:3101'
 const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 })
@@ -384,13 +386,14 @@ async function importText(page: import('@playwright/test').Page) {
   await expect(page.getByRole('heading', { name: 'Playwright pancakes' })).toBeVisible()
 }
 
-test('an import is added once, exactly as extracted, and becomes the stored recipe', async ({ page }) => {
+test('an import is added once, as it reads in the dialog, and becomes the stored recipe', async ({ page }) => {
   const posted: unknown[] = []
   let release = () => {}
   await page.route('**/api/recipes', async route => {
     posted.push(route.request().postDataJSON())
     await new Promise<void>(resolve => (release = resolve))
-    await route.fulfill({ status: 201, json: { recipe: storedFrom((posted[0] as { recipe: object }).recipe) } })
+    // What the server makes of an unedited import is the import, stored.
+    await route.fulfill({ status: 201, json: { recipe: storedFrom(extracted) } })
   })
   await importText(page)
   await expect(page.getByRole('button', { name: 'Save to my collection' })).toHaveCount(0)
@@ -402,7 +405,9 @@ test('an import is added once, exactly as extracted, and becomes the stored reci
   await expect(page.getByText('In your collection')).toBeFocused()
   await expect(page.getByRole('button', { name: /Add to my collection|Adding/ })).toHaveCount(0)
   await expect(page.locator('.toast')).toContainText('added to your collection')
-  expect(posted).toEqual([{ recipe: { ...extracted } }])
+  // Unedited, it goes as the editor sends any recipe: every line as it was
+  // extracted, in the shape a save takes.
+  expect(posted).toEqual([{ recipe: bodyOf(extracted as ExtractedRecipe, editOf(extracted as ExtractedRecipe)).body }])
   // A stored recipe can be closed without being asked about.
   await page.getByRole('button', { name: 'Close recipe' }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)

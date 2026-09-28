@@ -937,6 +937,478 @@ textarea {
 .detail-content ol {
     padding-left: 20px;
 }
+.detail-content .amount {
+    color: var(--ink);
+    font-weight: 500;
+}
+.ingredient-extra {
+    color: var(--muted);
+}
+.title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin: 10px 0 18px;
+}
+.detail-content .title-row .detail-title {
+    margin: 0;
+}
+/* Both systems on one switch; the one in use is filled. */
+.unit-toggle {
+    flex-shrink: 0;
+    display: inline-flex;
+    padding: 3px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: #f0f1e7;
+    cursor: pointer;
+    font: inherit;
+}
+.unit-toggle span {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    transition: background 0.15s, color 0.15s;
+}
+.unit-toggle span.active {
+    background: var(--olive);
+    color: var(--cream);
+}
+.unit-toggle:focus-visible {
+    outline: 2px solid var(--olive);
+    outline-offset: 2px;
+}
+/* The number is the source's, so it is printed rather than counted: a step
+   the source left unnumbered keeps its place without taking one. */
+.detail-content .step-list {
+    list-style: none;
+    padding-left: 0;
+}
+.step-list li {
+    display: flex;
+    gap: 8px;
+}
+.step-mark {
+    flex: 0 0 22px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+.step-list li.unnumbered {
+    padding-left: 30px;
+}
+
+/* Editing in place. A field reads as text until tapped, and is then typed
+   into in the same type and the same place, so nothing around it moves. */
+.editable {
+    cursor: text;
+    border-radius: 4px;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+    transition: background 0.15s;
+}
+.editable:hover {
+    background: #f0f1e7;
+}
+.editable:focus-visible {
+    outline: 2px solid var(--olive);
+    outline-offset: 2px;
+}
+.editable.empty {
+    color: #a3a597;
+    font-style: italic;
+}
+.editable.invalid {
+    text-decoration: underline wavy var(--orange);
+    text-underline-offset: 4px;
+}
+.editable-field {
+    position: relative;
+}
+.editable-field.active,
+.step-list .editable-field {
+    display: inline-block;
+    width: 100%;
+    /* Not on the baseline, which would leave room under it for descenders
+       and push everything below down while it is open. */
+    vertical-align: top;
+}
+.detail-title .editable-field,
+.step-list .editable-field {
+    flex: 1;
+    min-width: 0;
+}
+.eyebrow .editable-field.active,
+h3 small .editable-field.active {
+    width: auto;
+}
+.editable-input {
+    font: inherit;
+    color: inherit;
+    letter-spacing: inherit;
+    line-height: inherit;
+    text-transform: none;
+    background: #f0f1e7;
+    border: none;
+    border-radius: 4px;
+    padding: 0;
+    margin: 0;
+    outline: 1px solid #d3d6c6;
+    outline-offset: 2px;
+    vertical-align: baseline;
+    max-width: 100%;
+    field-sizing: content;
+}
+textarea.editable-input {
+    display: block;
+    width: 100%;
+    resize: none;
+    overflow: hidden;
+}
+.editable-input:focus,
+.editable-input:focus-visible {
+    outline: 2px solid var(--olive);
+}
+input.editable-input {
+    min-width: 3ch;
+}
+.editable-input::placeholder {
+    color: #a3a597;
+    font-style: italic;
+}
+.field-count {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    font-size: 10px;
+    color: var(--muted);
+}
+.ingredient-inputs {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 6px 8px;
+    max-width: 100%;
+}
+/* Room at the end of each row for its controls, there in reading and
+   editing alike so the text never reflows when they appear. */
+.edit-list li {
+    position: relative;
+    padding-right: 96px;
+}
+.row-controls {
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: flex;
+    gap: 2px;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+.edit-list li:hover .row-controls,
+.edit-list li:focus-within .row-controls {
+    opacity: 1;
+}
+@media (hover: none) {
+    .row-controls {
+        opacity: 1;
+    }
+}
+.row-control {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+}
+.row-control:hover:not(:disabled) {
+    background: #f0f1e7;
+    color: var(--ink);
+}
+.row-control:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+.add-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+    font-size: 13px;
+}
+.add-row:disabled {
+    color: var(--muted);
+    cursor: default;
+}
+/* The switches beside the title: reading or editing, and which units. */
+.title-controls {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-shrink: 0;
+}
+.mode-toggle:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Scaling, while a recipe is read. */
+.ingredients-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    margin: 26px 0 10px;
+}
+.detail-content .ingredients-heading h3 {
+    margin: 0;
+}
+.scale-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.portion-control {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: #f0f1e7;
+}
+.portion-control .row-control {
+    border-radius: 50%;
+}
+.portion-count,
+.scale-factor {
+    min-width: 72px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+.scale-factor {
+    min-width: 0;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #f0f1e7;
+}
+.scale-reset {
+    font-size: 12px;
+}
+/* An amount that can be set, to scale the rest to it. */
+.amount.scalable {
+    font: inherit;
+    font-weight: 500;
+    color: var(--ink);
+    background: none;
+    border: none;
+    padding: 0 2px;
+    margin: 0 -2px;
+    border-radius: 4px;
+    cursor: pointer;
+    text-decoration: underline dotted #b9bca9;
+    text-underline-offset: 4px;
+}
+.amount.scalable:hover {
+    background: #f0f1e7;
+}
+/* The line the reader set: the rest follows it. */
+.amount.scalable.anchored {
+    background: var(--olive);
+    color: var(--cream);
+    text-decoration: none;
+    padding: 1px 7px;
+    margin: 0 1px 0 -3px;
+}
+.detail-content li.anchor {
+    color: var(--ink);
+}
+.scale-input {
+    display: inline-flex;
+    align-items: baseline;
+}
+.unscaled-note {
+    margin-left: 6px;
+    font-size: 10px;
+    font-style: italic;
+    color: #a3a597;
+    white-space: nowrap;
+}
+
+/* Unsaved: said at the bottom of the recipe for as long as it is true. */
+.edit-bar {
+    position: sticky;
+    bottom: 16px;
+    z-index: 4;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px 20px;
+    margin: 0 24px 24px;
+    padding: 14px 18px;
+    background: var(--cream);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: 0 12px 40px #17231424;
+}
+.edit-bar-text p {
+    margin: 0;
+    font-size: 13px;
+}
+.edit-bar-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+}
+.unsaved-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--orange);
+}
+.edit-bar-problem {
+    margin-top: 4px !important;
+    color: var(--orange);
+}
+.edit-bar-actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+/* The three saves: a choice, then one button. Overwriting is the one that
+   loses something, and looks it while it is being chosen. */
+.save-choice {
+    flex: 1 1 100%;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    border: none;
+    min-width: 0;
+}
+.save-choice legend {
+    padding: 0;
+    margin-bottom: 8px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+.save-option {
+    display: flex;
+    gap: 9px;
+    align-items: flex-start;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #fffdf8;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+}
+.save-option:hover {
+    border-color: #c9ccbb;
+}
+.save-option.chosen {
+    border-color: var(--olive);
+    background: #f0f1e7;
+}
+.save-option.destructive.chosen {
+    border-color: var(--orange);
+    background: #fbefe9;
+}
+.save-option input {
+    margin-top: 3px;
+    accent-color: var(--olive);
+}
+.save-option.destructive input {
+    accent-color: var(--orange);
+}
+.save-option:has(input:focus-visible) {
+    outline: 2px solid var(--olive);
+    outline-offset: 2px;
+}
+.save-option-text {
+    display: grid;
+    gap: 3px;
+}
+.save-option-title {
+    font-size: 13px;
+    font-weight: 600;
+}
+.save-option-title small {
+    margin-left: 4px;
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--muted);
+}
+.save-option-detail {
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--muted);
+}
+.save-choice:disabled .save-option {
+    cursor: default;
+    opacity: 0.7;
+}
+.button.destructive {
+    background: var(--orange);
+    border-color: var(--orange);
+}
+.recipe-actions {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0 38px 28px;
+}
+.delete-recipe {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--orange);
+}
+@media (max-width: 800px) {
+    .save-choice {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .recipe-actions {
+        padding: 0 20px 22px;
+    }
+}
+.leave-modal {
+    max-width: 420px;
+}
+.leave-content {
+    padding: 34px 32px 28px;
+}
+.leave-content h2 {
+    font-size: 26px;
+    margin: 0 0 10px;
+}
+.leave-content p {
+    color: var(--muted);
+    font-size: 14px;
+    margin: 0 0 22px;
+}
+.leave-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+}
 .empty-collection {
     text-align: center;
     padding: 55px 20px;
@@ -1480,5 +1952,252 @@ textarea {
         right: 0;
         bottom: 0;
         font-size: 36px;
+    }
+}
+
+/* The collection: a list on the left, and a preview or the open recipe on the
+   right. Opening a recipe folds the list into a rail of pictures, which opens
+   over the recipe on demand. */
+.collection {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(290px, 370px) minmax(0, 1fr);
+    gap: 40px;
+    align-items: start;
+    padding-block: 42px 60px;
+    transition: grid-template-columns 0.35s ease;
+}
+.collection.folded {
+    grid-template-columns: 72px minmax(0, 1fr);
+}
+.collection.solo {
+    grid-template-columns: minmax(0, 1fr);
+}
+.collection.solo .collection-pane {
+    display: none;
+}
+.collection-list {
+    position: sticky;
+    top: 24px;
+    max-height: calc(100dvh - 48px);
+    overflow-y: auto;
+    min-width: 0;
+}
+.collection-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 22px;
+}
+.collection-heading .eyebrow {
+    font-size: 9px;
+    color: #848975;
+    letter-spacing: 1.7px;
+    margin-bottom: 10px;
+}
+.collection-heading h1 {
+    font-size: 34px;
+    letter-spacing: -0.9px;
+    line-height: 1.2;
+    margin: 0;
+    width: auto;
+    height: auto;
+}
+.collection-entries {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 4px;
+}
+.collection-entry {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 9px;
+    border-radius: 9px;
+    transition: background 0.2s;
+}
+.collection-entry:hover,
+.collection-entry.current {
+    background: #f0f1e7;
+}
+.collection-entry:focus-visible {
+    outline-offset: 0;
+}
+.entry-text {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+}
+.entry-title {
+    font-family: "Playfair Display", Georgia, serif;
+    font-size: 17px;
+    letter-spacing: -0.3px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.entry-meta {
+    font-size: 10px;
+    color: #949486;
+}
+.untitled {
+    font-style: italic;
+    color: var(--muted);
+}
+.recipe-thumb {
+    flex-shrink: 0;
+    width: 54px;
+    height: 54px;
+    border-radius: 7px;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    background: #e4e7db;
+    color: #7b8569;
+}
+.recipe-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.thumb-initial {
+    font-family: "Playfair Display", Georgia, serif;
+    font-size: 24px;
+    text-transform: uppercase;
+}
+.collection-pane {
+    min-width: 0;
+    background: #fffdf8;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    overflow: hidden;
+    min-height: 60vh;
+}
+.collection-preview .detail-content > .button {
+    margin-bottom: 4px;
+}
+.detail-title {
+    margin: 10px 0 18px;
+}
+.saved-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 18px;
+}
+.collection-state {
+    text-align: center;
+    padding: 55px 20px;
+    background: #f0f1e7;
+    border-radius: 10px;
+}
+.collection-state h2 {
+    font-size: 24px;
+    margin-top: 12px;
+}
+.collection-state p {
+    margin: 15px auto 25px;
+    max-width: 340px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.7;
+}
+.collection-pane .collection-state {
+    margin: 24px;
+}
+.rail-toggle {
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.rail-toggle:hover {
+    background: #f0f1e7;
+}
+
+/* Folded: pictures only, with the words still there for a screen reader. */
+.collection.folded:not(.rail-open) .collection-heading > div,
+.collection.folded:not(.rail-open) .entry-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+.collection.folded:not(.rail-open) .collection-heading {
+    justify-content: center;
+}
+.collection.folded:not(.rail-open) .collection-entry {
+    padding: 5px;
+    justify-content: center;
+}
+.collection.folded:not(.rail-open) .collection-list .collection-state {
+    display: none;
+}
+/* Open, the rail widens over the recipe without leaving its grid cell. Taken
+   out of the grid, it would hand its column to the pane, which then squeezes
+   into 72px. */
+.collection.rail-open .collection-list {
+    width: min(370px, calc(100vw - 40px));
+    margin: -12px 0 0 -12px;
+    z-index: 6;
+    background: var(--cream);
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: 0 20px 60px #17231430;
+}
+
+@media (max-width: 800px) {
+    .collection,
+    .collection.folded {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 24px;
+    }
+    .collection-list {
+        position: static;
+        max-height: none;
+    }
+    /* No pointer to hover with: the list is the page, and an entry opens. */
+    .collection:not(.folded) .collection-pane {
+        display: none;
+    }
+    .collection.folded:not(.rail-open) .collection-entries {
+        display: none;
+    }
+    .collection.folded:not(.rail-open) .collection-heading > div {
+        position: static;
+        width: auto;
+        height: auto;
+        clip-path: none;
+    }
+    .collection.folded .collection-heading {
+        justify-content: space-between;
+        margin-bottom: 0;
+    }
+    /* The heading stays where it is; only the entries drop down over the
+       recipe, so nothing below them moves. */
+    .collection.rail-open .collection-list {
+        position: relative;
+        overflow: visible;
+        width: auto;
+        margin: 0;
+        padding: 0;
+        background: none;
+        border-radius: 0;
+        box-shadow: none;
+    }
+    .collection.rail-open .collection-entries {
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 0;
+        right: 0;
+        max-height: 70dvh;
+        overflow-y: auto;
+        background: var(--cream);
+        border-radius: 12px;
+        padding: 12px;
+        box-shadow: 0 20px 60px #17231430;
     }
 }

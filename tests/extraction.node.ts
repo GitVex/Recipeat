@@ -67,6 +67,9 @@ test('quantity parsing handles fractions, decimals, ranges and unknown units', (
   // "c" is cups in an ingredient list and Celsius in an oven instruction.
   assert.equal(parseQuantity('1 c')!.unit, 'cup')
   assert.equal(parseQuantity('180 C')!.unit, 'celsius')
+  // A written degree sign settles it, whatever the number.
+  assert.equal(parseQuantity('350 °F')!.unit, 'fahrenheit')
+  assert.equal(parseQuantity('80°C')!.unit, 'celsius')
 })
 
 test('normalization fills ingredient quantities and locates measurements in steps', () => {

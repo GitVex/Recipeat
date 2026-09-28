@@ -92,8 +92,11 @@ the collection yet.
 
 **One type for a recipe.** Settled: `shared/types/recipe.ts` is the one
 definition, and the server re-exports it rather than restating it. The shelf's
-samples are written in it too. What rendering it fully takes — step parts,
-rescaling, units — is still #12.
+samples are written in it too. It renders through `shared/utils/recipeText.ts`:
+amounts from the parsed quantities, steps from their parts, and a restated
+amount from the ingredient it points at, so #44 has one number to rescale.
+An amount whose unit the parser did not know ("4 TL", "2 Zehen") prints as
+written rather than as a bare number.
 
 **Photo import: the image itself.** Extraction works, but nothing keeps the
 photo. `source.objectKey` is null because there is nowhere to put it, and a
@@ -177,6 +180,11 @@ which is usually a leaf, and the pin reverts to its parent. A deletion that
 takes other versions with it has to say so before it runs — the count is
 knowable first.
 
+The count is a dry run of the route (`DELETE …?dryRun=true`), not a field on
+`GET /api/recipes/{id}`. That way the preview and the deletion are the same
+walk of the tree, and reading a recipe does not pay for a question that is
+only asked when someone reaches for Delete (#49).
+
 A single parent column cannot express "cascade to progressions, not to
 variants": `ON DELETE` applies to every child a foreign key has. Two columns
 can, and they make a separate kind column unnecessary — which of the two is set
@@ -225,9 +233,53 @@ tree, can disagree with it, and earns itself only if the UI shows a number
   than the single-slot Ollama it replaced, but the app still shows the user a
   failure where a retry would do.
 - **Unit ambiguity.** `cup`, `tbsp`, `tsp` and `fl_oz` are stored unresolved
-  because a line cannot say whether it means US or metric. Display has to pick,
-  probably from `source_lang`. `c` is disambiguated by magnitude: below 90 it is
-  a cup, at or above it is Celsius.
+  because a line cannot say whether it means US or metric. Display picks from
+  `source_lang`: bare `en` and `en-US` are US measures, `en-AU` has the 20 ml
+  tablespoon, everything else is metric (imperial for a fluid ounce). That
+  decides how many millilitres a cup is when the reader switches the recipe to
+  metric. `c` is disambiguated by magnitude: below 90 it is a cup, at or above
+  it is Celsius; a written degree sign makes it a temperature outright.
+- **Imperial or metric.** A toggle beside the title, "US | Met", converts
+  cups, fluid ounces, ounces, pounds, °F and inches to their metric
+  counterparts and back, rounded to what a kitchen measures in. Spoons are on neither side and stay as
+  written. Converting into imperial means US measures. Each recipe opens in the
+  system it was written in until the reader picks one; the pick is a cookie,
+  so the server renders the same amounts, and it holds for every recipe after.
+- **Editing is text in, structure out.** The editor (#34) edits what a person
+  typed and sends it back as text; the server reads the amounts and re-links
+  the steps, as it does for an extraction. A line left untouched goes back
+  exactly as it came, parsed amount included. Steps keep their source numbers
+  while they keep their order; once one is added, removed or moved, the
+  numbers are dropped and the page counts them.
+- **Three saves, one choice.** Unsaved changes offer the three as options
+  with a line each saying what happens to the recipe on the page, then one
+  button that does the chosen one. "New version" (progression) is chosen to
+  start with, because it is the one that loses nothing; "Overwrite this
+  version" is the one marked as losing something, before the click. A new
+  version or a separate recipe (variant) is a new row, and the page moves to
+  it. There is no sharing yet, so every recipe that can be opened is the
+  reader's own and all three are always offered.
+- **Deleting asks with a count.** The dry run is read first, so the question
+  is "Delete this recipe?" or "…and 2 later versions?". Variants survive a
+  delete and are not mentioned. Afterwards the page goes to whatever the line
+  is entered by now, or to the collection if the line ended, and the listing
+  is read again. A 404 is already-deleted, and treated as done.
+- **Reading or editing.** #34 asked for no edit mode at all; it has one after
+  all, because reading is where scaling (#44) happens, and a tapped amount
+  cannot both set the scale and edit the recipe. A stored recipe opens to be
+  read, with a "View | Edit" switch beside the title. Editing shows the
+  amounts as stored, and unsaved changes hold the switch on Edit, since
+  reading would show the recipe without them. A fresh import in the dialog
+  has nothing to scale and is always editable.
+- **Scaling is a way of reading.** One factor, set from the servings or from
+  one ingredient's amount (the anchor, which then reads exactly as typed).
+  It moves ingredients and the step amounts marked `scaleWithPortions: true`;
+  oven temperatures, times and lengths stay put, and an amount nothing says
+  how to scale is left as written and marked "not scaled", as is a line with
+  no amount at all. Amounts round to what can be measured and move between
+  g and kg, ml and l, oz and lb as they cross. The scale is a session cookie
+  for the recipe it was set on: it survives a reload, and opening another
+  recipe drops it.
 - **Ingredient linking.** Matching falls back to the head noun, so two
   ingredients sharing a noun and an amount — `"1 cup white sugar"` and
   `"1 cup brown sugar"` in one step — are separated only by proximity.
@@ -245,6 +297,8 @@ tree, can disagree with it, and earns itself only if the UI shows a number
   in the EEA.
 - **Step numbering comes back inside the step.** The model returns
   `"1. Gurken längsweise vierteln."`, numbering included, and at least one page
-  folded two steps into one and left a gap in the sequence. Worth deciding
-  whether the prompt should strip the numbers or the UI should stop adding
-  its own.
+  folded two steps into one and left a gap in the sequence. Settled (#55): the
+  text keeps the number, since it is what the source said, and the page takes
+  it out and shows it once. When the source numbered its steps, its numbers
+  are the ones shown and a step it left unnumbered ("Marinade: …") stays
+  unnumbered; when it numbered none, the page counts from one.
