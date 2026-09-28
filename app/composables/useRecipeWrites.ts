@@ -61,7 +61,7 @@ export function useRecipeWrites(
   // The listing shows the pinned version of each line, newest line first. A
   // new version moves a line's pin and a delete can too, so the listing is
   // read again rather than guessed at.
-  const relist = () => refreshNuxtData("recipes");
+  const { relist } = list;
 
   // ── Saving ───────────────────────────────────────────────────────────────
 

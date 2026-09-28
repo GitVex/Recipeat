@@ -7,9 +7,10 @@ import { PostgresJSDialect } from 'kysely-postgres-js'
 import { applyMigrations } from '../server/database/migrate.ts'
 import type { Database } from '../server/database/schema.ts'
 import { normalizeRecipe, parseExtraction } from '../server/utils/extraction.ts'
-import { deleteRecipe, findRecipe, insertProgression, insertRecipe, insertVariant, listRecipes, pinRecipe, readHistory, updateRecipe } from '../server/recipes/store.ts'
+import { deleteRecipe, findRecipe, insertProgression, insertRecipe, insertVariant, listing, listRecipes, pinRecipe, readHistory, updateRecipe } from '../server/recipes/store.ts'
 import { addToCollection, collectionsContaining, createCollection, deleteCollection, listCollections, readCollection, removeFromCollection, renameCollection, reorderCollection } from '../server/collections/store.ts'
 import { listTags, setTags } from '../server/tags/store.ts'
+import { readFilters } from '../shared/utils/recipeFilters.ts'
 
 // The half of the runner that needs a database. Everything here happens inside
 // a schema of its own, so a development database keeps its own
@@ -1158,5 +1159,107 @@ describe('tags', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () => {
     assert.equal(one![0]!.toLowerCase(), 'fresh')
     assert.deepEqual(one, two)
     assert.deepEqual(await listTags(db, 'user_e'), [{ name: one![0]!, count: 2 }])
+  })
+})
+
+// Filtering the listing (#14): each filter alone, all of them together, and
+// the index still being the way in.
+describe('recipe filters', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () => {
+  const SCHEMA = 'filters_check'
+  let admin: Sql
+  let sql: Sql
+  let db: Kysely<Database>
+
+  before(async () => {
+    admin = postgres(url!, { max: 1, onnotice: () => {} })
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin`CREATE SCHEMA ${admin(SCHEMA)}`
+    sql = postgres(url!, { max: 5, onnotice: () => {}, connection: { search_path: SCHEMA } })
+    db = new Kysely<Database>({ dialect: new PostgresJSDialect({ postgres: sql }) })
+    await applyMigrations(sql, migrations(...STORE))
+
+    // Oldest first, so the listing reads them back newest first.
+    const add = async (title: string, { time = null as number | null, portions = 2 as number | null, ingredients = ['flour'], source = 'text' as 'text' | 'website' | 'photo', tags = [] as string[], owner = 'user_a' } = {}) => {
+      const saved = await insertRecipe(db, owner, normalizeRecipe(parseExtraction({
+        title,
+        source_lang: 'en',
+        portions,
+        totalTime: time,
+        ingredients: ingredients.map(name => ({ originalText: `1 ${name}`, quantity: '1', name })),
+        steps: ['Cook it.'],
+      }, source === 'website'
+        ? { type: 'website', url: 'https://example.com/r', author: null, siteName: null, retrievedAt: '2026-09-01T00:00:00.000Z' }
+        : source === 'photo'
+          ? { type: 'photo', objectKey: null, originalFilename: null }
+          : { type: 'text', originalText: title })))
+      if (tags.length) await setTags(db, owner, saved.id, tags)
+      return saved
+    }
+    await add('Leek and potato soup', { time: 45, portions: 4, ingredients: ['leeks', 'potatoes', 'stock'], source: 'website', tags: ['Soup', 'Winter'] })
+    await add('Quick tomato pasta', { time: 20, portions: 2, ingredients: ['spaghetti', 'Cherry tomatoes'], source: 'photo', tags: ['Weeknight'] })
+    await add('Sunday roast', { time: 180, portions: 6, ingredients: ['beef', 'potatoes'], tags: ['winter', 'Weekend'] })
+    await add('Tomato soup, 100% homemade', { time: null, portions: null, ingredients: ['tomatoes'], tags: ['soup'] })
+    await add('Someone else’s soup', { time: 10, ingredients: ['tomatoes'], tags: ['Soup'], owner: 'user_b' })
+  })
+
+  after(async () => {
+    await sql?.end()
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin?.end()
+  })
+
+  const titles = async (query: Record<string, string | string[]>) => {
+    const { filters, problems } = readFilters(query)
+    assert.deepEqual(problems, [])
+    return (await listRecipes(sql, 'user_a', filters)).map(row => row.title)
+  }
+
+  test('no filters is the whole listing, newest first', async () => {
+    assert.deepEqual(await titles({}), ['Tomato soup, 100% homemade', 'Sunday roast', 'Quick tomato pasta', 'Leek and potato soup'])
+  })
+
+  test('the search finds words in the title, in any case, and only there', async () => {
+    assert.deepEqual(await titles({ q: 'SOUP' }), ['Tomato soup, 100% homemade', 'Leek and potato soup'])
+    assert.deepEqual(await titles({ q: 'beef' }), [])
+    // What LIKE would read as a wildcard is only itself.
+    assert.deepEqual(await titles({ q: '100%' }), ['Tomato soup, 100% homemade'])
+    assert.deepEqual(await titles({ q: 'to_ato' }), [])
+  })
+
+  test('a line has to wear every tag asked for, in any case', async () => {
+    assert.deepEqual(await titles({ tag: 'soup' }), ['Tomato soup, 100% homemade', 'Leek and potato soup'])
+    assert.deepEqual(await titles({ tag: ['WINTER', 'soup'] }), ['Leek and potato soup'])
+    assert.deepEqual(await titles({ tag: ['Winter', 'winter'] }), ['Sunday roast', 'Leek and potato soup'])
+    assert.deepEqual(await titles({ tag: 'Nowhere' }), [])
+  })
+
+  test('an ingredient is found by part of its name, and every one asked for must be there', async () => {
+    assert.deepEqual(await titles({ ingredient: 'tomato' }), ['Tomato soup, 100% homemade', 'Quick tomato pasta'])
+    assert.deepEqual(await titles({ ingredient: ['potato', 'beef'] }), ['Sunday roast'])
+  })
+
+  test('time, portions and source narrow by what extraction gave', async () => {
+    // A recipe that states no time is not known to be quick.
+    assert.deepEqual(await titles({ maxTime: '45' }), ['Quick tomato pasta', 'Leek and potato soup'])
+    assert.deepEqual(await titles({ minPortions: '4' }), ['Sunday roast', 'Leek and potato soup'])
+    assert.deepEqual(await titles({ minPortions: '3', maxPortions: '4' }), ['Leek and potato soup'])
+    assert.deepEqual(await titles({ source: ['photo', 'website'] }), ['Quick tomato pasta', 'Leek and potato soup'])
+    assert.deepEqual(await titles({ source: 'text' }), ['Tomato soup, 100% homemade', 'Sunday roast'])
+  })
+
+  test('filters combine rather than replace each other', async () => {
+    assert.deepEqual(await titles({ tag: 'winter', ingredient: 'potato' }), ['Sunday roast', 'Leek and potato soup'])
+    assert.deepEqual(await titles({ tag: 'winter', ingredient: 'potato', maxTime: '60' }), ['Leek and potato soup'])
+    assert.deepEqual(await titles({ tag: 'winter', ingredient: 'potato', maxTime: '60', source: 'text' }), [])
+  })
+
+  test('filtering reads the owner’s pinned rows through the listing index', async () => {
+    const { filters } = readFilters({ q: 'soup', tag: ['soup', 'winter'], ingredient: 'leek', maxTime: '60', minPortions: '2', maxPortions: '6', source: 'website' })
+    const plan = await sql.begin(async (tx) => {
+      await tx`SET LOCAL enable_seqscan = off`
+      return (await tx<{ 'QUERY PLAN': string }[]>`EXPLAIN ${listing(tx, 'user_a', filters, 200)}`)
+        .map(row => row['QUERY PLAN']).join('\n')
+    })
+    assert.match(plan, /recipes_owner_pinned_idx/, plan)
   })
 })

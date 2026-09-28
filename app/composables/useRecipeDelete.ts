@@ -38,6 +38,7 @@ export function useRecipeDelete(
   { left, pruned = () => {} }: { left: (pinned: string | null) => Promise<unknown>; pruned?: () => unknown },
 ) {
   const cache = useRecipeCache();
+  const { relist } = useRecipeListCache();
   const { notify } = useToast();
 
   // Asked about: which version, and how many would go with it, read before
@@ -54,10 +55,10 @@ export function useRecipeDelete(
     cache.value = Object.fromEntries(Object.entries(cache.value).filter(([key]) => !ids.includes(key)));
     for (const removed of ids) clearNuxtData(`recipe:${removed}`);
     if (!ids.includes(id)) {
-      await Promise.all([refreshNuxtData("recipes"), pruned()]);
+      await Promise.all([relist(), pruned()]);
       return;
     }
-    await refreshNuxtData("recipes");
+    await relist();
     await left(pinned);
   }
 

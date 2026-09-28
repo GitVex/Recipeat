@@ -1,15 +1,41 @@
 <script setup lang="ts">
+import type { RecipeSummary } from "#shared/types/recipe";
+import {
+  filterCount,
+  filtersToQuery,
+  hasFilters,
+  NO_FILTERS,
+  readFilters,
+  type RecipeFilters,
+} from "#shared/utils/recipeFilters";
+
 // The collection: a list of every recipe on one side, and on the other either
 // a preview of the one under the pointer or focus (/recipes) or the one that
 // was opened (/recipes/[id]). Opening one folds the list into a rail at the
 // left, so the recipe gets the room; the rail's toggle opens the list again.
 const route = useRoute();
+const router = useRouter();
 const { openImport } = useDialogs();
 const { login } = useOidcAuth();
-const { data, error, status, refresh } = useRecipeList();
 const picker = useCollectionPicker();
 
-const recipes = computed(() => data.value?.recipes ?? []);
+// What the list is narrowed by (#14) lives in the address, so a filtered
+// list can be linked to and reloaded, and survives opening a recipe from it.
+// What the address says that cannot be read is ignored. Compared as the
+// query they make, so opening a recipe — a new route, the same filters —
+// does not read the list again.
+const filterQuery = computed(() => JSON.stringify(filtersToQuery(readFilters(route.query).filters)));
+const filters = computed(() => readFilters(JSON.parse(filterQuery.value)).filters);
+const filtering = computed(() => hasFilters(filters.value));
+const { data, error, status, refresh } = useFilteredRecipeList(filters);
+
+// The list read last stays on screen while the next is read, so a filter
+// narrows the list rather than blanking it first.
+const last = ref<RecipeSummary[] | null>(null);
+watch(data, (value) => value && (last.value = value.recipes), { immediate: true });
+const recipes = computed(() => data.value?.recipes ?? last.value ?? []);
+provide(SHOWN_RECIPES, recipes);
+
 const failure = computed(() =>
   error.value ? failureOf(error.value.statusCode) : null,
 );
@@ -17,7 +43,37 @@ const openId = computed(() =>
   typeof route.params.id === "string" ? route.params.id : null,
 );
 
-const { id: highlighted, current } = useHighlightedRecipe();
+const { id: highlighted, current } = useHighlightedRecipe(recipes);
+
+// Replaced rather than pushed: going back leaves the list, not one filter.
+const applyFilters = (next: RecipeFilters) =>
+  router.replace({ path: route.path, query: filtersToQuery(next) });
+// Where a link inside the list goes, with the filters kept.
+const within = (path: string) => ({ path, query: route.query });
+
+// The search goes into the address a moment after typing stops, and follows
+// it when the address changes some other way.
+const search = ref(filters.value.q);
+const tidy = (value: string) => value.trim().replace(/\s+/g, " ");
+watch(
+  () => filters.value.q,
+  (q) => tidy(search.value) !== q && (search.value = q),
+);
+let searchTimer: ReturnType<typeof setTimeout> | undefined;
+watch(search, (value) => {
+  clearTimeout(searchTimer);
+  if (tidy(value) === filters.value.q) return;
+  searchTimer = setTimeout(() => applyFilters({ ...filters.value, q: tidy(value) }), 250);
+});
+onBeforeUnmount(() => clearTimeout(searchTimer));
+
+const filtersOpen = ref(false);
+const activeFilters = computed(() => filterCount(filters.value));
+// Opening a recipe folds the list; the panel has no room in the rail.
+watch(openId, (id) => id && (filtersOpen.value = false));
+// Nothing to search until there is something saved, but a filter that found
+// nothing still needs the way to change it.
+const findable = computed(() => !failure.value && (recipes.value.length > 0 || filtering.value));
 
 // The recipe open is the one highlighted, so going back to the list from it
 // previews the same recipe, and the pane shows what it already showed.
@@ -70,7 +126,7 @@ useHead({ title: "My recipes — Recipeat" });
         <NuxtLink
           v-if="openId"
           class="rail-toggle icon-button"
-          to="/recipes"
+          :to="within('/recipes')"
           aria-label="Show all your recipes"
           title="Show all your recipes"
         >
@@ -78,7 +134,42 @@ useHead({ title: "My recipes — Recipeat" });
         </NuxtLink>
       </div>
 
-      <p v-if="status === 'pending' && !data" class="collection-state" role="status">
+      <div v-if="findable" class="recipe-find">
+        <div class="collections-search recipe-search">
+          <AppIcon name="search" :size="15" />
+          <input
+            v-model="search"
+            type="search"
+            aria-label="Search your recipes"
+            placeholder="Search your recipes"
+            autocomplete="off"
+            enterkeyhint="search"
+          />
+        </div>
+        <button
+          type="button"
+          class="filter-toggle icon-button"
+          :class="{ active: activeFilters }"
+          :aria-expanded="filtersOpen"
+          aria-controls="recipe-filters"
+          :aria-label="activeFilters ? `Filters, ${activeFilters} on` : 'Filters'"
+          title="Filters"
+          @click="filtersOpen = !filtersOpen"
+        >
+          <AppIcon name="filter" :size="17" />
+          <span v-if="activeFilters" class="filter-count" aria-hidden="true">{{
+            activeFilters
+          }}</span>
+        </button>
+      </div>
+      <RecipeFilterPanel
+        v-if="findable && filtersOpen"
+        id="recipe-filters"
+        :filters="filters"
+        @change="applyFilters"
+      />
+
+      <p v-if="status === 'pending' && !data && !last" class="collection-state" role="status">
         Gathering your recipes…
       </p>
 
@@ -103,6 +194,20 @@ useHead({ title: "My recipes — Recipeat" });
         </template>
       </div>
 
+      <!-- Not the same as having nothing: the recipes are there, and the
+           filters are what hid them. -->
+      <div v-else-if="!recipes.length && filtering" class="collection-state" role="status">
+        <AppIcon name="search" :size="35" />
+        <h2>Nothing matches.</h2>
+        <p v-if="filters.q && !activeFilters">
+          None of your recipes is called anything like “{{ filters.q }}”.
+        </p>
+        <p v-else>No recipe fits all of that at once. Try loosening a filter.</p>
+        <button class="button" @click="applyFilters(NO_FILTERS)">
+          Clear {{ activeFilters ? "filters" : "the search" }}
+        </button>
+      </div>
+
       <div v-else-if="!recipes.length" class="collection-state">
         <AppIcon name="book" :size="35" />
         <h2>Nothing saved yet.</h2>
@@ -122,7 +227,7 @@ useHead({ title: "My recipes — Recipeat" });
             :class="{
               current: openId ? recipe.id === openId : recipe.id === current?.id,
             }"
-            :to="`/recipes/${recipe.id}`"
+            :to="within(`/recipes/${recipe.id}`)"
             :aria-current="recipe.id === openId ? 'page' : undefined"
             :title="openId ? recipeTitle(recipe) : undefined"
             @mouseenter="highlighted = recipe.id"

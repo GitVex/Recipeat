@@ -23,7 +23,8 @@ const paths: Record<string, string> = {
   branch: 'M6 3v18M6 15c0-5 12-4 12-9M18 6a2 2 0 1 0 0-.01',
   user: 'M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0M4 21a8 8 0 0 1 16 0',
   search: 'M17 11a6 6 0 1 1-12 0 6 6 0 0 1 12 0M21 21l-4.3-4.3',
-  tag: 'M3 3h8l10 10-8 8L3 11V3M7.5 7.5h.01'
+  tag: 'M3 3h8l10 10-8 8L3 11V3M7.5 7.5h.01',
+  filter: 'M4 6h16M7 12h10M10 18h4'
 }
 </script>
 <template><svg :width="size || 20" :height="size || 20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path :d="paths[name] || paths.sparkle" /></svg></template>
