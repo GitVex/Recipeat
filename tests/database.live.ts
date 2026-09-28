@@ -513,6 +513,111 @@ describe('recipes lineage writes', { skip: url ? false : 'NUXT_DATABASE_URL is n
     ])
     assert.equal((await pinnedIn(root.lineId)).length, 1)
   })
+
+  test('a history is the whole line, from any version in it, oldest first', async () => {
+    const root = await insertRecipe(db, 'user_a', recipe('Bread'))
+    const second = await insertProgression(db, 'user_a', root.id, recipe('Bread, wetter'))
+    // Two progressions off the second: the tree branches.
+    const third = await insertProgression(db, 'user_a', second!.id, recipe('Bread, rye'))
+    const fourth = await insertProgression(db, 'user_a', second!.id, recipe('Bread, spelt'))
+
+    for (const from of [root.id, third!.id, fourth!.id]) {
+      const history = await readHistory(sql, 'user_a', from)
+      assert.equal(history!.lineId, root.lineId)
+      assert.deepEqual(history!.versions.map(version => version.id), [root.id, second!.id, third!.id, fourth!.id])
+    }
+    const history = await readHistory(sql, 'user_a', root.id)
+    assert.deepEqual(history!.versions.map(version => version.progressionOf), [null, root.id, second!.id, second!.id])
+    assert.deepEqual(history!.versions.map(version => version.pinned), [false, false, false, true])
+    // Card fields, not recipes.
+    assert.deepEqual(Object.keys(history!.versions[0]!).sort(), ['changes', 'createdAt', 'id', 'ingredientCount', 'pinned', 'progressionOf', 'stepCount', 'title', 'updatedAt'])
+    assert.equal(history!.versions[0]!.ingredientCount, 1)
+    // Each is counted against the original; the original against nothing.
+    // These differ from it by title alone.
+    assert.equal(history!.versions[0]!.changes, null)
+    for (const version of history!.versions.slice(1)) {
+      assert.deepEqual(version.changes, {
+        title: true, portions: null, totalTime: null,
+        ingredients: { added: 0, removed: 0, changed: 0, items: [] },
+        steps: { added: 0, removed: 0, changed: 0, items: [] },
+      })
+    }
+    assert.deepEqual(history!.variants, [])
+    assert.equal(history!.origin, null)
+  })
+
+  test('a variant is in the history by its entry point, and knows where it came from', async () => {
+    const root = await insertRecipe(db, 'user_a', recipe('Curry'))
+    const second = await insertProgression(db, 'user_a', root.id, recipe('Curry, hotter'))
+    const variant = await insertVariant(db, 'user_a', root.id, recipe('Curry, vegan'))
+    // The variant's own line moves on; the history it is reached from shows
+    // where it stands now, and none of the way there.
+    const variantNext = await insertProgression(db, 'user_a', variant!.id, recipe('Curry, vegan, with tofu'))
+
+    const history = await readHistory(sql, 'user_a', second!.id)
+    assert.deepEqual(history!.versions.map(version => version.id), [root.id, second!.id])
+    assert.deepEqual(history!.variants.map(branch => [branch.id, branch.title, branch.variantOf]), [[variantNext!.id, 'Curry, vegan, with tofu', root.id]])
+
+    const own = await readHistory(sql, 'user_a', variantNext!.id)
+    assert.deepEqual(own!.versions.map(version => version.id), [variant!.id, variantNext!.id])
+    assert.deepEqual(own!.origin, { id: root.id, title: 'Curry' })
+  })
+
+  test('a variant whose origin was deleted has a history with no origin', async () => {
+    const root = await insertRecipe(db, 'user_a', recipe('Soup'))
+    const variant = await insertVariant(db, 'user_a', root.id, recipe('Soup, cold'))
+    await deleteRecipe(sql, 'user_a', root.id)
+    const history = await readHistory(sql, 'user_a', variant!.id)
+    assert.deepEqual(history!.versions.map(version => version.id), [variant!.id])
+    assert.equal(history!.origin, null)
+  })
+
+  test("another owner's history is absent", async () => {
+    const mine = await insertRecipe(db, 'user_a', recipe('Private'))
+    assert.equal(await readHistory(sql, 'user_b', mine.id), null)
+    assert.equal(await readHistory(sql, 'user_a', '6f1e9b3c-0000-4000-8000-000000000000'), null)
+  })
+
+  test('pinning moves the pin to any version in the line, and only there', async () => {
+    const root = await insertRecipe(db, 'user_a', recipe('Risotto'))
+    const second = await insertProgression(db, 'user_a', root.id, recipe('Risotto, lemon'))
+    const variant = await insertVariant(db, 'user_a', second!.id, recipe('Risotto, barley'))
+    assert.deepEqual(await pinRecipe(sql, 'user_a', root.id), { pinned: root.id, lineId: root.lineId })
+    assert.deepEqual((await pinnedIn(root.lineId)).map(row => row.id), [root.id])
+    // A variant's line keeps its own pin.
+    assert.deepEqual((await pinnedIn(variant!.lineId)).map(row => row.id), [variant!.id])
+    // Pinning what is pinned changes nothing.
+    assert.deepEqual(await pinRecipe(sql, 'user_a', root.id), { pinned: root.id, lineId: root.lineId })
+    assert.deepEqual((await pinnedIn(root.lineId)).map(row => row.id), [root.id])
+    // And the listing follows it.
+    const listed = (await listRecipes(sql, 'user_a')).map(entry => entry.id)
+    assert.ok(listed.includes(root.id) && !listed.includes(second!.id))
+  })
+
+  test("another owner's version cannot be pinned", async () => {
+    const root = await insertRecipe(db, 'user_a', recipe('Gnocchi'))
+    const second = await insertProgression(db, 'user_a', root.id, recipe('Gnocchi, ricotta'))
+    assert.equal(await pinRecipe(sql, 'user_b', root.id), null)
+    assert.deepEqual((await pinnedIn(root.lineId)).map(row => row.id), [second!.id])
+  })
+
+  test('two pins at once leave exactly one', async () => {
+    const root = await insertRecipe(db, 'user_a', recipe('Pin race'))
+    const second = await insertProgression(db, 'user_a', root.id, recipe('Pin race, 2'))
+    const third = await insertProgression(db, 'user_a', root.id, recipe('Pin race, 3'))
+    const results = await Promise.allSettled([
+      pinRecipe(sql, 'user_a', root.id),
+      pinRecipe(sql, 'user_a', second!.id),
+      insertProgression(db, 'user_a', third!.id, recipe('Pin race, 4')),
+    ])
+    // Pins lock the line, so neither of them loses to the other. A
+    // progression does not take that lock, and may lose to either as it loses
+    // to another progression: with a 409 that says to retry, never a second pin.
+    assert.deepEqual(results.slice(0, 2).map(result => result.status), ['fulfilled', 'fulfilled'])
+    const progression = results[2]!
+    if (progression.status === 'rejected') assert.equal(progression.reason.statusCode, 409)
+    assert.equal((await pinnedIn(root.lineId)).length, 1)
+  })
 })
 
 // What 002_collections.sql refuses and what it does on its own. Most of it is

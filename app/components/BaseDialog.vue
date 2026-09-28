@@ -26,29 +26,31 @@ function trapFocus(event: KeyboardEvent) {
 </script>
 
 <template>
-  <div
-    v-if="open"
-    class="modal-backdrop"
-    @keydown="trapFocus"
-    @keydown.esc.stop="emit('close')"
-    @click.self="emit('close')"
-  >
-    <section
-      :class="['modal', modalClass]"
-      role="dialog"
-      aria-modal="true"
-      :aria-labelledby="titleId"
-      tabindex="-1"
+  <Transition name="dialog" @before-leave="retire">
+    <div
+      v-if="open"
+      class="modal-backdrop"
+      @keydown="trapFocus"
+      @keydown.esc.stop="emit('close')"
+      @click.self="emit('close')"
     >
-      <button
-        class="modal-close icon-button"
-        :aria-label="closeLabel"
-        autofocus
-        @click="emit('close')"
+      <section
+        :class="['modal', modalClass]"
+        role="dialog"
+        aria-modal="true"
+        :aria-labelledby="titleId"
+        tabindex="-1"
       >
-        <AppIcon name="close" />
-      </button>
-      <slot />
-    </section>
-  </div>
+        <button
+          class="modal-close icon-button"
+          :aria-label="closeLabel"
+          autofocus
+          @click="emit('close')"
+        >
+          <AppIcon name="close" />
+        </button>
+        <slot />
+      </section>
+    </div>
+  </Transition>
 </template>

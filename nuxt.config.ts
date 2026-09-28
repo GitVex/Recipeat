@@ -50,6 +50,9 @@ export default defineNuxtConfig({
   },
   css: ['~/assets/main.css'],
   app: {
+    // One page fades out before the next fades in; the styles are in main.css.
+    // Nested pages too, so opening another recipe in the collection crossfades.
+    pageTransition: { name: 'page', mode: 'out-in' },
     head: {
       title: 'Recipeat — A little inspiration. A lot of good food.',
       meta: [{ name: 'description', content: 'Turn recipes from photos, websites, and little scraps of inspiration into your own beautiful recipe collection.' }],

@@ -1961,11 +1961,13 @@ input.editable-input {
 .collection {
     position: relative;
     display: grid;
-    grid-template-columns: minmax(290px, 370px) minmax(0, 1fr);
+    /* A length, not minmax(): the fold to the rail animates only between
+       tracks of one kind, and between kinds the browser jumps half way. */
+    grid-template-columns: 370px minmax(0, 1fr);
     gap: 40px;
     align-items: start;
     padding-block: 42px 60px;
-    transition: grid-template-columns 0.35s ease;
+    transition: grid-template-columns 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .collection.folded {
     grid-template-columns: 72px minmax(0, 1fr);
@@ -2009,6 +2011,8 @@ input.editable-input {
     margin: 0;
     padding: 0;
     display: grid;
+    /* As wide as the column and no wider, folded to the rail included. */
+    grid-template-columns: minmax(0, 1fr);
     gap: 4px;
 }
 .collection-entry {
@@ -2116,37 +2120,48 @@ input.editable-input {
     background: #f0f1e7;
 }
 
-/* Folded: pictures only, with the words still there for a screen reader. */
-.collection.folded:not(.rail-open) .collection-heading > div,
-.collection.folded:not(.rail-open) .entry-text {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-}
-.collection.folded:not(.rail-open) .collection-heading {
-    justify-content: center;
-}
-.collection.folded:not(.rail-open) .collection-entry {
-    padding: 5px;
-    justify-content: center;
-}
-.collection.folded:not(.rail-open) .collection-list .collection-state {
+/* Folded: pictures only. The words stay where they were, invisible, for a
+   screen reader and so that nothing is laid out again: the column narrows
+   over them, and folding slides the list away to the left with the recipe
+   widening after it. Opening the list again runs the same way back. */
+.collection.folded .collection-list .collection-state {
     display: none;
 }
-/* Open, the rail widens over the recipe without leaving its grid cell. Taken
-   out of the grid, it would hand its column to the pane, which then squeezes
-   into 72px. */
-.collection.rail-open .collection-list {
-    width: min(370px, calc(100vw - 40px));
-    margin: -12px 0 0 -12px;
-    z-index: 6;
-    background: var(--cream);
-    border-radius: 12px;
-    padding: 12px;
-    box-shadow: 0 20px 60px #17231430;
+@media (min-width: 801px) {
+    .collection-list {
+        overflow-x: hidden;
+    }
+    .collection-heading {
+        position: relative;
+    }
+    /* One line each at any width, so nothing wraps while the column moves. */
+    .collection-heading h1,
+    .entry-meta {
+        white-space: nowrap;
+    }
+    .entry-meta {
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    /* Out quickly as the list folds; in once there is room to read them. */
+    .collection-heading > div,
+    .entry-text {
+        transition: opacity 0.2s ease 0.14s;
+    }
+    .collection.folded .collection-heading > div,
+    .collection.folded .entry-text {
+        opacity: 0;
+        pointer-events: none;
+        transition-duration: 0.12s;
+        transition-delay: 0s;
+    }
+    /* Centred on the rail, over the words it replaces. */
+    .collection.folded .rail-toggle {
+        position: absolute;
+        top: 14px;
+        left: 19px;
+        animation: fade-in 0.2s 0.15s both;
+    }
 }
 
 @media (max-width: 800px) {
@@ -2163,41 +2178,751 @@ input.editable-input {
     .collection:not(.folded) .collection-pane {
         display: none;
     }
-    .collection.folded:not(.rail-open) .collection-entries {
+    .collection.folded .collection-entries {
         display: none;
-    }
-    .collection.folded:not(.rail-open) .collection-heading > div {
-        position: static;
-        width: auto;
-        height: auto;
-        clip-path: none;
     }
     .collection.folded .collection-heading {
         justify-content: space-between;
         margin-bottom: 0;
     }
-    /* The heading stays where it is; only the entries drop down over the
-       recipe, so nothing below them moves. */
-    .collection.rail-open .collection-list {
-        position: relative;
-        overflow: visible;
-        width: auto;
-        margin: 0;
-        padding: 0;
-        background: none;
-        border-radius: 0;
-        box-shadow: none;
+}
+
+/* A recipe's history (#31): folded under the recipe, and when opened the
+   path from the original down to it, one row per version on a single rule. */
+.earlier-version {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px 20px;
+    margin: 0 0 22px;
+    padding: 14px 18px;
+    background: #f5ede3;
+    border: 1px solid #ead7c4;
+    border-radius: 10px;
+    font-size: 13px;
+    line-height: 1.6;
+}
+.earlier-version p {
+    max-width: 440px;
+}
+.earlier-version .button {
+    gap: 8px;
+}
+.recipe-history {
+    margin: 0 38px 32px;
+    border-top: 1px solid var(--line);
+    padding-top: 18px;
+}
+.history-heading {
+    font-family: inherit;
+    font-size: inherit;
+}
+.history-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    background: transparent;
+    padding: 6px 0;
+    font-size: 13px;
+    font-weight: 550;
+}
+.history-summary {
+    color: var(--muted);
+    font-weight: 400;
+}
+.history-toggle:hover {
+    color: var(--orange);
+}
+.history-panel {
+    padding-top: 14px;
+}
+.history-note,
+.history-origin {
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--muted);
+    max-width: 520px;
+    margin-bottom: 14px;
+}
+.history-origin {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    color: var(--ink);
+}
+.history-origin a {
+    border-bottom: 1px solid #c8cebd;
+}
+.history-origin a:hover {
+    color: var(--orange);
+}
+.history-chain {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.history-version {
+    position: relative;
+    padding: 0 0 4px 26px;
+}
+/* The line itself: a rule from each dot to the next. */
+.history-version::before {
+    content: "";
+    position: absolute;
+    left: 5px;
+    top: 20px;
+    bottom: -14px;
+    width: 1px;
+    background: #d3d6c6;
+}
+.history-chain > .history-version:last-child::before {
+    display: none;
+}
+.history-dot {
+    position: absolute;
+    left: 0;
+    top: 14px;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    border: 1.5px solid #9aa28a;
+    background: #fffdf8;
+}
+.history-version.pinned > .history-dot {
+    background: var(--olive);
+    border-color: var(--olive);
+}
+.history-version.current > .history-dot {
+    box-shadow: 0 0 0 3px #f0d8c9;
+    border-color: var(--orange);
+}
+.history-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 10px;
+    border-radius: 9px;
+}
+.history-version.current > .history-row {
+    background: #f0f1e7;
+}
+.history-text {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+.history-label {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    font-weight: 650;
+    text-transform: uppercase;
+    color: #848975;
+}
+.history-title {
+    font-family: "Playfair Display", Georgia, serif;
+    font-size: 16px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+a.history-title:hover {
+    color: var(--orange);
+}
+.history-meta {
+    font-size: 10px;
+    color: #949486;
+}
+.history-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.history-tags:empty {
+    display: none;
+}
+.history-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 3px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 10px;
+    background: #e4e7db;
+}
+.history-tag.pinned {
+    background: var(--olive);
+    color: #fff;
+}
+.history-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+.history-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 32px;
+    padding: 0 9px;
+    border-radius: 6px;
+    background: transparent;
+    font-size: 11px;
+}
+.history-action:hover {
+    background: #e9ebdf;
+}
+.history-action.delete {
+    color: var(--orange);
+}
+.history-more {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px 20px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--line);
+    font-size: 12px;
+    color: var(--muted);
+}
+.history-more .button {
+    gap: 8px;
+}
+@media (max-width: 800px) {
+    .recipe-history {
+        margin: 0 20px 24px;
     }
-    .collection.rail-open .collection-entries {
-        position: absolute;
-        top: calc(100% + 8px);
-        left: 0;
-        right: 0;
-        max-height: 70dvh;
-        overflow-y: auto;
-        background: var(--cream);
-        border-radius: 12px;
-        padding: 12px;
-        box-shadow: 0 20px 60px #17231430;
+    .history-row {
+        flex-direction: column;
+        gap: 4px;
+    }
+    .history-actions {
+        margin-left: -9px;
+    }
+    .history-title {
+        white-space: normal;
+    }
+}
+
+/* The account page (#11): who is signed in, beside what they have kept. */
+.profile {
+    display: grid;
+    grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+    gap: 40px;
+    align-items: start;
+    padding-block: 42px 60px;
+}
+.profile > .collection-state {
+    grid-column: 1 / -1;
+}
+.profile .collection-state h1 {
+    font-size: 30px;
+    margin: 12px auto 0;
+    letter-spacing: -0.5px;
+}
+.profile-card {
+    background: #fffdf8;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 30px 28px;
+}
+.profile-avatar {
+    display: grid;
+    place-items: center;
+    width: 64px;
+    height: 64px;
+    margin-bottom: 20px;
+    border-radius: 50%;
+    background: var(--olive);
+    color: #fff;
+    font-family: "Playfair Display", Georgia, serif;
+    font-size: 28px;
+}
+.profile-card .eyebrow {
+    font-size: 9px;
+    color: #848975;
+    letter-spacing: 1.7px;
+}
+.profile-name {
+    font-size: 32px;
+    letter-spacing: -0.8px;
+    width: auto;
+    margin: 8px 0 22px;
+    overflow-wrap: anywhere;
+}
+.profile-details {
+    display: grid;
+    gap: 4px;
+    margin: 0 0 26px;
+    font-size: 13px;
+}
+.profile-details dt {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 10px;
+}
+.profile-details dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+.profile-recipes-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.profile-recipes-heading h2 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 26px;
+}
+.profile-recipes-heading h2 .count {
+    font-family: "DM Sans", sans-serif;
+}
+.profile-recipes-state {
+    padding: 30px 20px;
+    background: #f0f1e7;
+    border-radius: 10px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.7;
+}
+.profile-recipes-state .text-button {
+    margin-top: 12px;
+    display: inline-flex;
+}
+.profile-entries {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+@media (max-width: 800px) {
+    .profile {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 24px;
+    }
+}
+
+/* A recipe's whole lineage (#31): a page of its own, the tree drawn by Vue
+   Flow across the full width, time running top to bottom. */
+.flip {
+    transform: scaleX(-1);
+}
+.lineage {
+    display: flex;
+    flex-direction: column;
+    padding-top: 30px;
+    /* The page is the window under the site header, and the canvas takes
+       what the lineage header leaves of it — so nothing of the tree starts
+       below the fold. */
+    min-height: calc(100dvh - 106px);
+}
+.lineage-header {
+    display: grid;
+    gap: 14px;
+    margin-bottom: 22px;
+}
+.lineage-back {
+    justify-self: start;
+    gap: 8px;
+}
+.lineage-header .eyebrow {
+    font-size: 9px;
+    color: #848975;
+    letter-spacing: 1.7px;
+}
+.lineage-heading {
+    font-size: 38px;
+    letter-spacing: -1px;
+    width: auto;
+    margin: 8px 0 0;
+}
+.lineage-legend {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 22px;
+    font-size: 11px;
+    color: var(--muted);
+}
+.lineage-legend li {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+.lineage-key {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    border: 1.5px solid #c7cbb8;
+    background: #fffdf8;
+}
+.lineage-key.pinned {
+    border-color: var(--olive);
+    background: var(--olive);
+}
+.lineage-key.current {
+    border-color: var(--orange);
+    box-shadow: 0 0 0 3px #f0d8c9;
+}
+.lineage-key.variant {
+    border-style: dashed;
+}
+.lineage-canvas {
+    flex: 1 1 auto;
+    min-height: 460px;
+    position: relative;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    background: #f6f5ee;
+}
+/* Vue Flow sizes itself as 100% of its parent's height, which a flex item's
+   grown height is not; pinned to the canvas's edges instead, or it is 0 tall
+   and clips the whole tree. */
+.lineage-canvas > .vue-flow {
+    position: absolute;
+    inset: 0;
+}
+.lineage-node {
+    width: 290px;
+    display: grid;
+    gap: 4px;
+    padding: 12px 14px;
+    background: #fffdf8;
+    border: 1.5px solid #d6d9c8;
+    border-radius: 11px;
+    text-align: left;
+    color: var(--ink);
+    box-shadow: 0 6px 18px #1723140d;
+}
+.lineage-node.pinned {
+    border-color: var(--olive);
+}
+.lineage-node.current {
+    border-color: var(--orange);
+    box-shadow: 0 0 0 4px #f0d8c9;
+}
+.lineage-node.variant,
+.lineage-node.origin {
+    border-style: dashed;
+    background: #fbfaf4;
+}
+.lineage-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    font-weight: 650;
+    text-transform: uppercase;
+    color: #848975;
+}
+.lineage-title {
+    font-family: "Playfair Display", Georgia, serif;
+    font-size: 17px;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+}
+.lineage-title:hover {
+    color: var(--orange);
+}
+.lineage-meta {
+    font-size: 10px;
+    color: #949486;
+}
+.lineage-actions {
+    display: flex;
+    gap: 4px;
+    margin: 4px 0 -4px -9px;
+}
+.lineage-node .vue-flow__handle {
+    opacity: 0;
+    pointer-events: none;
+}
+.vue-flow__node-lineage {
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: default;
+    /* Vue Flow gives a node that is neither draggable nor selectable
+       pointer-events: none, inline, which would leave its link and buttons
+       under the pane. These are read-only, and still have to be clickable. */
+    pointer-events: all !important;
+}
+.lineage-edge path.vue-flow__edge-path {
+    stroke: #9aa28a;
+    stroke-width: 1.5;
+}
+.lineage-edge.variant path.vue-flow__edge-path {
+    stroke-dasharray: 6 5;
+}
+@media (max-width: 600px) {
+    .lineage-heading {
+        font-size: 28px;
+    }
+    .lineage-canvas {
+        min-height: 400px;
+    }
+}
+
+/* How a version differs from the original of its line (#31): what tells two
+   versions with the same title apart, on the path and in the tree alike. */
+.history-changes,
+.lineage-changes {
+    display: grid;
+    gap: 1px;
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--olive);
+}
+.changes-from {
+    font-size: 9px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    font-weight: 650;
+    color: #a0a392;
+}
+.lineage-changes {
+    margin-top: 4px;
+    padding-top: 6px;
+    border-top: 1px dashed var(--line);
+}
+
+/* Read aloud, not shown: the word a mark or a strike-through stands for. */
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+/* The lineage node's itemised changes: an ingredient's amount before and
+   after, and a step's number with the words that changed in it. */
+.change-headline {
+    color: var(--olive);
+}
+.change-list {
+    list-style: none;
+    margin: 4px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 5px;
+    font-size: 11px;
+    line-height: 1.45;
+    color: var(--ink);
+}
+.change {
+    display: grid;
+    grid-template-columns: 12px minmax(0, 1fr);
+    gap: 4px;
+}
+.change.step {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1px;
+}
+.change-mark {
+    font-weight: 650;
+    color: var(--muted);
+}
+.change.added .change-mark {
+    color: var(--olive);
+}
+.change.removed .change-mark,
+.change.removed .change-step {
+    color: var(--orange);
+}
+.change-text {
+    overflow-wrap: anywhere;
+}
+.change-text strong {
+    font-weight: 600;
+}
+/* Which ingredient on its own line, and what happened to its amount under
+   it, so a long amount wraps as a whole rather than mid-phrase. */
+.change-name {
+    display: block;
+}
+.change-amount {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 4px;
+    white-space: pre;
+}
+.change del,
+.snippet del {
+    color: var(--orange);
+    text-decoration-thickness: 1px;
+}
+.change ins,
+.snippet ins {
+    text-decoration: none;
+    background: #e3ead3;
+    color: var(--olive);
+    border-radius: 3px;
+    padding: 0 2px;
+}
+.change-by {
+    margin-left: 2px;
+    padding: 0 5px;
+    border-radius: 10px;
+    background: #eef0e6;
+    font-size: 10px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.change-step {
+    font-size: 9px;
+    letter-spacing: 1.1px;
+    text-transform: uppercase;
+    font-weight: 650;
+    color: #848975;
+}
+.snippet {
+    color: var(--muted);
+}
+.change-more {
+    font-size: 10px;
+    color: var(--muted);
+}
+
+/* Motion. Things arrive and leave rather than appear and vanish: dialogs rise
+   out of a fading backdrop, the toast slides up, rows in the editor make room
+   and slide to where they were moved, and pages crossfade. Short throughout,
+   and off for anyone who asks for less motion (see the reduced-motion rule,
+   whose !important wins over all of these). */
+.dialog-enter-active,
+.dialog-leave-active {
+    transition: opacity 0.22s ease;
+}
+.dialog-enter-active .modal,
+.dialog-leave-active .modal {
+    transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.dialog-enter-from,
+.dialog-leave-to {
+    opacity: 0;
+}
+.dialog-enter-from .modal {
+    transform: translateY(16px) scale(0.98);
+}
+.dialog-leave-to .modal {
+    transform: translateY(8px) scale(0.99);
+}
+/* On its way out, a dialog is only a picture of one. */
+.dialog-leave-active {
+    pointer-events: none;
+}
+
+/* `translate`, not `transform`: the toast is centred with a transform. */
+.toast-enter-active,
+.toast-leave-active {
+    transition:
+        opacity 0.25s ease,
+        translate 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.toast-enter-from,
+.toast-leave-to {
+    opacity: 0;
+    translate: 0 16px;
+}
+
+.edit-list {
+    position: relative;
+}
+.row-move,
+.row-enter-active,
+.row-leave-active {
+    transition:
+        transform 0.25s ease,
+        opacity 0.2s ease;
+}
+.row-enter-from,
+.row-leave-to {
+    opacity: 0;
+    transform: translateY(-6px);
+}
+/* Out of the flow while it fades, so the rows below close up at once and
+   slide rather than jump. Its width is the list's, less the bullets' room. */
+.edit-list .row-leave-active {
+    position: absolute;
+    width: calc(100% - 20px);
+    pointer-events: none;
+}
+.step-list.edit-list .row-leave-active {
+    width: 100%;
+}
+
+.bar-enter-active,
+.bar-leave-active {
+    transition:
+        opacity 0.16s ease,
+        transform 0.16s ease;
+}
+.bar-enter-from {
+    opacity: 0;
+    transform: translateY(10px);
+}
+.bar-leave-to {
+    opacity: 0;
+}
+
+/* Opacity alone: a transform on a page would hold its fixed dialogs to it. */
+.page-enter-active,
+.page-leave-active {
+    transition: opacity 0.16s ease;
+}
+.page-enter-from,
+.page-leave-to {
+    opacity: 0;
+}
+
+/* A problem said about something just done eases in beside it. */
+.edit-bar-problem,
+.add-failure,
+.import-failure {
+    animation: rise-in 0.2s ease;
+}
+@keyframes rise-in {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+}
+
+/* The collection's preview crossfades from one recipe to the next. The one
+   going is lifted out of the flow and lies over the one coming, so the pane
+   takes the new one's height at once and neither waits on the other. */
+.collection-previews {
+    position: relative;
+}
+.preview-enter-active,
+.preview-leave-active {
+    transition: opacity 0.2s ease;
+}
+.preview-leave-active {
+    position: absolute;
+    inset: 0 0 auto;
+    pointer-events: none;
+}
+.preview-enter-from,
+.preview-leave-to {
+    opacity: 0;
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
     }
 }

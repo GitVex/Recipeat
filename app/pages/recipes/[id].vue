@@ -4,7 +4,7 @@ import type { SaveAction } from "~/composables/useRecipeWrites";
 
 // A stored recipe at its own address, so it survives a reload and can be
 // linked to. It is read here, scaled, edited, saved one of three ways, and
-// deleted. The line back to its root (#31) belongs here too.
+// deleted, and the rest of its line is reached from here (#31).
 const route = useRoute();
 const id = String(route.params.id);
 const { login } = useOidcAuth();
@@ -47,6 +47,17 @@ useHead(() => ({
   title: recipe.value ? `${recipeTitle(recipe.value)} — Recipeat` : "Recipeat",
 }));
 
+// ── History ────────────────────────────────────────────────────────────────
+
+const lineage = useRecipeHistory(id);
+const { history, tree, pinning, pinError } = lineage;
+// Whether this is the version the collection shows. The line knows better
+// than the recipe read before it, once it has been read: a pin moved from the
+// history, or handed back by a deletion, is not in the recipe.
+const pinned = computed(() =>
+  lineage.pinnedId.value ? lineage.pinnedId.value === id : (recipe.value?.pinned ?? true),
+);
+
 // ── Editing ────────────────────────────────────────────────────────────────
 
 const editor = useRecipeEditor(recipe);
@@ -66,29 +77,16 @@ const writes = useRecipeWrites(
     leaving = true;
     await navigateTo(path);
   },
+  () => lineage.refresh(),
 );
 const { saving, saveError, deleting, deletePending, deleteError } = writes;
 const save = () => writes.save(choice.value);
 
-const deleteTitle = computed(() =>
-  (deleting.value?.count ?? 1) > 1
-    ? `Delete this recipe and ${deleting.value!.count - 1} later version${deleting.value!.count > 2 ? "s" : ""}?`
-    : "Delete this recipe?",
-);
-// Says what goes, and no more: the versions that came after this one. What
-// was branched off it as a separate recipe is not in the count, and nothing
-// here suggests it is.
-const deleteDetail = computed(() =>
-  (deleting.value?.count ?? 1) > 1
-    ? "This version goes, and every version that came after it. There is no undo."
-    : "It will be gone for good. There is no undo.",
-);
-const deleteActions = ref<HTMLElement | null>(null);
-watch(deleting, async (value) => {
-  if (!value) return;
-  await nextTick();
-  // The safe answer is the one that takes focus.
-  deleteActions.value?.querySelector<HTMLElement>(".keep")?.focus();
+// Deleting the recipe on the page is deleting "this recipe"; deleting another
+// version on the path to it is deleting that version, and says which.
+const deleteWhat = computed(() => {
+  const target = deleting.value?.id;
+  return !target || target === id ? "this recipe" : versionName(tree.value?.label(target));
 });
 
 // Leaving with unsaved changes asks first. Inside the app that is a dialog of
@@ -159,27 +157,58 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", warnBeforeUnloa
         :editor="editor"
         scalable
         title-id="open-recipe-title"
+      >
+        <!-- Reached by going back down the line. Saying so here, before
+             anything is changed, is what keeps an edit to it from looking like
+             an edit to the recipe the collection shows. -->
+        <div v-if="!pinned" class="earlier-version" role="note">
+          <p>
+            <strong>An earlier version.</strong> Your collection shows another
+            version of this recipe. Changes saved here stay with this one.
+          </p>
+          <button
+            type="button"
+            class="button small"
+            :disabled="!!pinning"
+            @click="lineage.pin(id)"
+          >
+            <AppIcon name="bookmark" :size="15" />{{ pinning === id ? "Pinning…" : "Pin this version" }}
+          </button>
+        </div>
+      </RecipeBody>
+      <Transition name="bar" mode="out-in">
+        <SaveControl
+          v-if="edited"
+          v-model="choice"
+          :problems="problems"
+          :saving="saving"
+          :error="saveError"
+          :can-save="!!editor.body.value"
+          @save="writes.save"
+          @discard="editor.reset()"
+        />
+        <div v-else class="recipe-actions">
+          <button
+            type="button"
+            class="text-button delete-recipe"
+            :disabled="deletePending"
+            @click="writes.askDelete()"
+          >
+            <AppIcon name="trash" :size="15" />{{ deletePending && !deleting ? "Checking…" : "Delete recipe" }}
+          </button>
+        </div>
+      </Transition>
+      <RecipeHistory
+        v-if="history && tree && hasHistory(history)"
+        :history="history"
+        :tree="tree"
+        :current="id"
+        :pinning="pinning"
+        :pin-error="pinError"
+        :deleting="deletePending"
+        @pin="lineage.pin"
+        @delete="writes.askDelete"
       />
-      <SaveControl
-        v-if="edited"
-        v-model="choice"
-        :problems="problems"
-        :saving="saving"
-        :error="saveError"
-        :can-save="!!editor.body.value"
-        @save="writes.save"
-        @discard="editor.reset()"
-      />
-      <div v-else class="recipe-actions">
-        <button
-          type="button"
-          class="text-button delete-recipe"
-          :disabled="deletePending"
-          @click="writes.askDelete()"
-        >
-          <AppIcon name="trash" :size="15" />{{ deletePending && !deleting ? "Checking…" : "Delete recipe" }}
-        </button>
-      </div>
     </template>
     <p v-else-if="status === 'pending'" class="collection-state" role="status">
       Opening your recipe…
@@ -214,32 +243,13 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", warnBeforeUnloa
       </div>
     </BaseDialog>
 
-    <BaseDialog
-      :open="!!deleting"
-      title-id="delete-title"
-      close-label="Close"
-      modal-class="leave-modal"
-      @close="writes.cancelDelete()"
-    >
-      <div class="leave-content">
-        <h2 id="delete-title">{{ deleteTitle }}</h2>
-        <p v-if="deleting?.count">{{ deleteDetail }}</p>
-        <p v-if="deleteError" class="edit-bar-problem" role="alert">{{ deleteError }}</p>
-        <div ref="deleteActions" class="leave-actions">
-          <button
-            v-if="deleting?.count"
-            type="button"
-            class="button small destructive"
-            :disabled="deletePending"
-            @click="writes.confirmDelete()"
-          >
-            {{ deletePending ? "Deleting…" : "Delete" }}
-          </button>
-          <button type="button" class="text-button keep" @click="writes.cancelDelete()">
-            Keep it
-          </button>
-        </div>
-      </div>
-    </BaseDialog>
+    <DeleteVersionDialog
+      :deleting="deleting"
+      :what="deleteWhat"
+      :pending="deletePending"
+      :error="deleteError"
+      @confirm="writes.confirmDelete()"
+      @cancel="writes.cancelDelete()"
+    />
   </div>
 </template>

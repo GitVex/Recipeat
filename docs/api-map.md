@@ -294,6 +294,49 @@ entered by afterwards — `null` when the line ended.
 | 404 | No such version, or not yours — the same answer as `GET` |
 | 409 | The line changed mid-deletion; nothing was deleted, retry |
 
+### `GET /api/recipes/{id}/history`
+
+```
+GET {{app}}/api/recipes/6f1e9b3c-…/history
+Cookie: nuxt-oidc-auth=<value>
+```
+
+The line the version in the path belongs to, from any version in it. Answers
+`{ "history": { "lineId", "versions": [ … ], "variants": [ … ], "origin" } }`:
+
+- `versions` — every version in the line, oldest first, each with `id`,
+  `title`, `progressionOf`, `pinned`, `ingredientCount`, `stepCount` and the
+  timestamps. Card fields, not recipes: `progressionOf` is enough to draw the
+  tree, and reading one is `GET /api/recipes/{id}`.
+- `variants` — each separate recipe that branched off a version in the line,
+  by its entry point: `id` and `title` are its pinned version's, `variantOf`
+  the version here it came from. Nothing of its own line is included.
+- `origin` — `{ id, title }` of the version this line branched off, or `null`
+  for a line that never did or whose origin has since been deleted.
+
+| Status | Meaning |
+|---|---|
+| 400 | The id is not a UUID |
+| 404 | No such version, or not yours |
+
+### `PUT /api/recipes/{id}/pin`
+
+```
+PUT {{app}}/api/recipes/6f1e9b3c-…/pin
+Cookie: nuxt-oidc-auth=<value>
+```
+
+**Pin.** Makes the version in the path the one its line is entered by — what
+`GET /api/recipes` lists — and unpins the one that was. No body. Pinning the
+version already pinned changes nothing, so it is a PUT. Answers
+`{ "pinned": "<id>", "lineId": "<id>" }`.
+
+| Status | Meaning |
+|---|---|
+| 400 | The id is not a UUID |
+| 404 | No such version, or not yours |
+| 409 | A progression was saved into the line at the same moment; retry |
+
 ### `GET /api/recipes`
 
 ```
