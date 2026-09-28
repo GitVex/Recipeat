@@ -60,7 +60,7 @@ async function mockApi(page: Page, fake: Fake, { pinned = true, failAdd = false 
 const openCollection = async (page: Page) => {
   await page.goto('/')
   await page.waitForFunction(() => !!(document.querySelector('#__nuxt') as any)?.__vue_app__)
-  await page.getByRole('navigation').getByRole('link', { name: /My collection/ }).click()
+  await page.getByRole('navigation').getByRole('link', { name: /My recipes/ }).click()
   await expect(page).toHaveURL(/\/recipes$/)
 }
 

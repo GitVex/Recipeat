@@ -23,7 +23,7 @@ function saveMessage(error: unknown): string {
     case 401:
       return "You’ve been signed out. Sign in again in another tab, then save; your changes stay here until you leave this page.";
     case 404:
-      return "This recipe isn’t in your collection any more, so there is nothing to save from.";
+      return "This recipe isn’t in your recipes any more, so there is nothing to save from.";
     // Two versions made in one line at the same moment; one got there first.
     case 409:
       return "This recipe changed while it was being saved. Nothing was written; try again.";

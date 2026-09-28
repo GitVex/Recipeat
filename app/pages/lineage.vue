@@ -148,7 +148,7 @@ useHead(() => ({
         </h1>
       </div>
       <ul v-if="history" class="lineage-legend" aria-label="Key">
-        <li><span class="lineage-key pinned" aria-hidden="true" />In your collection: the version your collection shows</li>
+        <li><span class="lineage-key pinned" aria-hidden="true" />In your recipes: the version My recipes shows</li>
         <li><span class="lineage-key current" aria-hidden="true" />The version you came from</li>
         <li><span class="lineage-key variant" aria-hidden="true" />A separate recipe, shown by where it stands now</li>
       </ul>
@@ -159,7 +159,7 @@ useHead(() => ({
       <h2>We couldn’t find that recipe.</h2>
       <p>It may have been deleted, or the link may be wrong.</p>
       <NuxtLink class="button" to="/recipes">
-        Back to your collection <AppIcon name="arrow" />
+        Back to your recipes <AppIcon name="arrow" />
       </NuxtLink>
     </div>
     <div v-else-if="failure === 'signedOut'" class="collection-state page-width">

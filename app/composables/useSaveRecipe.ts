@@ -29,7 +29,7 @@ function failureFor(status: number | undefined): SaveFailure {
       return {
         action: "none",
         message:
-          "Saving isn’t available right now. Your recipe can’t be added to a collection on this server.",
+          "Saving isn’t available right now. Your recipe can’t be saved on this server.",
       };
     // 400, 413 and 422 are stopped in the editor before anything is sent,
     // so reaching one is a bug, and so is anything else.

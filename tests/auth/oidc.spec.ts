@@ -397,14 +397,14 @@ test('an import is added once, as it reads in the dialog, and becomes the stored
   })
   await importText(page)
   await expect(page.getByRole('button', { name: 'Save to my collection' })).toHaveCount(0)
-  await page.getByRole('button', { name: 'Add to my collection' }).click()
+  await page.getByRole('button', { name: 'Add to my recipes' }).click()
   await expect(page.getByRole('button', { name: 'Adding…' })).toBeDisabled()
   // The handler has to be holding the request before there is anything to let go.
   await expect.poll(() => posted.length).toBe(1)
   release()
-  await expect(page.getByText('In your collection')).toBeFocused()
-  await expect(page.getByRole('button', { name: /Add to my collection|Adding/ })).toHaveCount(0)
-  await expect(page.locator('.toast')).toContainText('added to your collection')
+  await expect(page.getByText('In your recipes')).toBeFocused()
+  await expect(page.getByRole('button', { name: /Add to my recipes|Adding/ })).toHaveCount(0)
+  await expect(page.locator('.toast')).toContainText('added to your recipes')
   // Unedited, it goes as the editor sends any recipe: every line as it was
   // extracted, in the shape a save takes.
   expect(posted).toEqual([{ recipe: bodyOf(extracted as ExtractedRecipe, editOf(extracted as ExtractedRecipe)).body }])
@@ -428,13 +428,13 @@ test('closing an unsaved import asks first, and only "Close anyway" loses it', a
 test('a lapsed session keeps the unsaved import through the sign-in', async ({ page }) => {
   await page.route('**/api/recipes', route => route.fulfill(answer(401)))
   await importText(page)
-  await page.getByRole('button', { name: 'Add to my collection' }).click()
+  await page.getByRole('button', { name: 'Add to my recipes' }).click()
   await expect(page.getByRole('alert')).toContainText('signed out')
   await page.unroute('**/api/recipes')
   await page.getByRole('button', { name: 'Sign in again' }).click()
   await expect(page.getByText('Test Cook', { exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Playwright pancakes' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Add to my collection' })).toBeEnabled()
+  await expect(page.getByRole('button', { name: 'Add to my recipes' })).toBeEnabled()
   await expect(page.getByRole('alert')).toHaveCount(0)
 })
 
@@ -442,10 +442,10 @@ test('a server with no database says so, and a rejected body is treated as a bug
   let status = 503
   await page.route('**/api/recipes', route => route.fulfill(answer(status)))
   await importText(page)
-  await page.getByRole('button', { name: 'Add to my collection' }).click()
+  await page.getByRole('button', { name: 'Add to my recipes' }).click()
   await expect(page.getByRole('alert')).toContainText('Saving isn’t available right now')
   status = 422
-  await page.getByRole('button', { name: 'Add to my collection' }).click()
+  await page.getByRole('button', { name: 'Add to my recipes' }).click()
   await expect(page.getByRole('alert')).toContainText('Something went wrong while saving')
   await expect(page.getByText('upstream detail')).toHaveCount(0)
 })
@@ -453,8 +453,8 @@ test('a server with no database says so, and a rejected body is treated as a bug
 test('an added import is a real row, owned by the signed-in subject', async ({ page }) => {
   test.skip(!process.env.NUXT_DATABASE_URL, 'NUXT_DATABASE_URL is not set')
   await importText(page)
-  await page.getByRole('button', { name: 'Add to my collection' }).click()
-  await expect(page.getByText('In your collection')).toBeVisible()
+  await page.getByRole('button', { name: 'Add to my recipes' }).click()
+  await expect(page.getByText('In your recipes')).toBeVisible()
   const sql = postgres(process.env.NUXT_DATABASE_URL!, { max: 1, onnotice: () => {} })
   try {
     const rows = await sql<{ owner_sub: string, source: { type: string } }[]>`SELECT owner_sub, source FROM recipes WHERE title = 'Playwright pancakes'`

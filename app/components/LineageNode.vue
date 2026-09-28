@@ -115,7 +115,7 @@ const eyebrow = computed(() =>
     <span v-if="version && (data.current || version.pinned)" class="history-tags">
       <span v-if="data.current" class="history-tag">You came from here</span>
       <span v-if="version.pinned" class="history-tag pinned">
-        <AppIcon name="bookmark" :size="11" />In your collection
+        <AppIcon name="bookmark" :size="11" />In your recipes
       </span>
     </span>
     <div v-if="version" class="lineage-actions nodrag nopan">
@@ -124,7 +124,7 @@ const eyebrow = computed(() =>
         type="button"
         class="history-action"
         :aria-label="`Pin ${data.label}`"
-        title="Show this version in your collection"
+        title="Show this version in your recipes"
         :disabled="!!data.pinning"
         @click="data.pin(version.id)"
       >

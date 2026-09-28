@@ -72,7 +72,7 @@ async function mockApi(page: Page, rows: Map<string, Row>, write: Handler = rout
 const open = async (page: Page, title: string) => {
   await page.goto('/')
   await page.waitForFunction(() => !!(document.querySelector('#__nuxt') as any)?.__vue_app__)
-  await page.getByRole('navigation').getByRole('link', { name: /My collection/ }).click()
+  await page.getByRole('navigation').getByRole('link', { name: /My recipes/ }).click()
   await page.locator('.collection-entry', { hasText: title }).click()
   await expect(page.locator('#open-recipe-title')).toContainText(title)
 }
@@ -172,7 +172,7 @@ test('the recipe page shows the straight path from the original to it, and no mo
   await expect(version(page, 'Bread, wetter').locator('.history-changes')).toContainText('Same as the original')
   await expect(version(page, 'Original').locator('.history-changes')).toHaveCount(0)
   await expect(spelt).toContainText('Open now')
-  await expect(spelt).toContainText('In your collection')
+  await expect(spelt).toContainText('In your recipes')
   await expect(pins(page)).toHaveCount(1)
   await expect(panel.getByRole('button', { name: /^Pin / })).toHaveCount(2)
   await expect(panel.getByRole('button', { name: /^Delete / })).toHaveCount(3)
@@ -209,10 +209,10 @@ test('an earlier version is readable, says what it is, and can be pinned', async
   await expect(history(page).locator('.history-more')).toContainText('2 other versions and 1 separate recipe')
 
   await note.getByRole('button', { name: 'Pin this version' }).click()
-  await expect(toast(page)).toContainText('Your collection shows this version now')
+  await expect(toast(page)).toContainText('My recipes shows this version now')
   expect(pinned).toEqual([id(2)])
   await expect(page.getByRole('note')).toHaveCount(0)
-  await expect(version(page, 'Bread, wetter')).toContainText('In your collection')
+  await expect(version(page, 'Bread, wetter')).toContainText('In your recipes')
   await expect(pins(page)).toHaveCount(1)
   // The collection's entry for the line is this version now.
   await expect(page.locator('.collection-entry', { hasText: 'Bread' }).first()).toHaveAttribute('href', `/recipes/${id(2)}`)
@@ -227,10 +227,10 @@ test('a version on the path can be pinned, not only the one on the page', async 
   await open(page, 'Bread, spelt')
   await toggle(page).click()
   await history(page).getByRole('button', { name: 'Pin Original' }).click()
-  await expect(toast(page)).toContainText('Your collection shows this version now')
+  await expect(toast(page)).toContainText('My recipes shows this version now')
   // This page is the earlier one now, and says so.
   await expect(page.getByRole('note')).toContainText('An earlier version')
-  await expect(version(page, 'Original')).toContainText('In your collection')
+  await expect(version(page, 'Original')).toContainText('In your recipes')
   await expect(pins(page)).toHaveCount(1)
 })
 
@@ -241,7 +241,7 @@ test('a pin that fails says so, and the pin stays where it was', async ({ page }
   await history(page).getByRole('button', { name: 'Pin Version 2' }).click()
   await expect(history(page).getByRole('alert')).toContainText('Nothing moved')
   await expect(toast(page)).toHaveCount(0)
-  await expect(version(page, 'Bread, spelt')).toContainText('In your collection')
+  await expect(version(page, 'Bread, spelt')).toContainText('In your recipes')
   await expect(pins(page)).toHaveCount(1)
 })
 
@@ -323,7 +323,7 @@ test('the lineage page draws the whole tree: both branches, the pin, and what br
   expect(at['Bread, rye']!.x).not.toBe(at['Bread, spelt']!.x)
 
   await expect(node(page, 'Bread, spelt')).toContainText('You came from here')
-  await expect(node(page, 'Bread, spelt')).toContainText('In your collection')
+  await expect(node(page, 'Bread, spelt')).toContainText('In your recipes')
   await expect(canvas(page).locator('.history-tag.pinned')).toHaveCount(1)
   // Itemised: which ingredient and by how much, which step and what in it.
   const changes = node(page, 'Bread, spelt').locator('.lineage-changes')
@@ -369,8 +369,8 @@ test('any version can be pinned from the lineage page', async ({ page }) => {
   await toggle(page).click()
   await openLineage(page)
   await node(page, 'Bread, rye').getByRole('button', { name: 'Pin Version 3' }).click()
-  await expect(toast(page)).toContainText('Your collection shows this version now')
-  await expect(node(page, 'Bread, rye')).toContainText('In your collection')
+  await expect(toast(page)).toContainText('My recipes shows this version now')
+  await expect(node(page, 'Bread, rye')).toContainText('In your recipes')
   await expect(canvas(page).locator('.history-tag.pinned')).toHaveCount(1)
 })
 
@@ -413,7 +413,7 @@ test('deleting the version the lineage page came from moves to what is left of t
   await page.getByRole('dialog', { name: 'Delete version 4?' }).getByRole('button', { name: 'Delete' }).click()
   await expect(page).toHaveURL(`/recipes/${id(2)}/lineage`)
   await expect(node(page, 'Bread, wetter')).toContainText('You came from here')
-  await expect(node(page, 'Bread, wetter')).toContainText('In your collection')
+  await expect(node(page, 'Bread, wetter')).toContainText('In your recipes')
 })
 
 test('a separate recipe’s lineage starts from where it came from, and without it when that is gone', async ({ page }) => {

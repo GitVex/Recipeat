@@ -14,7 +14,7 @@ const emit = defineEmits<{ select: [recipe: ShelfRecipe] }>();
         <h2>Meet your next <em>“make again.”</em></h2>
       </div>
       <NuxtLink class="text-button" to="/recipes">
-        View your collection <AppIcon name="arrow" :size="18" />
+        View your recipes <AppIcon name="arrow" :size="18" />
       </NuxtLink>
     </div>
     <div class="recipe-grid">

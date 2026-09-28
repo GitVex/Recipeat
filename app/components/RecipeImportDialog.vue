@@ -212,7 +212,7 @@ const WAIT: Record<ExtractionSource, string> = {
     </template>
     <template v-else>
       <p>
-        Every recipe you bring in goes into your own collection, so we need to
+        Every recipe you bring in is kept with your own recipes, so we need to
         know whose it is. Sign in, and you can bring recipes in from websites,
         photos and your own notes.
       </p>

@@ -24,7 +24,7 @@ const OPTIONS: { value: SaveAction; title: string; term: string; detail: string 
     value: "progression",
     title: "New version",
     term: "progression",
-    detail: "The same recipe, further along. This one stays in its history; the new one is what your collection shows.",
+    detail: "The same recipe, further along. This one stays in its history; the new one is what My recipes shows.",
   },
   {
     value: "variant",
