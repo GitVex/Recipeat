@@ -83,34 +83,10 @@ const { saving, saveError, deleting, deletePending, deleteError } = writes;
 const save = () => writes.save(choice.value);
 
 // Deleting the recipe on the page is deleting "this recipe"; deleting another
-// version from its history is deleting that version, and says which.
-const deleteTitle = computed(() => {
+// version on the path to it is deleting that version, and says which.
+const deleteWhat = computed(() => {
   const target = deleting.value?.id;
-  const label = target && target !== id ? tree.value?.label(target) : null;
-  const what = !target || target === id
-    ? "this recipe"
-    : label === "Original"
-      ? "the original"
-      : (label?.toLowerCase() ?? "this version");
-  const count = deleting.value?.count ?? 1;
-  return count > 1
-    ? `Delete ${what} and ${count - 1} later version${count > 2 ? "s" : ""}?`
-    : `Delete ${what}?`;
-});
-// Says what goes, and no more: the versions that came after this one. What
-// was branched off it as a separate recipe is not in the count, and nothing
-// here suggests it is.
-const deleteDetail = computed(() =>
-  (deleting.value?.count ?? 1) > 1
-    ? "This version goes, and every version that came after it. There is no undo."
-    : "It will be gone for good. There is no undo.",
-);
-const deleteActions = ref<HTMLElement | null>(null);
-watch(deleting, async (value) => {
-  if (!value) return;
-  await nextTick();
-  // The safe answer is the one that takes focus.
-  deleteActions.value?.querySelector<HTMLElement>(".keep")?.focus();
+  return !target || target === id ? "this recipe" : versionName(tree.value?.label(target));
 });
 
 // Leaving with unsaved changes asks first. Inside the app that is a dialog of
@@ -265,32 +241,13 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", warnBeforeUnloa
       </div>
     </BaseDialog>
 
-    <BaseDialog
-      :open="!!deleting"
-      title-id="delete-title"
-      close-label="Close"
-      modal-class="leave-modal"
-      @close="writes.cancelDelete()"
-    >
-      <div class="leave-content">
-        <h2 id="delete-title">{{ deleteTitle }}</h2>
-        <p v-if="deleting?.count">{{ deleteDetail }}</p>
-        <p v-if="deleteError" class="edit-bar-problem" role="alert">{{ deleteError }}</p>
-        <div ref="deleteActions" class="leave-actions">
-          <button
-            v-if="deleting?.count"
-            type="button"
-            class="button small destructive"
-            :disabled="deletePending"
-            @click="writes.confirmDelete()"
-          >
-            {{ deletePending ? "Deleting…" : "Delete" }}
-          </button>
-          <button type="button" class="text-button keep" @click="writes.cancelDelete()">
-            Keep it
-          </button>
-        </div>
-      </div>
-    </BaseDialog>
+    <DeleteVersionDialog
+      :deleting="deleting"
+      :what="deleteWhat"
+      :pending="deletePending"
+      :error="deleteError"
+      @confirm="writes.confirmDelete()"
+      @cancel="writes.cancelDelete()"
+    />
   </div>
 </template>

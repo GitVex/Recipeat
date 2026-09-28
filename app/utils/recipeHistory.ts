@@ -57,3 +57,8 @@ export type HistoryContext = {
   pin: (id: string) => void;
   remove: (id: string) => void;
 };
+
+// A version's label as it reads inside a sentence: "Delete version 3?",
+// "Delete the original?".
+export const versionName = (label: string | undefined) =>
+  !label ? "this version" : label === "Original" ? "the original" : label.toLowerCase();
