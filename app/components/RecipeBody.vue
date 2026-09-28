@@ -200,7 +200,7 @@ const typedTime = computed(() => {
           ></small
         >
       </h3>
-      <ul class="edit-list">
+      <TransitionGroup tag="ul" name="row" class="edit-list">
         <li v-for="({ row, shown }, index) in ingredientRows" :key="row.key">
           <EditableIngredient :row="row" :shown="shown" :index="index" />
           <RowControls
@@ -211,7 +211,7 @@ const typedTime = computed(() => {
             @remove="editor!.removeIngredient(index)"
           />
         </li>
-      </ul>
+      </TransitionGroup>
       <button
         type="button"
         class="text-button add-row"
@@ -226,7 +226,7 @@ const typedTime = computed(() => {
       </button>
 
       <h3>Let’s make it</h3>
-      <ol class="step-list edit-list">
+      <TransitionGroup tag="ol" name="row" class="step-list edit-list">
         <li
           v-for="({ row, number, parts }, index) in stepRows"
           :key="row.key"
@@ -253,7 +253,7 @@ const typedTime = computed(() => {
             @remove="editor!.removeStep(index)"
           />
         </li>
-      </ol>
+      </TransitionGroup>
       <button
         type="button"
         class="text-button add-row"

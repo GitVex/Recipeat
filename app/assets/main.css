@@ -1961,11 +1961,13 @@ input.editable-input {
 .collection {
     position: relative;
     display: grid;
-    grid-template-columns: minmax(290px, 370px) minmax(0, 1fr);
+    /* A length, not minmax(): the fold to the rail animates only between
+       tracks of one kind, and between kinds the browser jumps half way. */
+    grid-template-columns: 370px minmax(0, 1fr);
     gap: 40px;
     align-items: start;
     padding-block: 42px 60px;
-    transition: grid-template-columns 0.35s ease;
+    transition: grid-template-columns 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .collection.folded {
     grid-template-columns: 72px minmax(0, 1fr);
@@ -2009,6 +2011,8 @@ input.editable-input {
     margin: 0;
     padding: 0;
     display: grid;
+    /* As wide as the column and no wider, folded to the rail included. */
+    grid-template-columns: minmax(0, 1fr);
     gap: 4px;
 }
 .collection-entry {
@@ -2116,37 +2120,48 @@ input.editable-input {
     background: #f0f1e7;
 }
 
-/* Folded: pictures only, with the words still there for a screen reader. */
-.collection.folded:not(.rail-open) .collection-heading > div,
-.collection.folded:not(.rail-open) .entry-text {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-}
-.collection.folded:not(.rail-open) .collection-heading {
-    justify-content: center;
-}
-.collection.folded:not(.rail-open) .collection-entry {
-    padding: 5px;
-    justify-content: center;
-}
-.collection.folded:not(.rail-open) .collection-list .collection-state {
+/* Folded: pictures only. The words stay where they were, invisible, for a
+   screen reader and so that nothing is laid out again: the column narrows
+   over them, and folding slides the list away to the left with the recipe
+   widening after it. Opening the list again runs the same way back. */
+.collection.folded .collection-list .collection-state {
     display: none;
 }
-/* Open, the rail widens over the recipe without leaving its grid cell. Taken
-   out of the grid, it would hand its column to the pane, which then squeezes
-   into 72px. */
-.collection.rail-open .collection-list {
-    width: min(370px, calc(100vw - 40px));
-    margin: -12px 0 0 -12px;
-    z-index: 6;
-    background: var(--cream);
-    border-radius: 12px;
-    padding: 12px;
-    box-shadow: 0 20px 60px #17231430;
+@media (min-width: 801px) {
+    .collection-list {
+        overflow-x: hidden;
+    }
+    .collection-heading {
+        position: relative;
+    }
+    /* One line each at any width, so nothing wraps while the column moves. */
+    .collection-heading h1,
+    .entry-meta {
+        white-space: nowrap;
+    }
+    .entry-meta {
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    /* Out quickly as the list folds; in once there is room to read them. */
+    .collection-heading > div,
+    .entry-text {
+        transition: opacity 0.2s ease 0.14s;
+    }
+    .collection.folded .collection-heading > div,
+    .collection.folded .entry-text {
+        opacity: 0;
+        pointer-events: none;
+        transition-duration: 0.12s;
+        transition-delay: 0s;
+    }
+    /* Centred on the rail, over the words it replaces. */
+    .collection.folded .rail-toggle {
+        position: absolute;
+        top: 14px;
+        left: 19px;
+        animation: fade-in 0.2s 0.15s both;
+    }
 }
 
 @media (max-width: 800px) {
@@ -2163,42 +2178,12 @@ input.editable-input {
     .collection:not(.folded) .collection-pane {
         display: none;
     }
-    .collection.folded:not(.rail-open) .collection-entries {
+    .collection.folded .collection-entries {
         display: none;
-    }
-    .collection.folded:not(.rail-open) .collection-heading > div {
-        position: static;
-        width: auto;
-        height: auto;
-        clip-path: none;
     }
     .collection.folded .collection-heading {
         justify-content: space-between;
         margin-bottom: 0;
-    }
-    /* The heading stays where it is; only the entries drop down over the
-       recipe, so nothing below them moves. */
-    .collection.rail-open .collection-list {
-        position: relative;
-        overflow: visible;
-        width: auto;
-        margin: 0;
-        padding: 0;
-        background: none;
-        border-radius: 0;
-        box-shadow: none;
-    }
-    .collection.rail-open .collection-entries {
-        position: absolute;
-        top: calc(100% + 8px);
-        left: 0;
-        right: 0;
-        max-height: 70dvh;
-        overflow-y: auto;
-        background: var(--cream);
-        border-radius: 12px;
-        padding: 12px;
-        box-shadow: 0 20px 60px #17231430;
     }
 }
 
@@ -2810,4 +2795,134 @@ a.history-title:hover {
 .change-more {
     font-size: 10px;
     color: var(--muted);
+}
+
+/* Motion. Things arrive and leave rather than appear and vanish: dialogs rise
+   out of a fading backdrop, the toast slides up, rows in the editor make room
+   and slide to where they were moved, and pages crossfade. Short throughout,
+   and off for anyone who asks for less motion (see the reduced-motion rule,
+   whose !important wins over all of these). */
+.dialog-enter-active,
+.dialog-leave-active {
+    transition: opacity 0.22s ease;
+}
+.dialog-enter-active .modal,
+.dialog-leave-active .modal {
+    transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.dialog-enter-from,
+.dialog-leave-to {
+    opacity: 0;
+}
+.dialog-enter-from .modal {
+    transform: translateY(16px) scale(0.98);
+}
+.dialog-leave-to .modal {
+    transform: translateY(8px) scale(0.99);
+}
+/* On its way out, a dialog is only a picture of one. */
+.dialog-leave-active {
+    pointer-events: none;
+}
+
+/* `translate`, not `transform`: the toast is centred with a transform. */
+.toast-enter-active,
+.toast-leave-active {
+    transition:
+        opacity 0.25s ease,
+        translate 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.toast-enter-from,
+.toast-leave-to {
+    opacity: 0;
+    translate: 0 16px;
+}
+
+.edit-list {
+    position: relative;
+}
+.row-move,
+.row-enter-active,
+.row-leave-active {
+    transition:
+        transform 0.25s ease,
+        opacity 0.2s ease;
+}
+.row-enter-from,
+.row-leave-to {
+    opacity: 0;
+    transform: translateY(-6px);
+}
+/* Out of the flow while it fades, so the rows below close up at once and
+   slide rather than jump. Its width is the list's, less the bullets' room. */
+.edit-list .row-leave-active {
+    position: absolute;
+    width: calc(100% - 20px);
+    pointer-events: none;
+}
+.step-list.edit-list .row-leave-active {
+    width: 100%;
+}
+
+.bar-enter-active,
+.bar-leave-active {
+    transition:
+        opacity 0.16s ease,
+        transform 0.16s ease;
+}
+.bar-enter-from {
+    opacity: 0;
+    transform: translateY(10px);
+}
+.bar-leave-to {
+    opacity: 0;
+}
+
+/* Opacity alone: a transform on a page would hold its fixed dialogs to it. */
+.page-enter-active,
+.page-leave-active {
+    transition: opacity 0.16s ease;
+}
+.page-enter-from,
+.page-leave-to {
+    opacity: 0;
+}
+
+/* A problem said about something just done eases in beside it. */
+.edit-bar-problem,
+.add-failure,
+.import-failure {
+    animation: rise-in 0.2s ease;
+}
+@keyframes rise-in {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+}
+
+/* The collection's preview crossfades from one recipe to the next. The one
+   going is lifted out of the flow and lies over the one coming, so the pane
+   takes the new one's height at once and neither waits on the other. */
+.collection-previews {
+    position: relative;
+}
+.preview-enter-active,
+.preview-leave-active {
+    transition: opacity 0.2s ease;
+}
+.preview-leave-active {
+    position: absolute;
+    inset: 0 0 auto;
+    pointer-events: none;
+}
+.preview-enter-from,
+.preview-leave-to {
+    opacity: 0;
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+    }
 }

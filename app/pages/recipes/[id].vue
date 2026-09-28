@@ -176,26 +176,28 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", warnBeforeUnloa
           </button>
         </div>
       </RecipeBody>
-      <SaveControl
-        v-if="edited"
-        v-model="choice"
-        :problems="problems"
-        :saving="saving"
-        :error="saveError"
-        :can-save="!!editor.body.value"
-        @save="writes.save"
-        @discard="editor.reset()"
-      />
-      <div v-else class="recipe-actions">
-        <button
-          type="button"
-          class="text-button delete-recipe"
-          :disabled="deletePending"
-          @click="writes.askDelete()"
-        >
-          <AppIcon name="trash" :size="15" />{{ deletePending && !deleting ? "Checking…" : "Delete recipe" }}
-        </button>
-      </div>
+      <Transition name="bar" mode="out-in">
+        <SaveControl
+          v-if="edited"
+          v-model="choice"
+          :problems="problems"
+          :saving="saving"
+          :error="saveError"
+          :can-save="!!editor.body.value"
+          @save="writes.save"
+          @discard="editor.reset()"
+        />
+        <div v-else class="recipe-actions">
+          <button
+            type="button"
+            class="text-button delete-recipe"
+            :disabled="deletePending"
+            @click="writes.askDelete()"
+          >
+            <AppIcon name="trash" :size="15" />{{ deletePending && !deleting ? "Checking…" : "Delete recipe" }}
+          </button>
+        </div>
+      </Transition>
       <RecipeHistory
         v-if="history && tree && hasHistory(history)"
         :history="history"

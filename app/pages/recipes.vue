@@ -2,7 +2,7 @@
 // The collection: a list of every recipe on one side, and on the other either
 // a preview of the one under the pointer or focus (/recipes) or the one that
 // was opened (/recipes/[id]). Opening one folds the list into a rail at the
-// left, so the recipe gets the room.
+// left, so the recipe gets the room; the rail's toggle opens the list again.
 const route = useRoute();
 const { openImport } = useDialogs();
 const { login } = useOidcAuth();
@@ -18,10 +18,26 @@ const openId = computed(() =>
 
 const { id: highlighted, current } = useHighlightedRecipe();
 
-// Folded, the list is a rail of pictures; this opens it over the recipe
-// without leaving it.
-const railOpen = ref(false);
-watch(openId, () => (railOpen.value = false));
+// The recipe open is the one highlighted, so going back to the list from it
+// previews the same recipe, and the pane shows what it already showed.
+watch(openId, (id) => id && (highlighted.value = id), { immediate: true });
+
+// Folding the list into the rail, or opening it back out, keeps what the pane
+// shows and only moves the pane: the preview and the recipe it opens read
+// alike, so a crossfade between them would only blink. Anything else in the
+// pane — one recipe for another — crossfades as every page does. On a phone
+// there is no preview beside the list to keep, and the pane fades in.
+// Always a transition, and only its CSS switched off: `false` would take the
+// <Transition> away from around the page, and Vue would build the page again
+// from nothing — losing an unsaved edit on a navigation that was then refused.
+const paneTransition = ref({ name: "page", mode: "out-in" as const, css: true });
+onBeforeRouteUpdate((to, from) => {
+  const folding = typeof to.params.id === "string" !== (typeof from.params.id === "string");
+  paneTransition.value = {
+    ...paneTransition.value,
+    css: !(folding && matchMedia("(min-width: 801px)").matches),
+  };
+});
 
 const meta = (recipe: (typeof recipes.value)[number]) =>
   [
@@ -39,7 +55,6 @@ useHead({ title: "Your collection — Recipeat" });
     class="collection page-width"
     :class="{
       folded: openId,
-      'rail-open': railOpen,
       solo: !openId && !recipes.length,
     }"
   >
@@ -51,15 +66,15 @@ useHead({ title: "Your collection — Recipeat" });
             Your little <em>collection.</em>
           </h1>
         </div>
-        <button
+        <NuxtLink
           v-if="openId"
           class="rail-toggle icon-button"
-          :aria-label="railOpen ? 'Hide your recipes' : 'Show your recipes'"
-          :aria-expanded="railOpen"
-          @click="railOpen = !railOpen"
+          to="/recipes"
+          aria-label="Show all your recipes"
+          title="Show all your recipes"
         >
-          <AppIcon :name="railOpen ? 'close' : 'menu'" />
-        </button>
+          <AppIcon name="menu" />
+        </NuxtLink>
       </div>
 
       <p v-if="status === 'pending' && !data" class="collection-state" role="status">
@@ -108,7 +123,7 @@ useHead({ title: "Your collection — Recipeat" });
             }"
             :to="`/recipes/${recipe.id}`"
             :aria-current="recipe.id === openId ? 'page' : undefined"
-            :title="openId && !railOpen ? recipeTitle(recipe) : undefined"
+            :title="openId ? recipeTitle(recipe) : undefined"
             @mouseenter="highlighted = recipe.id"
             @focus="highlighted = recipe.id"
           >
@@ -125,7 +140,7 @@ useHead({ title: "Your collection — Recipeat" });
     </aside>
 
     <div class="collection-pane">
-      <NuxtPage />
+      <NuxtPage :transition="paneTransition" />
     </div>
   </section>
 </template>

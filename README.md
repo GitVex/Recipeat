@@ -74,6 +74,7 @@ yet, and still shows samples saved in browser local storage.
 | [Extraction](docs/extraction.md) | The API, the pipeline, the recipe shape |
 | [API map](docs/api-map.md) | Every route, arranged for testing by hand in Postman |
 | [Planning](docs/planning.md) | What is next, and what is still undecided |
+| [Design](docs/design.md) | Colour, type, shape, and how the app moves between places |
 | [Architecture](docs/architecture.svg) | The two containers, their networks, and every request path |
 
 Photography comes from Unsplash and fonts from Google Fonts, so both need
