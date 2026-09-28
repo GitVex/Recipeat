@@ -96,7 +96,7 @@ useHead(() => ({
             <span v-if="list.data.value" class="count">{{ recipes.length }}</span>
           </h2>
           <NuxtLink v-if="recipes.length" class="text-button" to="/recipes">
-            Open your collection <AppIcon name="arrow" :size="16" />
+            Open your recipes <AppIcon name="arrow" :size="16" />
           </NuxtLink>
         </div>
 

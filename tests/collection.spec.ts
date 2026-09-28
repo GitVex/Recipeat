@@ -39,7 +39,7 @@ const openCollection = async (page: Page) => {
   // Before hydration the link is a plain anchor, and following it loads
   // /recipes from the server — past the mocks, and signed out.
   await page.waitForFunction(() => !!(document.querySelector('#__nuxt') as any)?.__vue_app__)
-  await page.getByRole('navigation').getByRole('link', { name: /My collection/ }).click()
+  await page.getByRole('navigation').getByRole('link', { name: /My recipes/ }).click()
   await expect(page).toHaveURL(/\/recipes$/)
 }
 
@@ -158,7 +158,7 @@ test('an empty collection says so, and offers a way in', async ({ page }) => {
 test('a failed read says so and can be retried', async ({ page }) => {
   await mockApi(page, { status: 500 })
   await openCollection(page)
-  await expect(page.getByRole('alert')).toContainText('We couldn’t open your collection.')
+  await expect(page.getByRole('alert')).toContainText('We couldn’t open your recipes.')
   await page.unroute('**/api/recipes')
   await page.route('**/api/recipes', route => route.fulfill({ json: { recipes: listing } }))
   await page.getByRole('button', { name: 'Try again' }).click()
@@ -167,9 +167,9 @@ test('a failed read says so and can be retried', async ({ page }) => {
 
 test('signed out, the collection asks for a sign-in, loaded directly or navigated to', async ({ page }) => {
   await page.goto('/recipes')
-  await expect(page.getByText('Your collection is waiting.')).toBeVisible()
+  await expect(page.getByText('Your recipes are waiting.')).toBeVisible()
   await openCollection(page)
-  await expect(page.getByText('Your collection is waiting.')).toBeVisible()
+  await expect(page.getByText('Your recipes are waiting.')).toBeVisible()
 })
 
 test('a recipe that is not there is not found, not forbidden', async ({ page }) => {
@@ -179,6 +179,6 @@ test('a recipe that is not there is not found, not forbidden', async ({ page }) 
   await openCollection(page)
   await page.locator('.collection-entry').first().click()
   await expect(page.getByRole('alert')).toContainText('We couldn’t find that recipe.')
-  await page.getByRole('link', { name: 'Back to your collection' }).click()
+  await page.getByRole('link', { name: 'Back to your recipes' }).click()
   await expect(page).toHaveURL(/\/recipes$/)
 })

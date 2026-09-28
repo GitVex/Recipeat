@@ -137,7 +137,7 @@ Two families, both from Google Fonts:
 
 - **Playfair Display** for what things are called: recipe titles, page and
   section headings, the hero. The word that carries a heading is set in
-  italic, in orange — "Your little *collection.*"
+  italic, in orange — "Your little *recipe book.*"
 - **DM Sans** for everything else: body, labels, buttons, meta lines.
 
 Eyebrows — the small line above a heading — are DM Sans in capitals, tracked
@@ -192,6 +192,8 @@ pointer would otherwise reveal.
 | Collection | `/recipes` | The list on the left, a preview of the entry under the pointer on the right |
 | Recipe | `/recipes/:id` | The list folded to a rail of pictures, the recipe in the room it leaves |
 | Lineage | `/recipes/:id/lineage` | Full width: a recipe's versions as a tree |
+| Collections | `/collections` | Full width and quiet: a search bar, then a card per collection, its first four recipes as a 2×2 mosaic |
+| Collection | `/collections/:id` | One column: the recipes in their order, a row each, dragged by a handle or moved by buttons |
 | Profile | `/profile` | Who is signed in, and what they have kept |
 
 Laid over any of them: the import dialog; the recipe dialog, for samples and

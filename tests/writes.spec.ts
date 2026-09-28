@@ -48,7 +48,7 @@ async function mockApi(page: Page, rows: Map<string, ReturnType<typeof recipe>>,
 const open = async (page: Page, index = 0) => {
   await page.goto('/')
   await page.waitForFunction(() => !!(document.querySelector('#__nuxt') as any)?.__vue_app__)
-  await page.getByRole('navigation').getByRole('link', { name: /My collection/ }).click()
+  await page.getByRole('navigation').getByRole('link', { name: /My recipes/ }).click()
   await page.locator('.collection-entry').nth(index).click()
   await expect(page.locator('.collection-pane')).toContainText('500 g flour')
 }

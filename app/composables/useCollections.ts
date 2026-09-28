@@ -52,3 +52,49 @@ export function useCollectionPicker() {
     },
   };
 }
+
+// What a name the server refused means to a person, wherever it was typed.
+export const collectionNameProblem = (status: number | undefined, name: string) =>
+  status === 409
+    ? `You already have a collection called “${name}”.`
+    : status === 413
+      ? "That name is too long. Keep it under 80 characters."
+      : status === 400
+        ? "A collection needs a name, on one line."
+        : status === 401
+          ? "Your session ended. Sign in again to change your collections."
+          : "That didn’t work. Try again.";
+
+/**
+ * Renaming and deleting a collection, from its card or from its own page,
+ * with the cached listing kept in step. Each throws what `$fetch` threw, so
+ * the caller can say what went wrong where it went wrong.
+ *
+ * Call it in setup.
+ */
+export function useCollectionWrites() {
+  const list = useCollectionListCache();
+  async function rename(id: string, name: string) {
+    const { collection } = await $fetch<{ collection: { id: string; name: string; updatedAt: string } }>(
+      `/api/collections/${id}`,
+      { method: "PATCH", body: { name }, retry: 0 },
+    );
+    if (list.data.value)
+      list.data.value = {
+        collections: list.data.value.collections.map((c) => (c.id === id ? { ...c, name: collection.name, updatedAt: collection.updatedAt } : c)),
+      };
+    return collection;
+  }
+  async function remove(id: string) {
+    try {
+      await $fetch(`/api/collections/${id}`, { method: "DELETE", retry: 0 });
+    } catch (error) {
+      // Already gone is what was asked for.
+      if ((error as { statusCode?: number }).statusCode !== 404) throw error;
+    }
+    if (list.data.value)
+      list.data.value = { collections: list.data.value.collections.filter((c) => c.id !== id) };
+    list.forget(id);
+  }
+  return { rename, remove };
+}

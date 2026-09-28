@@ -71,7 +71,7 @@ export function useRecipeHistory(id: string) {
       );
       // The collection's entry for this line is a different version now.
       await refreshNuxtData("recipes");
-      notify("Pinned. Your collection shows this version now");
+      notify("Pinned. My recipes shows this version now");
       return true;
     } catch (error) {
       pinError.value = pinMessage(error);

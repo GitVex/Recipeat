@@ -42,7 +42,7 @@ async function mockApi(page: Page, onSave?: (body: any, route: Route) => Promise
 const openFocaccia = async (page: Page) => {
   await page.goto('/')
   await page.waitForFunction(() => !!(document.querySelector('#__nuxt') as any)?.__vue_app__)
-  await page.getByRole('navigation').getByRole('link', { name: /My collection/ }).click()
+  await page.getByRole('navigation').getByRole('link', { name: /My recipes/ }).click()
   await page.locator('.collection-entry').first().click()
   await expect(page).toHaveURL(`/recipes/${ids[0]}`)
   await expect(page.locator('.collection-pane')).toContainText('500 g')
@@ -201,8 +201,8 @@ test('a fresh import is edited before it is first added', async ({ page }) => {
   // Escape puts the field away without closing the dialog around it.
   await page.keyboard.press('Escape')
   await expect(dialog).toBeVisible()
-  await dialog.getByRole('button', { name: 'Add to my collection' }).click()
-  await expect(dialog.getByText('In your collection')).toBeVisible()
+  await dialog.getByRole('button', { name: 'Add to my recipes' }).click()
+  await expect(dialog.getByText('In your recipes')).toBeVisible()
   expect(sent.recipe.title).toBe('Grandma’s bread')
   // Once stored, it is edited on its own page, not here.
   await expect(dialog.getByRole('button', { name: /^Edit title/ })).toHaveCount(0)
@@ -215,7 +215,7 @@ test('on a phone the controls are always there and an open line still fits', asy
   await page.goto('/')
   await page.waitForFunction(() => !!(document.querySelector('#__nuxt') as any)?.__vue_app__)
   await page.getByRole('button', { name: 'Toggle navigation' }).click()
-  await page.getByRole('link', { name: /My collection/ }).click()
+  await page.getByRole('link', { name: /My recipes/ }).click()
   await page.locator('.collection-entry').first().click()
   await expect(page).toHaveURL(`/recipes/${ids[0]}`)
   await page.getByRole('switch', { name: 'Edit recipe' }).click()

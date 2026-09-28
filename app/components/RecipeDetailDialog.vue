@@ -80,11 +80,11 @@ function requestClose() {
         aria-labelledby="unsaved-title"
       >
         <p id="unsaved-title">
-          This recipe isn’t in your collection yet. Close it now and it’s gone.
+          This recipe isn’t in your recipes yet. Close it now and it’s gone.
         </p>
         <div class="unsaved-actions">
           <button class="button small" :disabled="!editor.body.value" @click="add">
-            <AppIcon name="bookmark" :size="17" />Add to my collection
+            <AppIcon name="bookmark" :size="17" />Add to my recipes
           </button>
           <button class="text-button" @click="emit('close')">
             Close anyway
@@ -98,7 +98,7 @@ function requestClose() {
           @click="add"
         >
           <AppIcon name="bookmark" :size="17" />{{
-            adding ? "Adding…" : "Add to my collection"
+            adding ? "Adding…" : "Add to my recipes"
           }}
         </button>
         <p v-for="problem in editor.problems.value" :key="problem" class="add-failure error">
@@ -128,7 +128,7 @@ function requestClose() {
       </template>
       <div v-else-if="stored" class="saved-row">
         <p ref="savedNote" class="saved-note" role="status" tabindex="-1">
-          <AppIcon name="check" :size="17" />In your collection
+          <AppIcon name="check" :size="17" />In your recipes
         </p>
         <NuxtLink
           class="text-button"

@@ -48,7 +48,7 @@ const meta = (recipe: (typeof recipes.value)[number]) =>
     `${recipe.stepCount} step${recipe.stepCount === 1 ? "" : "s"}`,
   ].filter(Boolean);
 
-useHead({ title: "Your collection — Recipeat" });
+useHead({ title: "My recipes — Recipeat" });
 </script>
 
 <template>
@@ -64,7 +64,7 @@ useHead({ title: "Your collection — Recipeat" });
         <div>
           <div class="eyebrow">SAVED FOR SOMETHING GOOD</div>
           <h1 id="collection-heading">
-            Your little <em>collection.</em>
+            Your little <em>recipe book.</em>
           </h1>
         </div>
         <NuxtLink
@@ -84,7 +84,7 @@ useHead({ title: "Your collection — Recipeat" });
 
       <div v-else-if="failure === 'signedOut'" class="collection-state">
         <AppIcon name="book" :size="35" />
-        <h2>Your collection is waiting.</h2>
+        <h2>Your recipes are waiting.</h2>
         <p>Sign in to see the recipes you’ve kept.</p>
         <button class="button" @click="login('zitadel')">
           Sign in <AppIcon name="arrow" />
@@ -92,9 +92,9 @@ useHead({ title: "Your collection — Recipeat" });
       </div>
 
       <div v-else-if="failure" class="collection-state" role="alert">
-        <h2>We couldn’t open your collection.</h2>
+        <h2>We couldn’t open your recipes.</h2>
         <p v-if="failure === 'unavailable'">
-          Saving isn’t available on this server, so there’s no collection to
+          Saving isn’t available on this server, so there are no recipes to
           show.
         </p>
         <template v-else>

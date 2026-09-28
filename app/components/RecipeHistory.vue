@@ -107,7 +107,7 @@ const meta = (version: RecipeVersion) =>
               <span class="history-tags">
                 <span v-if="version.id === current" class="history-tag">Open now</span>
                 <span v-if="version.pinned" class="history-tag pinned">
-                  <AppIcon name="bookmark" :size="11" />In your collection
+                  <AppIcon name="bookmark" :size="11" />In your recipes
                 </span>
               </span>
             </div>
@@ -117,7 +117,7 @@ const meta = (version: RecipeVersion) =>
                 type="button"
                 class="history-action"
                 :aria-label="`Pin ${tree.label(version.id)}`"
-                title="Show this version in your collection"
+                title="Show this version in your recipes"
                 :disabled="!!pinning"
                 @click="emit('pin', version.id)"
               >

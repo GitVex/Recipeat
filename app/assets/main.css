@@ -102,6 +102,107 @@ nav a:hover,
 nav button:hover {
     color: var(--orange);
 }
+
+/* My recipes, and the collections under it (#73): a panel that slides down
+   from the link, over the page. Its top padding is the bridge the pointer
+   crosses from the link, so moving onto it never leaves the menu. */
+.nav-recipes {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+.nav-disclosure {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    color: var(--muted);
+}
+.nav-disclosure svg {
+    transition: rotate 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.nav-disclosure[aria-expanded="true"] svg {
+    rotate: 180deg;
+}
+.nav-collections {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    translate: -50% 0;
+    z-index: 20;
+    padding-top: 14px;
+    width: 270px;
+}
+.nav-collections-panel {
+    background: #fffdf8;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: 0 12px 40px #17231424;
+    padding: 16px 10px 12px;
+}
+.nav-collections-eyebrow {
+    font-size: 9px;
+    letter-spacing: 1.7px;
+    text-transform: uppercase;
+    color: #848975;
+    padding: 0 10px 10px;
+}
+.nav-collections-state {
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--muted);
+    padding: 0 10px 10px;
+}
+.nav-collections-list {
+    list-style: none;
+    margin: 0 0 6px;
+    padding: 0;
+}
+.nav-collection,
+li.nav-collections-more {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+}
+.nav-collection {
+    transition: background 0.2s;
+}
+.nav-collection:hover {
+    background: #f0f1e7;
+}
+.nav-collection-name {
+    flex: 1;
+    min-width: 0;
+    font-family: "Playfair Display", Georgia, serif;
+    font-size: 15px;
+    color: var(--ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.nav-collection-count {
+    flex-shrink: 0;
+    font-size: 10px;
+    color: #949486;
+}
+li.nav-collections-more {
+    font-size: 11px;
+    color: var(--muted);
+}
+.nav-collections-all {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 4px 10px 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+    font-size: 12px;
+    color: var(--olive);
+}
 .button {
     background: var(--olive);
     color: white;
@@ -1697,6 +1798,21 @@ input.editable-input {
         align-items: flex-start;
         gap: 22px;
     }
+    .nav-recipes {
+        flex-wrap: wrap;
+        width: 100%;
+    }
+    .nav-collections {
+        position: static;
+        translate: none;
+        width: 100%;
+        padding-top: 12px;
+    }
+    .nav-collections-panel {
+        box-shadow: none;
+        background: #f0f1e7;
+        border: 0;
+    }
     .hero {
         grid-template-columns: 1fr;
         padding-top: 34px;
@@ -2256,6 +2372,338 @@ input.editable-input {
 }
 .earlier-version .button {
     gap: 8px;
+}
+
+/* The collections page (#71): quiet — a heading, a search bar, and cards on
+   the page's own cream. A card is its first four recipes as a 2×2 mosaic,
+   then its name. */
+.collections-page {
+    padding-block: 42px 80px;
+}
+.collections-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px 24px;
+    margin-bottom: 28px;
+}
+.collections-heading .eyebrow {
+    font-size: 9px;
+    color: #848975;
+    letter-spacing: 1.7px;
+    margin-bottom: 10px;
+}
+.collections-heading h1 {
+    font-size: 34px;
+    letter-spacing: -0.9px;
+    line-height: 1.2;
+    margin: 0;
+}
+.collections-heading .button {
+    gap: 8px;
+}
+.collections-search {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: 520px;
+    padding: 0 16px;
+    margin-bottom: 30px;
+    border: 1px solid #d5d8c9;
+    border-radius: 999px;
+    background: #fffdf8;
+    color: var(--muted);
+}
+.collections-search:focus-within {
+    border-color: var(--olive);
+}
+.collections-search input {
+    flex: 1;
+    min-width: 0;
+    padding: 13px 0;
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    font-size: 14px;
+    outline: none;
+}
+.collections-new {
+    max-width: 520px;
+    margin-bottom: 30px;
+}
+.collections-new .picker-new-row {
+    align-items: center;
+}
+.collections-new .text-button {
+    border: 0;
+    padding: 0 4px;
+}
+.collections-none {
+    color: var(--muted);
+    font-size: 13px;
+    padding: 20px 0;
+}
+.collections-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 34px 26px;
+}
+.collection-card {
+    min-width: 0;
+}
+.collection-mosaic {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 3px;
+    aspect-ratio: 1;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #fffdf8;
+    border: 1px solid var(--line);
+    margin-bottom: 14px;
+}
+.collection-mosaic.empty {
+    grid-template: 1fr / 1fr;
+    place-items: center;
+    background: #f0f1e7;
+    border-style: dashed;
+    border-color: #d5d8c9;
+    color: #8c987b;
+}
+/* A tile past the collection's last recipe is paper, not a hole. */
+.mosaic-cell {
+    display: grid;
+    min-width: 0;
+    min-height: 0;
+    background: #f6f5ee;
+}
+.mosaic-cell .recipe-thumb {
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+}
+.collection-card-name a:hover {
+    color: var(--olive);
+}
+.collection-card-name {
+    font-size: 19px;
+    letter-spacing: -0.3px;
+    margin: 0 0 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.collection-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+.collection-card-count {
+    font-size: 10px;
+    color: #949486;
+}
+.collection-card-actions {
+    display: flex;
+    gap: 14px;
+}
+.collection-card-actions .text-button {
+    border: 0;
+    padding: 0;
+    font-size: 11px;
+    color: var(--muted);
+}
+.collection-card-actions .text-button:hover {
+    color: var(--olive);
+}
+.collection-card-actions .delete-recipe:hover {
+    color: var(--orange);
+}
+/* Where a pointer can reveal them, they wait for it. */
+@media (hover: hover) {
+    .collection-card-footer .collection-card-actions {
+        opacity: 0;
+        transition: opacity 0.12s ease-in;
+    }
+    .collection-card:hover .collection-card-actions,
+    .collection-card:focus-within .collection-card-actions {
+        opacity: 1;
+        transition-duration: 0.2s;
+    }
+}
+.collection-rename input {
+    width: 100%;
+    padding: 9px 11px;
+    border: 1px solid #d5d8c9;
+    border-radius: 6px;
+    background: #fffdf9;
+    color: var(--ink);
+    font-family: "Playfair Display", Georgia, serif;
+    font-size: 17px;
+    margin-bottom: 8px;
+}
+@media (max-width: 600px) {
+    .collections-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .collections-heading h1 {
+        font-size: 30px;
+    }
+}
+
+/* One collection opened (#72): its recipes in their order, a row each, with
+   a handle to drag by and buttons to move by. */
+.collection-page {
+    padding-block: 30px 80px;
+    max-width: 860px;
+}
+.collection-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 22px;
+}
+.collection-back svg {
+    rotate: 180deg;
+}
+.collection-back:hover {
+    color: var(--olive);
+}
+.collection-page-heading {
+    align-items: flex-end;
+}
+.collection-page-title {
+    min-width: 0;
+    flex: 1;
+}
+.collection-page-title h1 {
+    overflow-wrap: anywhere;
+}
+.collection-page-rename {
+    max-width: 460px;
+}
+.collection-page-rename input {
+    font-size: 26px;
+}
+.collection-page-actions .text-button {
+    font-size: 12px;
+}
+.collection-page-problem {
+    margin: 0 0 16px;
+}
+.collection-order-wrap {
+    position: relative;
+}
+.collection-order {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 6px;
+    position: relative;
+}
+.order-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px 8px 4px;
+    border-radius: 12px;
+    background: #fffdf8;
+    border: 1px solid var(--line);
+}
+.order-row.dragging {
+    box-shadow: 0 12px 40px #17231424;
+    border-color: #d5d8c9;
+    position: relative;
+    z-index: 1;
+}
+.order-handle {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 44px;
+    flex-shrink: 0;
+    color: #949486;
+    cursor: grab;
+    touch-action: none;
+    border-radius: 8px;
+}
+.order-handle:hover {
+    color: var(--olive);
+    background: #f0f1e7;
+}
+.order-row.dragging .order-handle {
+    cursor: grabbing;
+}
+.order-link {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex: 1;
+    min-width: 0;
+    padding: 2px;
+    border-radius: 9px;
+}
+.order-link:hover .entry-title {
+    color: var(--olive);
+}
+.order-earlier {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+    flex-shrink: 0;
+    font-size: 10px;
+    color: var(--orange);
+    white-space: nowrap;
+}
+.order-earlier a {
+    color: var(--ink);
+    border-bottom: 1px solid #c8cebd;
+}
+.order-earlier a:hover {
+    color: var(--olive);
+}
+.order-controls {
+    display: flex;
+    flex-shrink: 0;
+    color: var(--muted);
+}
+.order-controls .icon-button {
+    border-radius: 50%;
+}
+.order-controls .icon-button:hover:not(:disabled) {
+    color: var(--olive);
+    background: #f0f1e7;
+}
+.order-controls .icon-button:disabled {
+    opacity: 0.3;
+}
+.order-controls .order-remove:hover:not(:disabled) {
+    color: var(--orange);
+}
+@media (max-width: 600px) {
+    .order-row {
+        flex-wrap: wrap;
+        padding-right: 6px;
+    }
+    .order-link {
+        flex-basis: calc(100% - 40px);
+    }
+    .order-earlier {
+        flex-direction: row;
+        margin-left: 38px;
+    }
+    .order-controls {
+        margin-left: auto;
+    }
 }
 
 /* The collection picker (#70): one tick per collection, and a way to make a
@@ -2976,6 +3424,39 @@ a.history-title:hover {
    and slide to where they were moved, and pages crossfade. Short throughout,
    and off for anyone who asks for less motion (see the reduced-motion rule,
    whose !important wins over all of these). */
+
+/* A collection's rows slide to their new places when the order changes, and
+   a row taken out fades while the rest close up after it. */
+.reorder-move {
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.reorder-leave-active {
+    transition: opacity 0.12s ease-in;
+    position: absolute;
+    left: 0;
+    right: 0;
+}
+.reorder-leave-to {
+    opacity: 0;
+}
+/* The collections panel under My recipes slides down into place, and goes
+   back up quicker than it came. */
+.dropdown-enter-active {
+    transition:
+        opacity 0.2s cubic-bezier(0.2, 0.8, 0.2, 1),
+        transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.dropdown-leave-active {
+    transition:
+        opacity 0.12s ease-in,
+        transform 0.12s ease-in;
+}
+.dropdown-enter-from,
+.dropdown-leave-to {
+    opacity: 0;
+    transform: translateY(-6px);
+}
+
 .dialog-enter-active,
 .dialog-leave-active {
     transition: opacity 0.22s ease;

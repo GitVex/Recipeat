@@ -136,7 +136,7 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", warnBeforeUnloa
       <h2>We couldn’t find that recipe.</h2>
       <p>It may have been deleted, or the link may be wrong.</p>
       <NuxtLink class="button" to="/recipes">
-        Back to your collection <AppIcon name="arrow" />
+        Back to your recipes <AppIcon name="arrow" />
       </NuxtLink>
     </div>
     <div v-else-if="failure === 'signedOut'" class="collection-state">
@@ -164,7 +164,7 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", warnBeforeUnloa
              an edit to the recipe the collection shows. -->
         <div v-if="!pinned" class="earlier-version" role="note">
           <p>
-            <strong>An earlier version.</strong> Your collection shows another
+            <strong>An earlier version.</strong> My recipes shows another
             version of this recipe. Changes saved here stay with this one.
           </p>
           <button

@@ -37,7 +37,7 @@ async function addToCollection(recipe: ExtractedRecipe, body: RecipeBody) {
   // the row is written either way, so the user hears about it either way.
   if (selected.value === recipe) selected.value = stored;
   list.add(stored);
-  notify("A little deliciousness, added to your collection");
+  notify("A little deliciousness, added to your recipes");
 }
 
 function signInToAdd(recipe: ExtractedRecipe) {
