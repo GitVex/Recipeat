@@ -50,9 +50,11 @@ function signInToAdd(recipe: ExtractedRecipe) {
       <NuxtPage />
     </main>
     <SiteFooter />
-    <div v-if="toast" class="toast" role="status">
-      <AppIcon name="check" :size="18" />{{ toast }}
-    </div>
+    <Transition name="toast">
+      <div v-if="toast" class="toast" role="status">
+        <AppIcon name="check" :size="18" />{{ toast }}
+      </div>
+    </Transition>
     <RecipeImportDialog
       :open="importing"
       @close="importing = false"

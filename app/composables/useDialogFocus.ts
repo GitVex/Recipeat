@@ -11,7 +11,12 @@ export function useDialogFocus(dialog: Ref<unknown>) {
     }
     document.body.style.overflow = current ? "hidden" : previousOverflow;
     await nextTick();
-    if (current) document.querySelector<HTMLElement>(".modal-close")?.focus();
+    // A dialog that just closed is still on the page while it fades, and one
+    // dialog can hand over to another in the same tick: focus the one arriving.
+    if (current)
+      document
+        .querySelector<HTMLElement>(".modal-backdrop:not(.dialog-leave-active) .modal-close")
+        ?.focus();
     else previousFocus?.focus();
   });
   onBeforeUnmount(() => {
