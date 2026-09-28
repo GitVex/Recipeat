@@ -26,7 +26,7 @@ function trapFocus(event: KeyboardEvent) {
 </script>
 
 <template>
-  <Transition name="dialog">
+  <Transition name="dialog" @before-leave="retire">
     <div
       v-if="open"
       class="modal-backdrop"

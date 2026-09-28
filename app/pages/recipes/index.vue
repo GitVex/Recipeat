@@ -31,25 +31,36 @@ onBeforeUnmount(() => clearTimeout(timer));
 </script>
 
 <template>
-  <section v-if="current" class="collection-preview" aria-label="Preview">
-    <RecipeBody v-if="full" :recipe="full" title-id="preview-title">
-      <NuxtLink class="button small" :to="`/recipes/${current.id}`">
-        Open recipe <AppIcon name="arrow" :size="16" />
-      </NuxtLink>
-    </RecipeBody>
-    <!-- Until the rest arrives: laid out as the recipe will be, so nothing
-         moves when it does. -->
-    <template v-else>
-      <img v-if="current.image" class="detail-image" :src="current.image" alt="" />
-      <div class="detail-content">
-        <div class="eyebrow">{{ formatMinutes(current.totalTime)?.toUpperCase() ?? " " }}</div>
-        <h2 id="preview-title" class="detail-title" :class="{ untitled: !current.title }">
-          {{ recipeTitle(current) }}
-        </h2>
-        <NuxtLink class="button small" :to="`/recipes/${current.id}`">
-          Open recipe <AppIcon name="arrow" :size="16" />
-        </NuxtLink>
-      </div>
-    </template>
-  </section>
+  <!-- One recipe fades into the next as the pointer moves: the one going
+       lies over the one coming, so neither waits for the other. -->
+  <div class="collection-previews">
+    <Transition name="preview" @before-leave="retire">
+      <section
+        v-if="current"
+        :key="current.id"
+        class="collection-preview"
+        aria-label="Preview"
+      >
+        <RecipeBody v-if="full" :recipe="full" title-id="preview-title">
+          <NuxtLink class="button small" :to="`/recipes/${current.id}`">
+            Open recipe <AppIcon name="arrow" :size="16" />
+          </NuxtLink>
+        </RecipeBody>
+        <!-- Until the rest arrives: laid out as the recipe will be, so nothing
+             moves when it does. -->
+        <template v-else>
+          <img v-if="current.image" class="detail-image" :src="current.image" alt="" />
+          <div class="detail-content">
+            <div class="eyebrow">{{ formatMinutes(current.totalTime)?.toUpperCase() ?? " " }}</div>
+            <h2 id="preview-title" class="detail-title" :class="{ untitled: !current.title }">
+              {{ recipeTitle(current) }}
+            </h2>
+            <NuxtLink class="button small" :to="`/recipes/${current.id}`">
+              Open recipe <AppIcon name="arrow" :size="16" />
+            </NuxtLink>
+          </div>
+        </template>
+      </section>
+    </Transition>
+  </div>
 </template>
