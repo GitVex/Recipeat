@@ -41,10 +41,10 @@ export type CollectionsTable = {
   updated_at: Generated<Date>
 }
 
-// A line in a collection, named by its root's id — see 002_collections.sql.
+// One version in a collection — see 002_collections.sql.
 export type CollectionRecipesTable = {
   collection_id: string
-  line_id: string
+  recipe_id: string
   owner_sub: string
   position: number
   added_at: Generated<Date>

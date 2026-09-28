@@ -515,8 +515,9 @@ describe('recipes lineage writes', { skip: url ? false : 'NUXT_DATABASE_URL is n
 })
 
 // What 002_collections.sql refuses and what it does on its own. Most of it is
-// about the line a membership names: that it has to be a line's root and the
-// collection owner's, and that it disappears with the line and not before.
+// about the version a membership names: that it stays that version whatever
+// the pin does, that it has to be the collection owner's, and that it goes
+// when the version does.
 describe('collections schema', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () => {
   const SCHEMA = 'collections_check'
   let admin: Sql
@@ -551,10 +552,10 @@ describe('collections schema', { skip: url ? false : 'NUXT_DATABASE_URL is not s
 
   const collection = async (owner: string, name: string) =>
     (await sql<{ id: string }[]>`INSERT INTO collections (owner_sub, name) VALUES (${owner}, ${name}) RETURNING id`)[0]!.id
-  const add = (collectionId: string, lineId: string, position: number, owner = 'user_a') =>
-    sql`INSERT INTO collection_recipes (collection_id, line_id, owner_sub, position) VALUES (${collectionId}, ${lineId}, ${owner}, ${position})`
+  const add = (collectionId: string, recipeId: string, position: number, owner = 'user_a') =>
+    sql`INSERT INTO collection_recipes (collection_id, recipe_id, owner_sub, position) VALUES (${collectionId}, ${recipeId}, ${owner}, ${position})`
   const members = async (collectionId: string) =>
-    (await sql<{ line_id: string }[]>`SELECT line_id FROM collection_recipes WHERE collection_id = ${collectionId} ORDER BY position`).map(row => row.line_id)
+    (await sql<{ recipe_id: string }[]>`SELECT recipe_id FROM collection_recipes WHERE collection_id = ${collectionId} ORDER BY position`).map(row => row.recipe_id)
   const refuses = (query: () => Promise<unknown>, pattern: RegExp) => assert.rejects(query, pattern)
 
   test('a name is one trimmed line of at most 80 characters', async () => {
@@ -581,70 +582,78 @@ describe('collections schema', { skip: url ? false : 'NUXT_DATABASE_URL is not s
   test('a recipe can be in several collections, and once in each', async () => {
     const bread = await insertRecipe(db, 'user_a', recipe('Bread'))
     const [one, two] = [await collection('user_a', 'One'), await collection('user_a', 'Two')]
-    await add(one, bread.lineId, 0)
-    await add(two, bread.lineId, 0)
-    await refuses(() => add(one, bread.lineId, 1), /collection_recipes_pkey/)
+    await add(one, bread.id, 0)
+    await add(two, bread.id, 0)
+    await refuses(() => add(one, bread.id, 1), /collection_recipes_pkey/)
   })
 
-  test('a membership names a line by its root, not by a later version', async () => {
+  test('a progression goes in as itself, and stays when the pin moves on', async () => {
     const root = await insertRecipe(db, 'user_a', recipe('Soup'))
     const later = await insertProgression(db, 'user_a', root.id, recipe('Soup, again'))
     const id = await collection('user_a', 'Soups')
-    await refuses(() => add(id, later!.id, 0), /foreign key/i)
-    await add(id, root.lineId, 0)
+    await add(id, later!.id, 0)
+    // A newer progression takes the pin; the collection keeps the one it had.
+    await insertProgression(db, 'user_a', later!.id, recipe('Soup, a third time'))
+    assert.deepEqual(await members(id), [later!.id])
+    // And another version of the same line can sit beside it.
+    await add(id, root.id, 1)
+    assert.deepEqual(await members(id), [later!.id, root.id])
   })
 
   test('a collection cannot hold someone else\'s recipe', async () => {
     const theirs = await insertRecipe(db, 'user_b', recipe('Theirs'))
     const mine = await collection('user_a', 'Borrowed')
-    await refuses(() => add(mine, theirs.lineId, 0, 'user_a'), /foreign key/i)
+    await refuses(() => add(mine, theirs.id, 0, 'user_a'), /foreign key/i)
     // Nor can a membership claim to be theirs to get past that.
-    await refuses(() => add(mine, theirs.lineId, 0, 'user_b'), /foreign key/i)
+    await refuses(() => add(mine, theirs.id, 0, 'user_b'), /foreign key/i)
   })
 
   test('two recipes cannot share a place, but a reorder can swap them', async () => {
     const [a, b] = [await insertRecipe(db, 'user_a', recipe('A')), await insertRecipe(db, 'user_a', recipe('B'))]
     const id = await collection('user_a', 'Ordered')
-    await add(id, a.lineId, 0)
-    await add(id, b.lineId, 1)
+    await add(id, a.id, 0)
+    await add(id, b.id, 1)
     // Deferred to commit, so it is the commit that refuses.
     const c = await insertRecipe(db, 'user_a', recipe('C'))
-    await refuses(() => add(id, c.lineId, 1), /collection_recipes_position_key/)
+    await refuses(() => add(id, c.id, 1), /collection_recipes_position_key/)
     // One row at a time, passing through a moment where both are at 0.
     await sql.begin(async (tx) => {
-      await tx`UPDATE collection_recipes SET position = 0 WHERE collection_id = ${id} AND line_id = ${b.lineId}`
-      await tx`UPDATE collection_recipes SET position = 1 WHERE collection_id = ${id} AND line_id = ${a.lineId}`
+      await tx`UPDATE collection_recipes SET position = 0 WHERE collection_id = ${id} AND recipe_id = ${b.id}`
+      await tx`UPDATE collection_recipes SET position = 1 WHERE collection_id = ${id} AND recipe_id = ${a.id}`
     })
-    assert.deepEqual(await members(id), [b.lineId, a.lineId])
+    assert.deepEqual(await members(id), [b.id, a.id])
     const d = await insertRecipe(db, 'user_a', recipe('D'))
-    await refuses(() => add(id, d.lineId, -1), /check/i)
+    await refuses(() => add(id, d.id, -1), /check/i)
   })
 
-  test('deleting a later version leaves the line in its collections', async () => {
+  test('deleting a version takes it out of its collections, and its progressions with it', async () => {
     const root = await insertRecipe(db, 'user_a', recipe('Stew'))
-    const later = await insertProgression(db, 'user_a', root.id, recipe('Stew, again'))
-    const id = await collection('user_a', 'Stews')
-    await add(id, root.lineId, 0)
-    await deleteRecipe(sql, 'user_a', later!.id)
-    assert.deepEqual(await members(id), [root.lineId])
+    const middle = await insertProgression(db, 'user_a', root.id, recipe('Stew, again'))
+    const last = await insertProgression(db, 'user_a', middle!.id, recipe('Stew, a third time'))
+    const [one, two] = [await collection('user_a', 'Stews'), await collection('user_a', 'Winter')]
+    await add(one, root.id, 0)
+    await add(one, middle!.id, 1)
+    await add(two, last!.id, 0)
+    // Deleting the middle takes the last along, as it always has.
+    await deleteRecipe(sql, 'user_a', middle!.id)
+    assert.deepEqual(await members(one), [root.id])
+    assert.deepEqual(await members(two), [])
   })
 
-  test('deleting a line takes it out of every collection, and a variant stays', async () => {
+  test('a variant outlives the version it branched off, in its collections too', async () => {
     const root = await insertRecipe(db, 'user_a', recipe('Curry'))
     const variant = await insertVariant(db, 'user_a', root.id, recipe('Curry, milder'))
-    const [one, two] = [await collection('user_a', 'Curries'), await collection('user_a', 'Friday')]
-    await add(one, root.lineId, 0)
-    await add(one, variant!.lineId, 1)
-    await add(two, root.lineId, 0)
+    const id = await collection('user_a', 'Curries')
+    await add(id, root.id, 0)
+    await add(id, variant!.id, 1)
     await deleteRecipe(sql, 'user_a', root.id)
-    assert.deepEqual(await members(one), [variant!.lineId])
-    assert.deepEqual(await members(two), [])
+    assert.deepEqual(await members(id), [variant!.id])
   })
 
   test('deleting a collection keeps its recipes', async () => {
     const kept = await insertRecipe(db, 'user_a', recipe('Kept'))
     const id = await collection('user_a', 'Doomed')
-    await add(id, kept.lineId, 0)
+    await add(id, kept.id, 0)
     await sql`DELETE FROM collections WHERE id = ${id}`
     assert.deepEqual(await members(id), [])
     assert.ok(await findRecipe(sql, 'user_a', kept.id), 'the recipe went with its collection')
@@ -656,7 +665,7 @@ describe('collections schema', { skip: url ? false : 'NUXT_DATABASE_URL is not s
     // otherwise a sequential scan, which says nothing about the index.
     const plan = await sql.begin(async (tx) => {
       await tx`SET LOCAL enable_seqscan = off`
-      return (await tx<{ 'QUERY PLAN': string }[]>`EXPLAIN SELECT line_id FROM collection_recipes WHERE collection_id = ${crypto.randomUUID()} ORDER BY position`)
+      return (await tx<{ 'QUERY PLAN': string }[]>`EXPLAIN SELECT recipe_id FROM collection_recipes WHERE collection_id = ${crypto.randomUUID()} ORDER BY position`)
         .map(row => row['QUERY PLAN']).join('\n')
     })
     assert.match(plan, /collection_recipes_position_key/, plan)

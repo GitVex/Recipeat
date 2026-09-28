@@ -42,17 +42,12 @@ database is exactly what it must not be able to reach.
 
 ## Collections
 
-A collection holds lines, not versions, so it always shows what each line has
-pinned. A membership names a line by its root's id, because that is the one
-version whose `id` is its own `line_id`, and the one whose deletion ends the
-line. Its foreign key is `(line_id, line_id, owner_sub)` against
-`recipes (id, line_id, owner_sub)`, which does three things with no route
-involved:
-
-- only a root matches, so a progression's id is refused
-- only the collection owner's recipe matches, as with lineage
-- deleting the root takes the line out of every collection, while deleting a
-  later version leaves it in
+A collection holds versions, not lines: the version that went in is the one it
+shows, whatever the line's pin does afterwards. Two versions of one line can
+sit in the same collection. The membership's foreign key is
+`(recipe_id, owner_sub)`, so only the collection owner's recipe can go in, and
+a deleted version drops out of every collection. So do the progressions that
+deleting it takes along.
 
 Deleting a collection deletes its memberships and never a recipe.
 
