@@ -2665,10 +2665,10 @@ input.editable-input {
     gap: 12px 20px;
     margin: 0 0 22px;
     padding: 14px 18px;
-    background: #f5ede3;
-    border: 1px solid #ead7c4;
-    border-radius: 10px;
-    font-size: 13px;
+    background: var(--orange-wash);
+    border: 1px solid var(--orange-soft);
+    border-radius: var(--radius-m);
+    font-size: var(--text-body);
     line-height: 1.6;
 }
 .earlier-version p {
@@ -2693,13 +2693,13 @@ input.editable-input {
     margin-bottom: 28px;
 }
 .collections-heading .eyebrow {
-    font-size: 9px;
-    color: #848975;
+    font-size: var(--text-eyebrow);
+    color: var(--muted);
     letter-spacing: 1.7px;
     margin-bottom: 10px;
 }
 .collections-heading h1 {
-    font-size: 34px;
+    font-size: var(--title-l);
     letter-spacing: -0.9px;
     line-height: 1.2;
     margin: 0;
@@ -2714,9 +2714,9 @@ input.editable-input {
     max-width: 520px;
     padding: 0 16px;
     margin-bottom: 30px;
-    border: 1px solid #d5d8c9;
+    border: 1px solid var(--line-strong);
     border-radius: 999px;
-    background: #fffdf8;
+    background: var(--paper);
     color: var(--muted);
 }
 .collections-search:focus-within {
@@ -2729,7 +2729,7 @@ input.editable-input {
     border: 0;
     background: transparent;
     color: var(--ink);
-    font-size: 14px;
+    font-size: var(--text-ui);
     outline: none;
 }
 .collections-new {
@@ -2745,7 +2745,7 @@ input.editable-input {
 }
 .collections-none {
     color: var(--muted);
-    font-size: 13px;
+    font-size: var(--text-body);
     padding: 20px 0;
 }
 .collections-grid {
@@ -2765,26 +2765,26 @@ input.editable-input {
     grid-template-rows: 1fr 1fr;
     gap: 3px;
     aspect-ratio: 1;
-    border-radius: 14px;
+    border-radius: var(--radius-l);
     overflow: hidden;
-    background: #fffdf8;
+    background: var(--paper);
     border: 1px solid var(--line);
     margin-bottom: 14px;
 }
 .collection-mosaic.empty {
     grid-template: 1fr / 1fr;
     place-items: center;
-    background: #f0f1e7;
+    background: var(--wash);
     border-style: dashed;
-    border-color: #d5d8c9;
-    color: #8c987b;
+    border-color: var(--line-strong);
+    color: var(--olive-soft);
 }
 /* A tile past the collection's last recipe is paper, not a hole. */
 .mosaic-cell {
     display: grid;
     min-width: 0;
     min-height: 0;
-    background: #f6f5ee;
+    background: var(--cream-deep);
 }
 .mosaic-cell .recipe-thumb {
     width: 100%;
@@ -2795,7 +2795,7 @@ input.editable-input {
     color: var(--olive);
 }
 .collection-card-name {
-    font-size: 19px;
+    font-size: var(--title-s);
     letter-spacing: -0.3px;
     margin: 0 0 6px;
     overflow: hidden;
@@ -2809,8 +2809,8 @@ input.editable-input {
     gap: 12px;
 }
 .collection-card-count {
-    font-size: 10px;
-    color: #949486;
+    font-size: var(--text-meta);
+    color: var(--faint);
 }
 .collection-card-actions {
     display: flex;
@@ -2819,7 +2819,7 @@ input.editable-input {
 .collection-card-actions .text-button {
     border: 0;
     padding: 0;
-    font-size: 11px;
+    font-size: var(--text-meta);
     color: var(--muted);
 }
 .collection-card-actions .text-button:hover {
@@ -2832,23 +2832,23 @@ input.editable-input {
 @media (hover: hover) {
     .collection-card-footer .collection-card-actions {
         opacity: 0;
-        transition: opacity 0.12s ease-in;
+        transition: opacity var(--dur-exit) var(--ease-exit);
     }
     .collection-card:hover .collection-card-actions,
     .collection-card:focus-within .collection-card-actions {
         opacity: 1;
-        transition-duration: 0.2s;
+        transition-duration: var(--dur-enter);
     }
 }
 .collection-rename input {
     width: 100%;
     padding: 9px 11px;
-    border: 1px solid #d5d8c9;
-    border-radius: 6px;
-    background: #fffdf9;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-s);
+    background: var(--paper);
     color: var(--ink);
     font-family: "Playfair Display", Georgia, serif;
-    font-size: 17px;
+    font-size: var(--title-s);
     margin-bottom: 8px;
 }
 @media (max-width: 600px) {
@@ -2856,7 +2856,7 @@ input.editable-input {
         grid-template-columns: minmax(0, 1fr);
     }
     .collections-heading h1 {
-        font-size: 30px;
+        font-size: var(--title-l);
     }
 }
 
@@ -2870,7 +2870,7 @@ input.editable-input {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    font-size: 12px;
+    font-size: var(--text-small);
     color: var(--muted);
     margin-bottom: 22px;
 }
@@ -2894,10 +2894,10 @@ input.editable-input {
     max-width: 460px;
 }
 .collection-page-rename input {
-    font-size: 26px;
+    font-size: var(--title-m);
 }
 .collection-page-actions .text-button {
-    font-size: 12px;
+    font-size: var(--text-small);
 }
 .collection-page-problem {
     margin: 0 0 16px;
@@ -2918,13 +2918,13 @@ input.editable-input {
     align-items: center;
     gap: 8px;
     padding: 8px 10px 8px 4px;
-    border-radius: 12px;
-    background: #fffdf8;
+    border-radius: var(--radius-l);
+    background: var(--paper);
     border: 1px solid var(--line);
 }
 .order-row.dragging {
-    box-shadow: 0 12px 40px #17231424;
-    border-color: #d5d8c9;
+    box-shadow: var(--shadow-raised);
+    border-color: var(--line-strong);
     position: relative;
     z-index: 1;
 }
@@ -2934,14 +2934,14 @@ input.editable-input {
     width: 30px;
     height: 44px;
     flex-shrink: 0;
-    color: #949486;
+    color: var(--faint);
     cursor: grab;
     touch-action: none;
-    border-radius: 8px;
+    border-radius: var(--radius-m);
 }
 .order-handle:hover {
     color: var(--olive);
-    background: #f0f1e7;
+    background: var(--wash);
 }
 .order-row.dragging .order-handle {
     cursor: grabbing;
@@ -2953,7 +2953,7 @@ input.editable-input {
     flex: 1;
     min-width: 0;
     padding: 2px;
-    border-radius: 9px;
+    border-radius: var(--radius-m);
 }
 .order-link:hover .entry-title {
     color: var(--olive);
@@ -2964,13 +2964,13 @@ input.editable-input {
     align-items: flex-end;
     gap: 3px;
     flex-shrink: 0;
-    font-size: 10px;
+    font-size: var(--text-meta);
     color: var(--orange);
     white-space: nowrap;
 }
 .order-earlier a {
     color: var(--ink);
-    border-bottom: 1px solid #c8cebd;
+    border-bottom: 1px solid var(--line-strong);
 }
 .order-earlier a:hover {
     color: var(--olive);
@@ -2985,7 +2985,7 @@ input.editable-input {
 }
 .order-controls .icon-button:hover:not(:disabled) {
     color: var(--olive);
-    background: #f0f1e7;
+    background: var(--wash);
 }
 .order-controls .icon-button:disabled {
     opacity: 0.3;
@@ -3020,8 +3020,8 @@ input.editable-input {
 }
 .picker-eyebrow {
     display: block;
-    font-size: 9px;
-    color: #848975;
+    font-size: var(--text-eyebrow);
+    color: var(--muted);
     letter-spacing: 1.7px;
     text-transform: uppercase;
     /* Clear of the close button, and one line however long the title. */
@@ -3031,7 +3031,7 @@ input.editable-input {
     white-space: nowrap;
 }
 .picker-content h2 {
-    font-size: 26px;
+    font-size: var(--title-m);
     margin: 10px 0 18px;
 }
 .picker-earlier {
@@ -3040,11 +3040,11 @@ input.editable-input {
 .picker-state {
     margin: 0 0 20px;
     padding: 18px;
-    background: #f0f1e7;
-    border-radius: 10px;
+    background: var(--wash);
+    border-radius: var(--radius-m);
     text-align: center;
     color: var(--muted);
-    font-size: 13px;
+    font-size: var(--text-body);
     line-height: 1.6;
 }
 .picker-state p {
@@ -3067,12 +3067,12 @@ input.editable-input {
     align-items: center;
     gap: 12px;
     padding: 11px 12px;
-    border-radius: 9px;
+    border-radius: var(--radius-m);
     cursor: pointer;
-    transition: background 0.2s;
+    transition: background var(--dur-exit);
 }
 .picker-option:hover {
-    background: #f0f1e7;
+    background: var(--wash);
 }
 .picker-option input {
     flex-shrink: 0;
@@ -3089,15 +3089,15 @@ input.editable-input {
 .picker-name {
     flex: 1;
     min-width: 0;
-    font-size: 14px;
+    font-size: var(--text-ui);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 .picker-count {
     flex-shrink: 0;
-    font-size: 10px;
-    color: #949486;
+    font-size: var(--text-meta);
+    color: var(--faint);
 }
 .picker-new-row {
     display: flex;
@@ -3108,11 +3108,11 @@ input.editable-input {
     flex: 1;
     min-width: 0;
     padding: 13px;
-    border: 1px solid #d5d8c9;
-    border-radius: 6px;
-    background: #fffdf9;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-s);
+    background: var(--paper);
     color: var(--ink);
-    font-size: 12px;
+    font-size: var(--text-small);
 }
 .picker-new-row .button {
     flex-shrink: 0;
@@ -3150,8 +3150,8 @@ input.editable-input {
     gap: 9px;
     background: transparent;
     padding: 6px 0;
-    font-size: 13px;
-    font-weight: 550;
+    font-size: var(--text-body);
+    font-weight: 500;
 }
 .history-summary {
     color: var(--muted);
@@ -3165,7 +3165,7 @@ input.editable-input {
 }
 .history-note,
 .history-origin {
-    font-size: 12px;
+    font-size: var(--text-small);
     line-height: 1.7;
     color: var(--muted);
     max-width: 520px;
@@ -3179,7 +3179,7 @@ input.editable-input {
     color: var(--ink);
 }
 .history-origin a {
-    border-bottom: 1px solid #c8cebd;
+    border-bottom: 1px solid var(--line-strong);
 }
 .history-origin a:hover {
     color: var(--orange);
@@ -3201,7 +3201,7 @@ input.editable-input {
     top: 20px;
     bottom: -14px;
     width: 1px;
-    background: #d3d6c6;
+    background: var(--line-strong);
 }
 .history-chain > .history-version:last-child::before {
     display: none;
@@ -3213,15 +3213,15 @@ input.editable-input {
     width: 11px;
     height: 11px;
     border-radius: 50%;
-    border: 1.5px solid #9aa28a;
-    background: #fffdf8;
+    border: 1.5px solid var(--olive-soft);
+    background: var(--paper);
 }
 .history-version.pinned > .history-dot {
     background: var(--olive);
     border-color: var(--olive);
 }
 .history-version.current > .history-dot {
-    box-shadow: 0 0 0 3px #f0d8c9;
+    box-shadow: 0 0 0 3px var(--orange-soft);
     border-color: var(--orange);
 }
 .history-row {
@@ -3230,10 +3230,10 @@ input.editable-input {
     justify-content: space-between;
     gap: 12px;
     padding: 8px 10px;
-    border-radius: 9px;
+    border-radius: var(--radius-m);
 }
 .history-version.current > .history-row {
-    background: #f0f1e7;
+    background: var(--wash);
 }
 .history-text {
     display: grid;
@@ -3241,15 +3241,15 @@ input.editable-input {
     min-width: 0;
 }
 .history-label {
-    font-size: 9px;
+    font-size: var(--text-eyebrow);
     letter-spacing: 1.5px;
-    font-weight: 650;
+    font-weight: 600;
     text-transform: uppercase;
-    color: #848975;
+    color: var(--muted);
 }
 .history-title {
     font-family: "Playfair Display", Georgia, serif;
-    font-size: 16px;
+    font-size: var(--text-ui);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -3258,8 +3258,8 @@ a.history-title:hover {
     color: var(--orange);
 }
 .history-meta {
-    font-size: 10px;
-    color: #949486;
+    font-size: var(--text-meta);
+    color: var(--faint);
 }
 .history-tags {
     display: flex;
@@ -3275,13 +3275,13 @@ a.history-title:hover {
     gap: 4px;
     margin-top: 3px;
     padding: 2px 8px;
-    border-radius: 20px;
-    font-size: 10px;
-    background: #e4e7db;
+    border-radius: 999px;
+    font-size: var(--text-meta);
+    background: var(--sage-100);
 }
 .history-tag.pinned {
     background: var(--olive);
-    color: #fff;
+    color: var(--on-fill);
 }
 .history-actions {
     display: flex;
@@ -3295,12 +3295,12 @@ a.history-title:hover {
     gap: 5px;
     min-height: 32px;
     padding: 0 9px;
-    border-radius: 6px;
+    border-radius: var(--radius-s);
     background: transparent;
-    font-size: 11px;
+    font-size: var(--text-meta);
 }
 .history-action:hover {
-    background: #e9ebdf;
+    background: var(--sage-100);
 }
 .history-action.delete {
     color: var(--orange);
@@ -3314,7 +3314,7 @@ a.history-title:hover {
     margin-top: 14px;
     padding-top: 14px;
     border-top: 1px dashed var(--line);
-    font-size: 12px;
+    font-size: var(--text-small);
     color: var(--muted);
 }
 .history-more .button {
