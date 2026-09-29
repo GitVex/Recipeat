@@ -82,7 +82,11 @@ const edges = computed<Edge[]>(() =>
     id: edge.id,
     source: edge.source,
     target: edge.target,
-    type: "smoothstep",
+    // Across is side to side on one row: the handles sit at the same height
+    // on every node, so the line runs level.
+    ...(edge.direction === "across"
+      ? { sourceHandle: "right", targetHandle: "left", type: "straight" }
+      : { sourceHandle: "bottom", targetHandle: "top", type: "smoothstep" }),
     class: `lineage-edge ${edge.kind}`,
     markerEnd: MarkerType.ArrowClosed,
   })),

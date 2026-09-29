@@ -313,14 +313,17 @@ test('the lineage page draws the whole tree: both branches, the pin, and what br
   await expect(canvas(page)).not.toContainText(/Flatbread(?!, charred)/)
 
   // Time runs down the page, and a fork's branches stand side by side in the
-  // generation below the version they came from. Positions are read in one
-  // go: the view may still be fitting itself, and a zoom between two reads
-  // would move one node and not the other.
+  // generation below the version they came from. A separate recipe leaves
+  // the line, so it stands beside its version, on its row (#88). Positions
+  // are read in one go: the view may still be fitting itself, and a zoom
+  // between two reads would move one node and not the other.
   const at = await positions(page)
   expect(at['Bread, wetter']!.y).toBeGreaterThan(at['Bread']!.y)
   expect(at['Bread, rye']!.y).toBe(at['Bread, spelt']!.y)
   expect(at['Bread, rye']!.y).toBeGreaterThan(at['Bread, wetter']!.y)
   expect(at['Bread, rye']!.x).not.toBe(at['Bread, spelt']!.x)
+  expect(at['Flatbread, charred']!.y).toBe(at['Bread']!.y)
+  expect(at['Flatbread, charred']!.x).toBeGreaterThan(at['Bread']!.x)
 
   await expect(node(page, 'Bread, spelt')).toContainText('You came from here')
   await expect(node(page, 'Bread, spelt')).toContainText('In your recipes')

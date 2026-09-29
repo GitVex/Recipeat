@@ -3578,6 +3578,13 @@ a.history-title:hover {
     opacity: 0;
     pointer-events: none;
 }
+/* Level with the title rather than halfway down: nodes grow with what
+   changed in them, and a branch's line should run straight across between
+   two of different heights. */
+.lineage-node .vue-flow__handle-left,
+.lineage-node .vue-flow__handle-right {
+    top: 34px;
+}
 .vue-flow__node-lineage {
     padding: 0;
     border: 0;
