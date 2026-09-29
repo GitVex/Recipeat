@@ -24,6 +24,32 @@ url ──────▶ fetcher ─┘
 | Website import | Done; returns a recipe, stores nothing. No SSRF guard yet |
 | Photo import | Done; the model reads the photo directly, returns a recipe, stores nothing. The image itself is discarded |
 
+## Waves
+
+Work is scheduled in Waves, one GitHub milestone each (`Wave N`). The
+**current Wave** is the lowest-numbered open one.
+
+- **Features.** A Wave holds at most **4 top-level features**: issues that are
+  not bugs and have no parent issue. Sub-issues of those features don't count
+  and belong in the same Wave.
+- **Migrations.** At most **one** issue in a Wave, bugs included, may add a
+  database migration. Issues that will are labelled `needs:migration` when
+  written.
+- **Dependencies.** A feature goes in a later Wave than every issue it depends
+  on.
+- **Plans.** An issue titled `Plan:` lives in the *Plans* milestone, never in a
+  Wave. It says in its body which Wave it is aiming for ("Aiming for: Wave 4").
+  Once its questions are answered here, the implementation issues it produces
+  enter a Wave, and the Plan is closed or becomes their parent.
+- **Bugs** go into the current Wave when filed, and don't count toward the
+  feature limit. A bug in a feature that hasn't shipped goes into that
+  feature's Wave. *Bug Hell* is for bugs that need an earlier decision
+  revisited; only the maintainer moves a bug there.
+- **Closing.** A Wave closes when its features are closed. Open bugs and chores
+  move to the next Wave.
+- **Full Waves.** When a feature doesn't fit, it goes into the next Wave that
+  has room, opening a new one if none does.
+
 ## Next: storage
 
 The extraction output already maps onto the table one-to-one, and satisfies
