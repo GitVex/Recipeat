@@ -894,22 +894,22 @@ footer > span {
     left: 50%;
     transform: translateX(-50%);
     background: var(--olive);
-    color: white;
-    border-radius: 8px;
+    color: var(--on-fill);
+    border-radius: var(--radius-m);
     padding: 15px 20px;
-    font-size: 12px;
+    font-size: var(--text-small);
     display: flex;
     gap: 10px;
     align-items: center;
     z-index: 20;
-    box-shadow: 0 10px 35px #202c2920;
+    box-shadow: var(--shadow-raised);
     max-width: 90vw;
     width: max-content;
 }
 .modal-backdrop {
     position: fixed;
     inset: 0;
-    background: #252e246b;
+    background: var(--backdrop);
     backdrop-filter: blur(6px);
     z-index: 30;
     display: flex;
@@ -920,11 +920,11 @@ footer > span {
 .modal {
     position: relative;
     background: var(--cream);
-    border-radius: 18px;
+    border-radius: var(--radius-xl);
     max-height: 90dvh;
     overflow: auto;
     width: 100%;
-    box-shadow: 0 30px 100px #17231440;
+    box-shadow: var(--shadow-overlay);
 }
 .import-modal {
     max-width: 540px;
@@ -946,22 +946,22 @@ footer > span {
     z-index: 1;
 }
 .import-modal .eyebrow {
-    font-size: 8px;
+    font-size: var(--text-eyebrow);
     margin-top: 5px;
 }
 .import-modal h2 {
-    font-size: 33px;
+    font-size: var(--title-l);
     margin: 15px 0;
 }
 .import-modal > p {
-    font-size: 13px;
+    font-size: var(--text-body);
     line-height: 1.8;
     color: var(--muted);
 }
 .import-tabs {
     display: flex;
-    background: #eeeee4;
-    border-radius: 7px;
+    background: var(--wash);
+    border-radius: var(--radius-s);
     padding: 5px;
     margin: 24px 0;
 }
@@ -973,15 +973,15 @@ footer > span {
     flex: 1;
     padding: 10px;
     background: none;
-    font-size: 12px;
-    border-radius: 5px;
+    font-size: var(--text-small);
+    border-radius: var(--radius-s);
 }
 .import-tabs button.active {
     background: var(--cream);
-    box-shadow: 0 2px 5px #00000009;
+    box-shadow: var(--shadow-low);
 }
 .field-label {
-    font-size: 12px;
+    font-size: var(--text-small);
     display: block;
 }
 input[type="url"],
@@ -990,11 +990,11 @@ textarea {
     width: 100%;
     margin: 9px 0 20px;
     padding: 13px;
-    border: 1px solid #d5d8c9;
-    border-radius: 6px;
-    background: #fffdf9;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-s);
+    background: var(--paper);
     color: var(--ink);
-    font-size: 12px;
+    font-size: var(--text-small);
 }
 textarea {
     resize: vertical;
@@ -1008,7 +1008,7 @@ textarea {
     align-items: baseline;
     justify-content: space-between;
     gap: 14px;
-    font-size: 12px;
+    font-size: var(--text-small);
     line-height: 1.6;
     margin-bottom: 14px;
 }
@@ -1018,13 +1018,13 @@ textarea {
 }
 .unsaved-warning,
 .add-failure {
-    font-size: 12px;
+    font-size: var(--text-small);
     line-height: 1.6;
     margin-top: 4px;
 }
 .unsaved-warning {
-    background: #f0f1e7;
-    border-radius: 8px;
+    background: var(--wash);
+    border-radius: var(--radius-m);
     padding: 14px 16px;
 }
 .unsaved-actions {
@@ -1049,7 +1049,7 @@ textarea {
     display: inline-flex;
     align-items: center;
     gap: 10px;
-    font-size: 12px;
+    font-size: var(--text-small);
     color: var(--olive);
 }
 .saved-note:focus {
@@ -1058,7 +1058,7 @@ textarea {
 .import-wait {
     text-align: center;
     margin-top: 15px;
-    font-size: 11px;
+    font-size: var(--text-meta);
     line-height: 1.6;
     color: var(--muted);
 }
@@ -1067,25 +1067,25 @@ textarea {
     align-items: center;
     flex-direction: column;
     gap: 10px;
-    border: 1px dashed #b6bea8;
-    border-radius: 7px;
+    border: 1px dashed var(--line-dashed);
+    border-radius: var(--radius-s);
     padding: 25px 15px;
     margin-bottom: 20px;
-    font-size: 12px;
+    font-size: var(--text-small);
     cursor: pointer;
 }
 .file-upload span {
-    font-size: 10px;
+    font-size: var(--text-meta);
     color: var(--muted);
 }
 .file-upload input {
     max-width: 100%;
-    font-size: 11px;
+    font-size: var(--text-meta);
     margin-top: 8px;
 }
 .error {
-    color: #ac492f;
-    font-size: 12px;
+    color: var(--orange-deep);
+    font-size: var(--text-small);
     margin-bottom: 14px;
 }
 .detail-modal {
@@ -1103,19 +1103,19 @@ textarea {
     margin: 10px 0 18px;
 }
 .detail-content h3 {
-    font-size: 17px;
+    font-size: var(--title-s);
     margin: 26px 0 10px;
 }
 .detail-content h3 small {
-    font-size: 10px;
+    font-size: var(--text-meta);
     color: var(--muted);
     font-weight: 400;
     margin-left: 10px;
 }
 .detail-content li {
-    font-size: 13px;
+    font-size: var(--text-body);
     line-height: 1.8;
-    color: #757b6c;
+    color: var(--ink-soft);
     margin-bottom: 7px;
 }
 .detail-content ul,
@@ -1146,18 +1146,18 @@ textarea {
     padding: 3px;
     border: 1px solid var(--line);
     border-radius: 999px;
-    background: #f0f1e7;
+    background: var(--wash);
     cursor: pointer;
     font: inherit;
 }
 .unit-toggle span {
     padding: 4px 10px;
     border-radius: 999px;
-    font-size: 11px;
+    font-size: var(--text-meta);
     font-weight: 600;
     letter-spacing: 0.04em;
     color: var(--muted);
-    transition: background 0.15s, color 0.15s;
+    transition: background var(--dur-exit), color var(--dur-exit);
 }
 .unit-toggle span.active {
     background: var(--olive);
@@ -1190,20 +1190,20 @@ textarea {
    into in the same type and the same place, so nothing around it moves. */
 .editable {
     cursor: text;
-    border-radius: 4px;
+    border-radius: var(--radius-s);
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone;
-    transition: background 0.15s;
+    transition: background var(--dur-exit);
 }
 .editable:hover {
-    background: #f0f1e7;
+    background: var(--wash);
 }
 .editable:focus-visible {
     outline: 2px solid var(--olive);
     outline-offset: 2px;
 }
 .editable.empty {
-    color: #a3a597;
+    color: var(--faint);
     font-style: italic;
 }
 .editable.invalid {
@@ -1236,12 +1236,12 @@ h3 small .editable-field.active {
     letter-spacing: inherit;
     line-height: inherit;
     text-transform: none;
-    background: #f0f1e7;
+    background: var(--wash);
     border: none;
-    border-radius: 4px;
+    border-radius: var(--radius-s);
     padding: 0;
     margin: 0;
-    outline: 1px solid #d3d6c6;
+    outline: 1px solid var(--line-strong);
     outline-offset: 2px;
     vertical-align: baseline;
     max-width: 100%;
@@ -1261,14 +1261,14 @@ input.editable-input {
     min-width: 3ch;
 }
 .editable-input::placeholder {
-    color: #a3a597;
+    color: var(--faint);
     font-style: italic;
 }
 .field-count {
     position: absolute;
     right: 0;
     top: calc(100% + 6px);
-    font-size: 10px;
+    font-size: var(--text-meta);
     color: var(--muted);
 }
 .ingredient-inputs {
@@ -1290,7 +1290,7 @@ input.editable-input {
     display: flex;
     gap: 2px;
     opacity: 0;
-    transition: opacity 0.15s;
+    transition: opacity var(--dur-exit);
 }
 .edit-list li:hover .row-controls,
 .edit-list li:focus-within .row-controls {
@@ -1307,13 +1307,13 @@ input.editable-input {
     width: 28px;
     height: 28px;
     border: none;
-    border-radius: 6px;
+    border-radius: var(--radius-s);
     background: none;
     color: var(--muted);
     cursor: pointer;
 }
 .row-control:hover:not(:disabled) {
-    background: #f0f1e7;
+    background: var(--wash);
     color: var(--ink);
 }
 .row-control:disabled {
@@ -1325,7 +1325,7 @@ input.editable-input {
     align-items: center;
     gap: 6px;
     margin-top: 4px;
-    font-size: 13px;
+    font-size: var(--text-body);
 }
 .add-row:disabled {
     color: var(--muted);
@@ -1368,7 +1368,7 @@ input.editable-input {
     padding: 2px;
     border: 1px solid var(--line);
     border-radius: 999px;
-    background: #f0f1e7;
+    background: var(--wash);
 }
 .portion-control .row-control {
     border-radius: 50%;
@@ -1377,7 +1377,7 @@ input.editable-input {
 .scale-factor {
     min-width: 72px;
     text-align: center;
-    font-size: 12px;
+    font-size: var(--text-small);
     font-weight: 600;
     font-variant-numeric: tabular-nums;
 }
@@ -1385,10 +1385,10 @@ input.editable-input {
     min-width: 0;
     padding: 4px 10px;
     border-radius: 999px;
-    background: #f0f1e7;
+    background: var(--wash);
 }
 .scale-reset {
-    font-size: 12px;
+    font-size: var(--text-small);
 }
 /* An amount that can be set, to scale the rest to it. */
 .amount.scalable {
@@ -1399,13 +1399,13 @@ input.editable-input {
     border: none;
     padding: 0 2px;
     margin: 0 -2px;
-    border-radius: 4px;
+    border-radius: var(--radius-s);
     cursor: pointer;
-    text-decoration: underline dotted #b9bca9;
+    text-decoration: underline dotted var(--line-dashed);
     text-underline-offset: 4px;
 }
 .amount.scalable:hover {
-    background: #f0f1e7;
+    background: var(--wash);
 }
 /* The line the reader set: the rest follows it. */
 .amount.scalable.anchored {
@@ -1424,9 +1424,9 @@ input.editable-input {
 }
 .unscaled-note {
     margin-left: 6px;
-    font-size: 10px;
+    font-size: var(--text-meta);
     font-style: italic;
-    color: #a3a597;
+    color: var(--faint);
     white-space: nowrap;
 }
 
@@ -1444,12 +1444,12 @@ input.editable-input {
     padding: 14px 18px;
     background: var(--cream);
     border: 1px solid var(--line);
-    border-radius: 12px;
-    box-shadow: 0 12px 40px #17231424;
+    border-radius: var(--radius-l);
+    box-shadow: var(--shadow-raised);
 }
 .edit-bar-text p {
     margin: 0;
-    font-size: 13px;
+    font-size: var(--text-body);
 }
 .edit-bar-title {
     display: flex;
@@ -1487,7 +1487,7 @@ input.editable-input {
 .save-choice legend {
     padding: 0;
     margin-bottom: 8px;
-    font-size: 10px;
+    font-size: var(--text-meta);
     font-weight: 600;
     letter-spacing: 1.2px;
     text-transform: uppercase;
@@ -1499,21 +1499,21 @@ input.editable-input {
     align-items: flex-start;
     padding: 10px 12px;
     border: 1px solid var(--line);
-    border-radius: 10px;
-    background: #fffdf8;
+    border-radius: var(--radius-m);
+    background: var(--paper);
     cursor: pointer;
-    transition: border-color 0.15s, background 0.15s;
+    transition: border-color var(--dur-exit), background var(--dur-exit);
 }
 .save-option:hover {
-    border-color: #c9ccbb;
+    border-color: var(--line-strong);
 }
 .save-option.chosen {
     border-color: var(--olive);
-    background: #f0f1e7;
+    background: var(--wash);
 }
 .save-option.destructive.chosen {
     border-color: var(--orange);
-    background: #fbefe9;
+    background: var(--orange-wash);
 }
 .save-option input {
     margin-top: 3px;
@@ -1531,17 +1531,17 @@ input.editable-input {
     gap: 3px;
 }
 .save-option-title {
-    font-size: 13px;
+    font-size: var(--text-body);
     font-weight: 600;
 }
 .save-option-title small {
     margin-left: 4px;
-    font-size: 10px;
+    font-size: var(--text-meta);
     font-weight: 400;
     color: var(--muted);
 }
 .save-option-detail {
-    font-size: 11px;
+    font-size: var(--text-meta);
     line-height: 1.5;
     color: var(--muted);
 }
@@ -1564,14 +1564,14 @@ input.editable-input {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 12px;
+    font-size: var(--text-small);
     color: var(--ink);
 }
 .delete-recipe {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 12px;
+    font-size: var(--text-small);
     color: var(--orange);
 }
 @media (max-width: 800px) {
@@ -1589,12 +1589,12 @@ input.editable-input {
     padding: 34px 32px 28px;
 }
 .leave-content h2 {
-    font-size: 26px;
+    font-size: var(--title-m);
     margin: 0 0 10px;
 }
 .leave-content p {
     color: var(--muted);
-    font-size: 14px;
+    font-size: var(--text-ui);
     margin: 0 0 22px;
 }
 .leave-actions {
@@ -1606,9 +1606,9 @@ input.editable-input {
 .empty-collection {
     text-align: center;
     padding: 55px 20px;
-    background: #f0f1e7;
+    background: var(--wash);
     margin-top: 30px;
-    border-radius: 10px;
+    border-radius: var(--radius-m);
 }
 .empty-collection > svg {
     margin-bottom: 15px;
@@ -1616,7 +1616,7 @@ input.editable-input {
 .empty-collection p {
     margin: 15px 0 25px;
     color: var(--muted);
-    font-size: 13px;
+    font-size: var(--text-body);
 }
 @media (min-width: 1450px) {
     .hero {
