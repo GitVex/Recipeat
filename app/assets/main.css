@@ -2147,12 +2147,12 @@ input.editable-input {
         min-width: 0;
     }
     .hero h1 {
-        font-size: clamp(38px, 12.3vw, 61px);
+        font-size: var(--display);
     }
     .hero .title-star {
         right: 0;
         bottom: 0;
-        font-size: 36px;
+        font-size: var(--display);
     }
 }
 
@@ -2168,7 +2168,7 @@ input.editable-input {
     gap: 40px;
     align-items: start;
     padding-block: 42px 60px;
-    transition: grid-template-columns 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: grid-template-columns var(--dur-move) var(--ease-move);
 }
 .collection.folded {
     grid-template-columns: 72px minmax(0, 1fr);
@@ -2194,13 +2194,13 @@ input.editable-input {
     margin-bottom: 22px;
 }
 .collection-heading .eyebrow {
-    font-size: 9px;
-    color: #848975;
+    font-size: var(--text-eyebrow);
+    color: var(--muted);
     letter-spacing: 1.7px;
     margin-bottom: 10px;
 }
 .collection-heading h1 {
-    font-size: 34px;
+    font-size: var(--title-l);
     letter-spacing: -0.9px;
     line-height: 1.2;
     margin: 0;
@@ -2221,12 +2221,12 @@ input.editable-input {
     align-items: center;
     gap: 14px;
     padding: 9px;
-    border-radius: 9px;
-    transition: background 0.2s;
+    border-radius: var(--radius-m);
+    transition: background var(--dur-exit);
 }
 .collection-entry:hover,
 .collection-entry.current {
-    background: #f0f1e7;
+    background: var(--wash);
 }
 .collection-entry:focus-visible {
     outline-offset: 0;
@@ -2249,18 +2249,18 @@ input.editable-input {
     color: var(--muted);
     opacity: 0;
     transition:
-        opacity 0.12s ease-in,
-        background 0.2s,
-        color 0.2s;
+        opacity var(--dur-exit) var(--ease-exit),
+        background var(--dur-exit),
+        color var(--dur-exit);
 }
 .collection-entries li:hover .entry-add,
 .entry-add:focus-visible {
     opacity: 1;
-    transition-duration: 0.2s;
+    transition-duration: var(--dur-enter);
 }
 .entry-add:hover {
     color: var(--olive);
-    background: #e4e7db;
+    background: var(--sage-100);
 }
 .collection.folded .entry-add {
     visibility: hidden;
@@ -2277,15 +2277,15 @@ input.editable-input {
 }
 .entry-title {
     font-family: "Playfair Display", Georgia, serif;
-    font-size: 17px;
+    font-size: var(--title-s);
     letter-spacing: -0.3px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 .entry-meta {
-    font-size: 10px;
-    color: #949486;
+    font-size: var(--text-meta);
+    color: var(--faint);
 }
 
 /* Tags (#13): small quiet chips, read wherever a recipe is shown, and on its
@@ -2301,9 +2301,9 @@ input.editable-input {
     gap: 3px;
     padding: 3px 8px;
     border-radius: 999px;
-    background: #e4e7db;
+    background: var(--sage-100);
     color: var(--olive);
-    font-size: 10px;
+    font-size: var(--text-meta);
     line-height: 1.3;
     white-space: nowrap;
 }
@@ -2325,7 +2325,7 @@ input.editable-input {
 }
 .tag-editor .tag {
     padding-right: 3px;
-    font-size: 11px;
+    font-size: var(--text-meta);
 }
 .tag-remove {
     display: grid;
@@ -2336,10 +2336,10 @@ input.editable-input {
     border-radius: 50%;
     background: transparent;
     color: var(--muted);
-    transition: background 0.2s, color 0.2s;
+    transition: background var(--dur-exit), color var(--dur-exit);
 }
 .tag-remove:hover {
-    background: #dde1d1;
+    background: var(--line-strong);
     color: var(--ink);
 }
 .tag-remove:focus-visible {
@@ -2350,7 +2350,7 @@ input.editable-input {
     align-items: center;
     gap: 6px;
     padding: 0 10px;
-    border: 1px dashed #cfd3c2;
+    border: 1px dashed var(--line-strong);
     border-radius: 999px;
     color: var(--muted);
 }
@@ -2364,14 +2364,14 @@ input.editable-input {
     border: 0;
     background: transparent;
     color: var(--ink);
-    font-size: 11px;
+    font-size: var(--text-meta);
     outline: none;
 }
 .tag-problem {
     flex-basis: 100%;
     margin: 2px 0 0;
-    color: #a85638;
-    font-size: 12px;
+    color: var(--orange-text);
+    font-size: var(--text-small);
 }
 
 /* Finding a recipe (#14): a search bar under the heading, the filters behind
@@ -2392,18 +2392,18 @@ input.editable-input {
 }
 .recipe-find .recipe-search input {
     padding: 10px 0;
-    font-size: 13px;
+    font-size: var(--text-body);
 }
 .filter-toggle {
     position: relative;
     flex-shrink: 0;
     width: 40px;
     height: 40px;
-    border: 1px solid #d5d8c9;
+    border: 1px solid var(--line-strong);
     border-radius: 50%;
-    background: #fffdf8;
+    background: var(--paper);
     color: var(--muted);
-    transition: background 0.2s, color 0.2s, border-color 0.2s;
+    transition: background var(--dur-exit), color var(--dur-exit), border-color var(--dur-exit);
 }
 .filter-toggle:hover,
 .filter-toggle[aria-expanded="true"] {
@@ -2413,7 +2413,7 @@ input.editable-input {
 .filter-toggle.active {
     border-color: var(--olive);
     background: var(--olive);
-    color: white;
+    color: var(--on-fill);
 }
 .filter-count {
     position: absolute;
@@ -2426,8 +2426,8 @@ input.editable-input {
     padding: 0 4px;
     border-radius: 999px;
     background: var(--orange);
-    color: white;
-    font-size: 10px;
+    color: var(--on-fill);
+    font-size: var(--text-meta);
     font-weight: 600;
 }
 .filter-panel {
@@ -2436,17 +2436,17 @@ input.editable-input {
     margin-bottom: 18px;
     padding: 18px;
     border: 1px solid var(--line);
-    border-radius: 10px;
-    background: #fffdf8;
+    border-radius: var(--radius-m);
+    background: var(--paper);
 }
 .filter-heading {
     margin: 0 0 8px;
     font-family: "DM Sans", sans-serif;
-    font-size: 9px;
+    font-size: var(--text-eyebrow);
     font-weight: 500;
     letter-spacing: 1.7px;
     text-transform: uppercase;
-    color: #6b6f5f;
+    color: var(--muted);
 }
 .filter-options {
     display: flex;
@@ -2459,12 +2459,12 @@ input.editable-input {
     align-items: center;
     gap: 5px;
     padding: 6px 11px;
-    border: 1px solid #d5d8c9;
+    border: 1px solid var(--line-strong);
     border-radius: 999px;
     background: transparent;
     color: var(--ink);
-    font-size: 11px;
-    transition: background 0.2s, color 0.2s, border-color 0.2s;
+    font-size: var(--text-meta);
+    transition: background var(--dur-exit), color var(--dur-exit), border-color var(--dur-exit);
 }
 .filter-option:hover {
     border-color: var(--olive);
@@ -2472,17 +2472,17 @@ input.editable-input {
 .filter-option[aria-pressed="true"] {
     border-color: var(--olive);
     background: var(--olive);
-    color: white;
+    color: var(--on-fill);
 }
 .filter-input {
     flex: 1;
     min-width: 140px;
     padding: 7px 11px;
-    border: 1px solid #d5d8c9;
+    border: 1px solid var(--line-strong);
     border-radius: 999px;
     background: transparent;
     color: var(--ink);
-    font-size: 11px;
+    font-size: var(--text-meta);
 }
 .filter-input:focus-visible {
     outline: none;
@@ -2490,14 +2490,14 @@ input.editable-input {
 }
 .filter-empty {
     margin: 0;
-    font-size: 12px;
-    color: #6d6e64;
+    font-size: var(--text-small);
+    color: var(--muted);
 }
 .filter-clear {
     justify-self: start;
     border: 0;
     padding: 0;
-    color: #a85638;
+    color: var(--orange-text);
 }
 .collection.folded .recipe-find,
 .collection.folded .filter-panel {
@@ -2523,12 +2523,12 @@ input.editable-input {
     flex-shrink: 0;
     width: 54px;
     height: 54px;
-    border-radius: 7px;
+    border-radius: var(--radius-s);
     overflow: hidden;
     display: grid;
     place-items: center;
-    background: #e4e7db;
-    color: #7b8569;
+    background: var(--sage-100);
+    color: var(--muted);
 }
 .recipe-thumb img {
     width: 100%;
@@ -2537,14 +2537,14 @@ input.editable-input {
 }
 .thumb-initial {
     font-family: "Playfair Display", Georgia, serif;
-    font-size: 24px;
+    font-size: var(--title-m);
     text-transform: uppercase;
 }
 .collection-pane {
     min-width: 0;
-    background: #fffdf8;
+    background: var(--paper);
     border: 1px solid var(--line);
-    border-radius: 14px;
+    border-radius: var(--radius-l);
     overflow: hidden;
     min-height: 60vh;
 }
@@ -2563,18 +2563,18 @@ input.editable-input {
 .collection-state {
     text-align: center;
     padding: 55px 20px;
-    background: #f0f1e7;
-    border-radius: 10px;
+    background: var(--wash);
+    border-radius: var(--radius-m);
 }
 .collection-state h2 {
-    font-size: 24px;
+    font-size: var(--title-m);
     margin-top: 12px;
 }
 .collection-state p {
     margin: 15px auto 25px;
     max-width: 340px;
     color: var(--muted);
-    font-size: 13px;
+    font-size: var(--text-body);
     line-height: 1.7;
 }
 .collection-pane .collection-state {
@@ -2585,7 +2585,7 @@ input.editable-input {
     flex-shrink: 0;
 }
 .rail-toggle:hover {
-    background: #f0f1e7;
+    background: var(--wash);
 }
 
 /* Folded: pictures only. The words stay where they were, invisible, for a
@@ -2614,13 +2614,13 @@ input.editable-input {
     /* Out quickly as the list folds; in once there is room to read them. */
     .collection-heading > div,
     .entry-text {
-        transition: opacity 0.2s ease 0.14s;
+        transition: opacity var(--dur-enter) var(--ease-enter) var(--dur-exit);
     }
     .collection.folded .collection-heading > div,
     .collection.folded .entry-text {
         opacity: 0;
         pointer-events: none;
-        transition-duration: 0.12s;
+        transition-duration: var(--dur-exit);
         transition-delay: 0s;
     }
     /* Centred on the rail, over the words it replaces. */
@@ -2628,7 +2628,7 @@ input.editable-input {
         position: absolute;
         top: 14px;
         left: 19px;
-        animation: fade-in 0.2s 0.15s both;
+        animation: fade-in var(--dur-enter) var(--dur-exit) both;
     }
 }
 
