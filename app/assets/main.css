@@ -3597,7 +3597,7 @@ a.history-title:hover {
 }
 @media (max-width: 600px) {
     .lineage-heading {
-        font-size: var(--title-l);
+        font-size: var(--title-m);
     }
     .lineage-canvas {
         min-height: 400px;
