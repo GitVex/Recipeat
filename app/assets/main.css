@@ -121,7 +121,7 @@ button:focus-visible,
 a:focus-visible,
 input:focus-visible,
 textarea:focus-visible {
-    outline: 3px solid #bf7851;
+    outline: 3px solid var(--orange);
     outline-offset: 5px;
 }
 button {
@@ -148,8 +148,8 @@ button:disabled {
 .logo {
     display: flex;
     align-items: center;
-    font-weight: 700;
-    font-size: 29px;
+    font-weight: 600;
+    font-size: var(--title-l);
     letter-spacing: -1.4px;
 }
 .logo-mark {
@@ -157,7 +157,7 @@ button:disabled {
     place-items: center;
     width: 35px;
     height: 37px;
-    border-radius: 11px;
+    border-radius: var(--radius-m);
     background: var(--olive);
     color: var(--cream);
     margin-right: 9px;
@@ -170,7 +170,7 @@ nav {
     display: flex;
     gap: 33px;
     align-items: center;
-    font-size: 13px;
+    font-size: var(--text-body);
 }
 nav button {
     background: none;
@@ -199,7 +199,7 @@ nav button:hover {
     color: var(--muted);
 }
 .nav-disclosure svg {
-    transition: rotate 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+    transition: rotate var(--dur-enter) var(--ease-enter);
 }
 .nav-disclosure[aria-expanded="true"] svg {
     rotate: 180deg;
@@ -214,21 +214,21 @@ nav button:hover {
     width: 270px;
 }
 .nav-collections-panel {
-    background: #fffdf8;
+    background: var(--paper);
     border: 1px solid var(--line);
-    border-radius: 14px;
-    box-shadow: 0 12px 40px #17231424;
+    border-radius: var(--radius-l);
+    box-shadow: var(--shadow-raised);
     padding: 16px 10px 12px;
 }
 .nav-collections-eyebrow {
-    font-size: 9px;
+    font-size: var(--text-eyebrow);
     letter-spacing: 1.7px;
     text-transform: uppercase;
-    color: #848975;
+    color: var(--muted);
     padding: 0 10px 10px;
 }
 .nav-collections-state {
-    font-size: 12px;
+    font-size: var(--text-small);
     line-height: 1.6;
     color: var(--muted);
     padding: 0 10px 10px;
@@ -244,19 +244,19 @@ li.nav-collections-more {
     align-items: baseline;
     gap: 10px;
     padding: 8px 10px;
-    border-radius: 8px;
+    border-radius: var(--radius-m);
 }
 .nav-collection {
-    transition: background 0.2s;
+    transition: background var(--dur-exit);
 }
 .nav-collection:hover {
-    background: #f0f1e7;
+    background: var(--wash);
 }
 .nav-collection-name {
     flex: 1;
     min-width: 0;
     font-family: "Playfair Display", Georgia, serif;
-    font-size: 15px;
+    font-size: var(--text-ui);
     color: var(--ink);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -264,11 +264,11 @@ li.nav-collections-more {
 }
 .nav-collection-count {
     flex-shrink: 0;
-    font-size: 10px;
-    color: #949486;
+    font-size: var(--text-meta);
+    color: var(--faint);
 }
 li.nav-collections-more {
-    font-size: 11px;
+    font-size: var(--text-meta);
     color: var(--muted);
 }
 .nav-collections-all {
@@ -278,30 +278,30 @@ li.nav-collections-more {
     margin: 4px 10px 0;
     padding-top: 12px;
     border-top: 1px solid var(--line);
-    font-size: 12px;
+    font-size: var(--text-small);
     color: var(--olive);
 }
 .button {
     background: var(--olive);
-    color: white;
-    border-radius: 6px;
+    color: var(--on-fill);
+    border-radius: var(--radius-s);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 25px;
     padding: 17px 23px;
-    font-size: 14px;
+    font-size: var(--text-ui);
     font-weight: 500;
     transition:
-        background 0.2s,
-        transform 0.2s;
+        background var(--dur-exit),
+        transform var(--dur-enter);
 }
 .button:hover {
-    background: #34432b;
+    background: var(--olive-deep);
     transform: translateY(-2px);
 }
 .button.small {
-    font-size: 12px;
+    font-size: var(--text-small);
     padding: 13px 17px;
     gap: 17px;
 }
@@ -310,10 +310,10 @@ li.nav-collections-more {
 }
 .count {
     background: var(--olive);
-    color: #fff;
+    color: var(--on-fill);
     padding: 2px 6px;
-    border-radius: 20px;
-    font-size: 10px;
+    border-radius: 999px;
+    font-size: var(--text-meta);
 }
 .hero {
     display: grid;
@@ -341,6 +341,12 @@ h2,
 h3,
 p {
     margin: 0;
+}
+/* The fonts are loaded at 400, 500 and 600: bold is the last of them. */
+b,
+strong,
+h3 {
+    font-weight: 600;
 }
 h1,
 h2,
