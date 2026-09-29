@@ -84,6 +84,14 @@ The fallback is asked for (`supported_only=False`) rather than left to the
 library's default, which is to refuse an unknown host; an upgrade that moves the
 default cannot change which sites work.
 
+The import dialog says which of the first two a link is while it is typed,
+from the fetcher's list (`GET /api/extract/sites`) and without fetching the
+page: "Supported", or "Not on the supported list, so we'll try reading the
+page's recipe markup". It never blocks a link. When an unlisted page turns out
+to have no recipe, the 422 is shown in the hint's words, so the failure is
+the thing the hint said would be tried. The whole list is at `/sites`.
+Matching is in `shared/utils/siteSupport.ts`.
+
 The fetcher's own 4xx messages name the host the caller asked for, so they are
 passed on rather than replaced with something vaguer. Its 415 arrives as a 422,
 since a URL serving a PDF is a problem with what was asked for, not with the

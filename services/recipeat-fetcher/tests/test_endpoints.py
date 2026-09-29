@@ -171,3 +171,14 @@ def test_more_lines_than_the_cap_are_refused(client):
 
 def test_health_answers(client):
     assert client.get("/health").json() == {"status": "ok"}
+
+
+def test_the_site_list_is_the_installed_librarys(client):
+    """Not a copy: an upgrade that adds a scraper adds its host here."""
+    from recipe_scrapers import SCRAPERS
+
+    hosts = client.get("/sites").json()["hosts"]
+    assert hosts == sorted(SCRAPERS)
+    assert "bbcgoodfood.com" in hosts
+    # What scrape_html matches against has no www. on it.
+    assert not [host for host in hosts if host.startswith("www.")]

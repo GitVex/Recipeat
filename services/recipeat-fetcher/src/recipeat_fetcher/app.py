@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from .routers import fetch, health
+from .routers import fetch, health, sites
 
 
 def create_app() -> FastAPI:
@@ -12,6 +12,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router)
     app.include_router(fetch.router)
+    app.include_router(sites.router)
 
     return app
 

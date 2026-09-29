@@ -368,6 +368,59 @@ test('a photo goes up as multipart, and a photo with no recipe says so', async (
   expect(body).toContain('Content-Type: image/png')
 })
 
+// Which way a link will be read (#60): a hint from the fetcher's site list,
+// with no request made for the link itself until it is sent.
+test('a link says whether its site is supported, and an unlisted page with no recipe says so in the same words', async ({ page }) => {
+  let sites = 0
+  const extracted: string[] = []
+  await page.route('**/api/extract/sites', route => { sites++; return route.fulfill({ json: { hosts: ['bbcgoodfood.com', 'cooking.nytimes.com'] } }) })
+  await page.route('**/api/extract/website', route => { extracted.push(route.request().url()); return route.fulfill(answer(422)) })
+  await signIn(page)
+  await page.getByRole('button', { name: 'Save your first recipe' }).click()
+  const field = page.getByLabel('Recipe URL')
+  const hint = page.locator('#site-hint')
+  await expect(hint).toHaveText('See which sites are supported')
+  await expect(hint.getByRole('link')).toHaveAttribute('href', '/sites')
+
+  await field.fill('https://www.bbcgoodfood.com/recipes/pancakes')
+  await expect(hint).toContainText('Supported')
+  await field.fill('https://nytimes.com/recipes/1')
+  await expect(hint).toContainText('Not on the supported list, so we’ll try reading the page’s recipe markup.')
+  // Not a URL the dialog would send, so it is not a site either.
+  await field.fill('bbcgoodfood.com/recipes/pancakes')
+  await expect(hint).toHaveText('See which sites are supported')
+  expect(extracted).toEqual([])
+
+  await field.fill('https://example.com/about')
+  await page.getByRole('button', { name: 'Bring it in' }).click()
+  await expect(page.getByRole('alert')).toHaveText('That site isn’t on the supported list, and the page has no recipe markup we could read.')
+  // Neither the hint nor the answer blocked the request.
+  expect(extracted).toHaveLength(1)
+  expect(sites).toBe(1)
+})
+
+test('a supported page with no recipe keeps the plain answer', async ({ page }) => {
+  await page.route('**/api/extract/sites', route => route.fulfill({ json: { hosts: ['bbcgoodfood.com'] } }))
+  await page.route('**/api/extract/website', route => route.fulfill(answer(422)))
+  await signIn(page)
+  await page.getByRole('button', { name: 'Save your first recipe' }).click()
+  await page.getByLabel('Recipe URL').fill('https://www.bbcgoodfood.com/')
+  await expect(page.locator('#site-hint')).toContainText('Supported')
+  await page.getByRole('button', { name: 'Bring it in' }).click()
+  await expect(page.getByRole('alert')).toContainText('We couldn’t find a recipe on that page.')
+})
+
+test('without the site list there is no hint, and importing still works', async ({ page }) => {
+  await page.route('**/api/extract/sites', route => route.fulfill({ status: 502, json: { statusCode: 502 } }))
+  await page.route('**/api/extract/website', route => route.fulfill(answer(200)))
+  await signIn(page)
+  await page.getByRole('button', { name: 'Save your first recipe' }).click()
+  await page.getByLabel('Recipe URL').fill('https://example.com/pancakes')
+  await expect(page.locator('#site-hint')).toHaveText('See which sites are supported')
+  await page.getByRole('button', { name: 'Bring it in' }).click()
+  await expect(page.getByRole('dialog')).toContainText('Playwright pancakes')
+})
+
 // Adding an import to the collection (#41). The extraction is stubbed as
 // above; so is the save, except in the last test, which writes a real row.
 const storedFrom = (recipe: object) => ({

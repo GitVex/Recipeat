@@ -145,6 +145,18 @@ Note the one deliberate remapping: the fetcher's own 415 (a URL serving a PDF)
 arrives here as **422**, because that is a problem with what was asked for, not
 with the content type of the asking.
 
+### `GET /api/extract/sites`
+
+```
+GET {{app}}/api/extract/sites
+```
+
+`{ "hosts": string[] }`: the fetcher's `GET /sites`, passed on. No session,
+since it is the public library's list. Cached in the server for a day and in
+the browser for an hour, so after a fetcher upgrade the new list can take a day
+to show; restarting the app clears it. 502 when the fetcher could not be asked,
+which the import dialog takes as "no hint" rather than as an error.
+
 ### `POST /api/extract/photo`
 
 ```
@@ -556,6 +568,12 @@ a fetcher problem from an app problem.
 ### `GET /health`
 
 `{"status": "ok"}` once it is up.
+
+### `GET /sites`
+
+`{"hosts": ["101cookbooks.com", …]}`: every host the installed
+`recipe-scrapers` has a scraper for, sorted, with no `www.`. Any other host is
+read from its schema.org markup instead.
 
 ### `POST /fetch`
 

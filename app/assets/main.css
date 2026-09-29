@@ -999,6 +999,56 @@ textarea {
 textarea {
     resize: vertical;
 }
+/* Which way a link will be read, under the field it is about. It pulls up
+   into the field's bottom margin so the two read as one. */
+.site-hint {
+    margin: -12px 0 18px;
+    font-size: var(--text-meta);
+    line-height: 1.6;
+    color: var(--muted);
+}
+.site-hint.supported {
+    color: var(--olive);
+}
+.site-hint a {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+.sites-page {
+    padding-block: 40px 70px;
+}
+.sites-page .field-label {
+    margin-top: 28px;
+}
+.sites-page input[type="search"] {
+    display: block;
+    width: 100%;
+    max-width: 360px;
+    margin: 9px 0 20px;
+    padding: 11px 13px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-s);
+    background: var(--paper);
+    color: var(--ink);
+    font-size: var(--text-small);
+}
+.sites-count {
+    margin: -12px 0 14px;
+    font-size: var(--text-meta);
+    color: var(--muted);
+}
+.sites-list {
+    columns: 220px;
+    column-gap: 24px;
+    padding: 0;
+    list-style: none;
+    font-size: var(--text-small);
+    line-height: 1.9;
+}
+.sites-list li {
+    overflow-wrap: anywhere;
+}
 .full-width {
     width: 100%;
     gap: 12px;

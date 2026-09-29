@@ -87,6 +87,20 @@ redirect is followed wherever it points, so a URL given to this service can
 reach anything the container can. Until that lands, it must not share a network
 with anything private.
 
+## Supported sites
+
+`GET /sites` lists the hosts with a scraper of their own, read from the
+installed library's `SCRAPERS` so an upgrade updates it. The import dialog
+checks a link against it to say which way the page will be read.
+
+```jsonc
+{ "hosts": ["101cookbooks.com", "15gram.be", "…"] }
+```
+
+A key is what `scrape_html` compares a page's host with once a leading `www.`
+is gone, exactly: `cooking.nytimes.com` is listed and `nytimes.com` is not, and
+each country variant (`hellofresh.de`, `hellofresh.at`) is its own entry.
+
 ## Parse ingredients
 
 `POST /ingredients` turns ingredient lines into structured amounts and names.

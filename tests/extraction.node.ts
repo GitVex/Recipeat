@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import { createServer } from 'node:http'
 import { readFileSync } from 'node:fs'
 import { createApp, defineEventHandler, readRawBody, toNodeListener, toWebHandler } from 'h3'
-import { extractPhoto, extractText, extractWebsite, isUnit, normalizeRecipe, parseExtraction, parseQuantity, readExtractionPhoto, readExtractionText, unitInfo, validateText, validateUrl } from '../server/utils/extraction.ts'
+import { extractPhoto, extractText, extractWebsite, isUnit, normalizeRecipe, parseExtraction, parseQuantity, readExtractionPhoto, readExtractionText, supportedSites, unitInfo, validateText, validateUrl } from '../server/utils/extraction.ts'
 
 const bread = { originalText: '1 slice bread', quantity: '1 slice', name: 'bread' }
 const recipe = { title: 'Toast', source_lang: 'en', portions: 1, ingredients: [bread], steps: ['Toast the bread.'] }
@@ -526,4 +526,20 @@ test('failures become the status the caller should see', async () => {
     status(502))
   // A draft that parses but is not a recipe stays parseExtraction's to reject.
   await assert.rejects(extract(answered({ ...recipe, ingredients: [], steps: [] })), status(422))
+})
+
+test('the site list is the fetcher\'s, and anything else from it is a 502', async () => {
+  let asked = ''
+  const hosts = await supportedSites(fetcherConfig, async (input) => {
+    asked = String(input)
+    return Response.json({ hosts: ['allrecipes.com', 'bbcgoodfood.com'] })
+  })
+  assert.deepEqual(hosts, ['allrecipes.com', 'bbcgoodfood.com'])
+  assert.equal(asked, 'http://recipeat-fetcher:8103/sites')
+
+  for (const body of [{}, { hosts: 'allrecipes.com' }, { hosts: [1] }, null]) {
+    await assert.rejects(supportedSites(fetcherConfig, served(body)), status(502), JSON.stringify(body))
+  }
+  await assert.rejects(supportedSites(fetcherConfig, served({ detail: 'down' }, { status: 500 })), status(502))
+  await assert.rejects(supportedSites(fetcherConfig, async () => { throw new TypeError('fetch failed') }), status(502))
 })
