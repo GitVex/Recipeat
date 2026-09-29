@@ -1627,7 +1627,7 @@ input.editable-input {
         margin-left: 20px;
     }
     h1 {
-        font-size: 77px;
+        font-size: var(--display);
     }
     .photo-frame {
         height: 465px;
@@ -1639,7 +1639,7 @@ input.editable-input {
         top: 286px;
     }
     .hero-description {
-        font-size: 15px;
+        font-size: var(--text-ui);
         max-width: 420px;
     }
 }
@@ -1649,13 +1649,13 @@ input.editable-input {
     }
     nav {
         gap: 20px;
-        font-size: 12px;
+        font-size: var(--text-small);
     }
     .hero {
         gap: 25px;
     }
     h1 {
-        font-size: 59px;
+        font-size: var(--display);
     }
     .hero-description {
         max-width: 345px;
@@ -1679,18 +1679,18 @@ input.editable-input {
     .handwritten {
         top: 465px;
         right: 22px;
-        font-size: 12px;
+        font-size: var(--text-small);
     }
     .strip-inner {
         gap: 12px;
     }
     .strip-inner > div {
-        font-size: 10px;
+        font-size: var(--text-meta);
         gap: 6px;
     }
     .strip-inner p {
         max-width: 125px;
-        font-size: 7px;
+        font-size: var(--text-eyebrow);
     }
     .steps-grid {
         gap: 27px;
@@ -1702,10 +1702,10 @@ input.editable-input {
         height: 200px;
     }
     .recipe-title {
-        font-size: 19px;
+        font-size: var(--title-s);
     }
     .recipe-meta {
-        font-size: 8px;
+        font-size: var(--text-eyebrow);
         gap: 7px;
     }
     .closing {
@@ -1713,7 +1713,7 @@ input.editable-input {
         padding: 30px;
     }
     .closing h2 {
-        font-size: 21px;
+        font-size: var(--title-m);
     }
 }
 @media (max-width: 800px) {
@@ -1724,7 +1724,7 @@ input.editable-input {
         display: none;
     }
     h1 {
-        font-size: 51px;
+        font-size: var(--display);
     }
     .hero {
         padding-top: 46px;
@@ -1732,15 +1732,15 @@ input.editable-input {
         gap: 20px;
     }
     .hero-description {
-        font-size: 12px;
+        font-size: var(--text-small);
         max-width: 295px;
     }
     .title-star {
-        font-size: 38px;
+        font-size: var(--display);
         right: -35px;
     }
     .hero .eyebrow {
-        font-size: 8px;
+        font-size: var(--text-eyebrow);
         letter-spacing: 1.5px;
     }
     .photo-frame {
@@ -1754,7 +1754,7 @@ input.editable-input {
         width: 85px;
         right: -14px;
         top: 3px;
-        font-size: 6px;
+        font-size: var(--text-tag);
     }
     .source-note {
         top: 61px;
@@ -1766,10 +1766,10 @@ input.editable-input {
         display: none;
     }
     .source-note strong {
-        font-size: 8px;
+        font-size: var(--text-eyebrow);
     }
     .source-note small {
-        font-size: 8px;
+        font-size: var(--text-eyebrow);
     }
     .source-icon {
         width: 25px;
@@ -1782,12 +1782,12 @@ input.editable-input {
         padding: 17px;
     }
     .floating-recipe h3 {
-        font-size: 23px;
+        font-size: var(--title-m);
     }
     .handwritten {
         top: 458px;
         right: 15px;
-        font-size: 10px;
+        font-size: var(--text-meta);
     }
     .strip-inner {
         flex-wrap: wrap;
@@ -1803,10 +1803,10 @@ input.editable-input {
         display: none;
     }
     .section-heading > p {
-        font-size: 10px;
+        font-size: var(--text-meta);
     }
     h2 {
-        font-size: 28px;
+        font-size: var(--title-m);
     }
     .steps-grid {
         gap: 20px;
@@ -1815,13 +1815,13 @@ input.editable-input {
         padding-right: 15px;
     }
     .step h3 {
-        font-size: 13px;
+        font-size: var(--text-body);
     }
     .step p {
-        font-size: 11px;
+        font-size: var(--text-meta);
     }
     .step-detail {
-        font-size: 9px;
+        font-size: var(--text-eyebrow);
     }
     .recipe-grid {
         gap: 17px;
@@ -1830,13 +1830,13 @@ input.editable-input {
         height: 170px;
     }
     .recipe-title {
-        font-size: 18px;
+        font-size: var(--title-s);
     }
     .closing-doodle {
         display: none;
     }
     .closing h2 {
-        font-size: 19px;
+        font-size: var(--title-s);
     }
     .closing .button {
         gap: 12px;
@@ -1845,7 +1845,7 @@ input.editable-input {
         gap: 15px;
     }
     footer > span {
-        font-size: 8px;
+        font-size: var(--text-eyebrow);
     }
 }
 @media (max-width: 600px) {
@@ -1856,7 +1856,7 @@ input.editable-input {
         height: 77px;
     }
     .logo {
-        font-size: 27px;
+        font-size: var(--title-m);
     }
     .menu-button {
         display: grid !important;
@@ -1890,7 +1890,7 @@ input.editable-input {
     }
     .nav-collections-panel {
         box-shadow: none;
-        background: #f0f1e7;
+        background: var(--wash);
         border: 0;
     }
     .hero {
@@ -1903,21 +1903,21 @@ input.editable-input {
         padding-inline: 6px;
     }
     h1 {
-        font-size: 61px;
+        font-size: var(--display);
         letter-spacing: -2.8px;
         margin-top: 19px;
     }
     .title-star {
-        font-size: 43px;
+        font-size: var(--display);
         right: -46px;
     }
     .hero-description {
-        font-size: 13px;
+        font-size: var(--text-body);
         max-width: 355px;
         line-height: 1.85;
     }
     .hero .eyebrow {
-        font-size: 8px;
+        font-size: var(--text-eyebrow);
     }
     .community {
         margin-top: 23px;
@@ -1937,7 +1937,7 @@ input.editable-input {
         top: -2px;
         width: 91px;
         height: 91px;
-        font-size: 7px;
+        font-size: var(--text-tag);
     }
     .source-note {
         left: -14px;
@@ -1946,10 +1946,10 @@ input.editable-input {
         gap: 10px;
     }
     .source-note strong {
-        font-size: 9px;
+        font-size: var(--text-eyebrow);
     }
     .source-note small {
-        font-size: 8px;
+        font-size: var(--text-eyebrow);
     }
     .source-icon {
         width: 29px;
@@ -1962,17 +1962,17 @@ input.editable-input {
         padding: 20px;
     }
     .floating-recipe h3 {
-        font-size: 27px;
+        font-size: var(--title-m);
     }
     .handwritten {
         top: 447px;
         right: 6px;
-        font-size: 12px;
+        font-size: var(--text-small);
     }
     .hand-arrow {
         right: -21px;
         top: -23px;
-        font-size: 30px;
+        font-size: var(--title-l);
     }
     .strip-inner {
         padding-block: 21px;
@@ -1982,11 +1982,11 @@ input.editable-input {
     }
     .strip-inner p {
         grid-column: 1/-1;
-        font-size: 7px;
+        font-size: var(--text-eyebrow);
         letter-spacing: 1.4px;
     }
     .strip-inner > div {
-        font-size: 10px;
+        font-size: var(--text-meta);
         gap: 8px;
     }
     .how-section {
@@ -1998,13 +1998,13 @@ input.editable-input {
         flex-direction: column;
     }
     h2 {
-        font-size: 29px;
+        font-size: var(--title-m);
     }
     .section-heading > p br {
         display: none;
     }
     .section-heading > p {
-        font-size: 12px;
+        font-size: var(--text-small);
     }
     .steps-grid {
         grid-template-columns: 1fr;
@@ -2029,18 +2029,18 @@ input.editable-input {
         position: absolute;
         top: 61px;
         left: 11px;
-        font-size: 24px;
+        font-size: var(--title-m);
     }
     .step h3 {
-        font-size: 15px;
+        font-size: var(--text-ui);
         margin-bottom: 8px;
     }
     .step p {
-        font-size: 12px;
+        font-size: var(--text-small);
         max-width: none;
     }
     .step-detail {
-        font-size: 10px;
+        font-size: var(--text-meta);
         margin-top: 11px;
     }
     .step:last-child {
@@ -2051,7 +2051,7 @@ input.editable-input {
         padding-bottom: 33px;
     }
     .text-button {
-        font-size: 11px;
+        font-size: var(--text-meta);
     }
     .recipe-grid {
         grid-template-columns: 1fr;
@@ -2062,16 +2062,16 @@ input.editable-input {
         height: 250px;
     }
     .recipe-title {
-        font-size: 24px;
+        font-size: var(--title-m);
     }
     .recipe-info {
         padding-top: 15px;
     }
     .recipe-meta {
-        font-size: 10px;
+        font-size: var(--text-meta);
     }
     .source-chip {
-        font-size: 10px;
+        font-size: var(--text-meta);
         padding: 8px 10px;
     }
     .save-button {
@@ -2086,14 +2086,14 @@ input.editable-input {
         margin-bottom: 30px;
     }
     .closing h2 {
-        font-size: 23px;
+        font-size: var(--title-m);
     }
     .closing .button {
         margin-left: 0;
-        font-size: 12px;
+        font-size: var(--text-small);
     }
     .closing .eyebrow {
-        font-size: 7px;
+        font-size: var(--text-eyebrow);
     }
     footer {
         flex-wrap: wrap;
@@ -2102,18 +2102,18 @@ input.editable-input {
     }
     footer p {
         margin-left: auto;
-        font-size: 9px;
+        font-size: var(--text-eyebrow);
     }
     footer > span {
         width: 100%;
         margin-left: 0;
-        font-size: 9px;
+        font-size: var(--text-eyebrow);
     }
     .import-modal {
         padding: 36px 23px 25px;
     }
     .import-modal h2 {
-        font-size: 28px;
+        font-size: var(--title-m);
     }
     .modal-backdrop {
         padding: 15px;
@@ -2122,7 +2122,7 @@ input.editable-input {
         padding: 25px;
     }
     .detail-content h2 {
-        font-size: 28px;
+        font-size: var(--title-m);
     }
     .detail-image {
         height: 200px;
