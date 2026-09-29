@@ -145,12 +145,16 @@ out by 1.7px, in `--muted`.
 
 ### Scale — planned
 
-Thirty-eight sizes today, many one pixel apart. Folded into nine. **Nothing
-is set smaller than 9px**: the 7px and 8px text of today moves up to it.
+Thirty-eight sizes today, many one pixel apart. Folded into ten. **Nothing
+is set smaller than 7px**, and 7px is only for the smallest UI elements —
+tags, chips, badges, a mark on a card — never for anything read as a line
+or a sentence. Text that is read starts at 9px: today's 8px eyebrows move up
+to it.
 
 | Token | Size | Family | Use | Takes in |
 |---|---|---|---|---|
-| `--text-eyebrow` | 9px | Sans, caps | Eyebrows, chips | 7px ×5, 8px ×12 |
+| `--text-tag` | 7px | Sans, caps | Tags, chips, badges — the smallest UI elements only | 7px ×5 |
+| `--text-eyebrow` | 9px | Sans, caps | Eyebrows | 8px ×12 |
 | `--text-meta` | 10px | Sans | Meta lines, captions | 11px |
 | `--text-small` | 12px | Sans | Small buttons, secondary copy | |
 | `--text-body` | 13px | Sans | Recipe body, paragraphs | |
@@ -274,8 +278,10 @@ Tests that measure where something is wait for it to settle first, 400–500ms.
 
 ## Decisions
 
-- **The smallest text is 9px.** Eyebrows and chips move up from 7–8px; the
-  scale starts there.
+- **The smallest text is 7px, and only for the smallest UI elements.** Tags,
+  chips and badges may use `--text-tag`; anything read as a line or a
+  sentence starts at `--text-eyebrow`, 9px, and eyebrows move up to it from
+  8px. At 7px the colour still has to reach 4.5:1 on its surface.
 - **The lineage fades in**, like any other place. It is the recipe seen from
   further away, but it is not drawn as a zoom.
 - **A picture opens its recipe with a fade.** Clicking a card's or an
