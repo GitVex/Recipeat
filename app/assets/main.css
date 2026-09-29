@@ -17,8 +17,8 @@
     /* Text, darkest first. --faint is for what is not read: separators,
        dots, placeholders. */
     --ink: #303c2d;
-    --ink-soft: #757b6c;
-    --muted: #7a7c70;
+    --ink-soft: #6a6f62;
+    --muted: #6d6e64;
     --faint: #949486;
     --on-fill: #fff;
 
@@ -79,7 +79,7 @@
     --tint-peach-ink: #a97556;
     --tint-green: #e9ecdf;
     --tint-green-ink: #6f7c58;
-    --hand-ink: #8a896e;
+    --hand-ink: #74735a;
     --hand-brown: #9a835d;
     --hand-star: #ad784b;
 
@@ -178,7 +178,7 @@ nav button {
 }
 nav a:hover,
 nav button:hover {
-    color: var(--orange);
+    color: var(--orange-text);
 }
 
 /* My recipes, and the collections under it (#73): a panel that slides down
@@ -265,7 +265,7 @@ li.nav-collections-more {
 .nav-collection-count {
     flex-shrink: 0;
     font-size: var(--text-meta);
-    color: var(--faint);
+    color: var(--muted);
 }
 li.nav-collections-more {
     font-size: var(--text-meta);
@@ -809,13 +809,13 @@ h2 {
     text-align: left;
 }
 .recipe-title:hover {
-    color: var(--orange);
+    color: var(--orange-text);
 }
 .recipe-meta {
     display: flex;
     gap: 10px;
     align-items: center;
-    color: var(--faint);
+    color: var(--muted);
     font-size: var(--text-eyebrow);
     margin-top: 13px;
 }
@@ -878,12 +878,12 @@ footer .logo-mark {
 }
 footer p {
     font-size: var(--text-meta);
-    color: var(--faint);
+    color: var(--muted);
 }
 footer > span {
     margin-left: auto;
     font-size: var(--text-eyebrow);
-    color: var(--faint);
+    color: var(--muted);
     display: flex;
     gap: 8px;
     align-items: center;
@@ -1426,7 +1426,7 @@ input.editable-input {
     margin-left: 6px;
     font-size: var(--text-meta);
     font-style: italic;
-    color: var(--faint);
+    color: var(--muted);
     white-space: nowrap;
 }
 
@@ -1465,7 +1465,7 @@ input.editable-input {
 }
 .edit-bar-problem {
     margin-top: 4px !important;
-    color: var(--orange);
+    color: var(--orange-text);
 }
 .edit-bar-actions {
     display: flex;
@@ -1572,7 +1572,7 @@ input.editable-input {
     align-items: center;
     gap: 6px;
     font-size: var(--text-small);
-    color: var(--orange);
+    color: var(--orange-text);
 }
 @media (max-width: 800px) {
     .save-choice {
@@ -2285,7 +2285,7 @@ input.editable-input {
 }
 .entry-meta {
     font-size: var(--text-meta);
-    color: var(--faint);
+    color: var(--muted);
 }
 
 /* Tags (#13): small quiet chips, read wherever a recipe is shown, and on its
@@ -2810,7 +2810,7 @@ input.editable-input {
 }
 .collection-card-count {
     font-size: var(--text-meta);
-    color: var(--faint);
+    color: var(--muted);
 }
 .collection-card-actions {
     display: flex;
@@ -2826,7 +2826,7 @@ input.editable-input {
     color: var(--olive);
 }
 .collection-card-actions .delete-recipe:hover {
-    color: var(--orange);
+    color: var(--orange-text);
 }
 /* Where a pointer can reveal them, they wait for it. */
 @media (hover: hover) {
@@ -2965,7 +2965,7 @@ input.editable-input {
     gap: 3px;
     flex-shrink: 0;
     font-size: var(--text-meta);
-    color: var(--orange);
+    color: var(--orange-text);
     white-space: nowrap;
 }
 .order-earlier a {
@@ -2991,7 +2991,7 @@ input.editable-input {
     opacity: 0.3;
 }
 .order-controls .order-remove:hover:not(:disabled) {
-    color: var(--orange);
+    color: var(--orange-text);
 }
 @media (max-width: 600px) {
     .order-row {
@@ -3097,7 +3097,7 @@ input.editable-input {
 .picker-count {
     flex-shrink: 0;
     font-size: var(--text-meta);
-    color: var(--faint);
+    color: var(--muted);
 }
 .picker-new-row {
     display: flex;
@@ -3158,7 +3158,7 @@ input.editable-input {
     font-weight: 400;
 }
 .history-toggle:hover {
-    color: var(--orange);
+    color: var(--orange-text);
 }
 .history-panel {
     padding-top: 14px;
@@ -3182,7 +3182,7 @@ input.editable-input {
     border-bottom: 1px solid var(--line-strong);
 }
 .history-origin a:hover {
-    color: var(--orange);
+    color: var(--orange-text);
 }
 .history-chain {
     list-style: none;
@@ -3255,11 +3255,11 @@ input.editable-input {
     white-space: nowrap;
 }
 a.history-title:hover {
-    color: var(--orange);
+    color: var(--orange-text);
 }
 .history-meta {
     font-size: var(--text-meta);
-    color: var(--faint);
+    color: var(--muted);
 }
 .history-tags {
     display: flex;
@@ -3303,7 +3303,7 @@ a.history-title:hover {
     background: var(--sage-100);
 }
 .history-action.delete {
-    color: var(--orange);
+    color: var(--orange-text);
 }
 .history-more {
     display: flex;
@@ -3563,11 +3563,11 @@ a.history-title:hover {
     overflow-wrap: anywhere;
 }
 .lineage-title:hover {
-    color: var(--orange);
+    color: var(--orange-text);
 }
 .lineage-meta {
     font-size: var(--text-meta);
-    color: var(--faint);
+    color: var(--muted);
 }
 .lineage-actions {
     display: flex;
@@ -3619,7 +3619,7 @@ a.history-title:hover {
     letter-spacing: 1.2px;
     text-transform: uppercase;
     font-weight: 600;
-    color: var(--faint);
+    color: var(--muted);
 }
 .lineage-changes {
     margin-top: 4px;
@@ -3670,7 +3670,7 @@ a.history-title:hover {
 }
 .change.removed .change-mark,
 .change.removed .change-step {
-    color: var(--orange);
+    color: var(--orange-text);
 }
 .change-text {
     overflow-wrap: anywhere;
@@ -3692,7 +3692,7 @@ a.history-title:hover {
 }
 .change del,
 .snippet del {
-    color: var(--orange);
+    color: var(--orange-text);
     text-decoration-thickness: 1px;
 }
 .change ins,
