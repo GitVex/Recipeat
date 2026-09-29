@@ -82,7 +82,11 @@ const edges = computed<Edge[]>(() =>
     id: edge.id,
     source: edge.source,
     target: edge.target,
-    type: "smoothstep",
+    // Across is side to side on one row: the handles sit at the same height
+    // on every node, so the line runs level.
+    ...(edge.direction === "across"
+      ? { sourceHandle: "right", targetHandle: "left", type: "straight" }
+      : { sourceHandle: "bottom", targetHandle: "top", type: "smoothstep" }),
     class: `lineage-edge ${edge.kind}`,
     markerEnd: MarkerType.ArrowClosed,
   })),
@@ -116,9 +120,27 @@ function measure(): boolean {
 // sizes it measures — the nodes would never count as drawn.
 watch(() => flow.getNodes.value.map((node) => node.dimensions.height).join(), () => measure());
 
+// The pane is measured by a ResizeObserver of its own, which can answer after
+// the nodes have been drawn: fitting to a pane of no size leaves the tree
+// where it was placed, in the corner.
+function sized(): Promise<void> {
+  if (flow.dimensions.value.width) return Promise.resolve();
+  return new Promise((resolve) => {
+    const stop = watch(
+      () => flow.dimensions.value.width,
+      (width) => {
+        if (!width) return;
+        stop();
+        resolve();
+      },
+    );
+  });
+}
+
 async function frame() {
   // Placed by what was measured first, then framed where they now stand.
   if (measure()) await nextTick();
+  await sized();
   await flow.fitView({ padding: 0.1, maxZoom: 1 });
   if (flow.viewport.value.zoom >= READABLE) return;
   const here = flow.findNode(nodeKey({ kind: "version", id }));
@@ -195,7 +217,7 @@ useHead(() => ({
           <template #node-lineage="{ data }">
             <LineageNode :data="data" />
           </template>
-          <Background :gap="24" pattern-color="#dcdccf" />
+          <Background :gap="24" />
           <Controls :show-interactive="false" position="bottom-right" />
         </VueFlow>
       </div>

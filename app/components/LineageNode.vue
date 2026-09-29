@@ -50,7 +50,8 @@ const eyebrow = computed(() =>
     role="group"
     :aria-label="`${eyebrow}: ${recipeTitle({ title })}`"
   >
-    <Handle type="target" :position="Position.Top" :connectable="false" />
+    <Handle id="top" type="target" :position="Position.Top" :connectable="false" />
+    <Handle id="left" type="target" :position="Position.Left" :connectable="false" />
     <span class="lineage-eyebrow">
       <AppIcon v-if="node.kind !== 'version'" name="branch" :size="12" />{{ eyebrow }}
     </span>
@@ -141,6 +142,7 @@ const eyebrow = computed(() =>
         <AppIcon name="trash" :size="14" />
       </button>
     </div>
-    <Handle type="source" :position="Position.Bottom" :connectable="false" />
+    <Handle id="bottom" type="source" :position="Position.Bottom" :connectable="false" />
+    <Handle id="right" type="source" :position="Position.Right" :connectable="false" />
   </div>
 </template>

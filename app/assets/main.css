@@ -1,10 +1,88 @@
+/* The design tokens (docs/design.md). Everything below sets colour, size,
+   radius, shadow and motion through these, so a theme is a second set of
+   values for them. */
 :root {
+    /* Surfaces, lightest first. */
+    --paper: #fffdf8;
     --cream: #faf8f2;
-    --ink: #303c2d;
-    --olive: #48563a;
-    --muted: #7a7c70;
+    --cream-deep: #f6f5ee;
+    --wash: #f0f1e7;
+    --sage-100: #e4e7db;
+
+    /* Lines. */
     --line: #e5e5d9;
+    --line-strong: #d5d8c9;
+    --line-dashed: #b6bea8;
+
+    /* Text, darkest first. --faint is for what is not read: separators,
+       dots, placeholders. */
+    --ink: #303c2d;
+    --ink-soft: #6a6f62;
+    --muted: #6d6e64;
+    --faint: #949486;
+    --on-fill: #fff;
+
+    /* Olive, the brand. */
+    --olive: #48563a;
+    --olive-deep: #34432b;
+    --olive-soft: #8c987b;
+    --olive-black: #172314;
+
+    /* Orange, the accent: a fill and the italic word in a heading at
+       --orange, text at --orange-text. */
     --orange: #bb603e;
+    --orange-text: #a85638;
+    --orange-deep: #ac492f;
+    --orange-soft: #f0d8c9;
+    --orange-wash: #fbefe9;
+
+    --added: #e3ead3;
+
+    /* One shadow colour at three strengths. */
+    --shadow-low: 0 6px 18px color-mix(in srgb, var(--olive-black) 5%, transparent);
+    --shadow-raised: 0 12px 40px color-mix(in srgb, var(--olive-black) 14%, transparent);
+    --shadow-overlay: 0 30px 100px color-mix(in srgb, var(--olive-black) 25%, transparent);
+    --backdrop: #252e246b;
+
+    /* Type. --text-tag is for the smallest UI elements alone — tags, chips,
+       badges; anything read starts at --text-eyebrow. */
+    --text-tag: 7px;
+    --text-eyebrow: 9px;
+    --text-meta: 10px;
+    --text-small: 12px;
+    --text-body: 13px;
+    --text-ui: 14px;
+    --title-s: 17px;
+    --title-m: 24px;
+    --title-l: 34px;
+    --display: clamp(38px, 5vw, 61px);
+
+    /* Radii. Pills are 999px and round things 50%. */
+    --radius-s: 6px;
+    --radius-m: 10px;
+    --radius-l: 14px;
+    --radius-xl: 18px;
+
+    /* Motion. Leaving is quicker than arriving. */
+    --dur-exit: 120ms;
+    --dur-enter: 200ms;
+    --dur-move: 350ms;
+    --ease-enter: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --ease-move: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-exit: ease-in;
+
+    /* The landing page's source cards and handwriting: a set of their own,
+       decoration rather than palette. */
+    --tint-yellow: #f2ebd6;
+    --tint-yellow-ink: #ab9150;
+    --tint-peach: #f1e4d9;
+    --tint-peach-ink: #a97556;
+    --tint-green: #e9ecdf;
+    --tint-green-ink: #6f7c58;
+    --hand-ink: #74735a;
+    --hand-brown: #9a835d;
+    --hand-star: #ad784b;
+
     font-family: "DM Sans", sans-serif;
     color: var(--ink);
     background: var(--cream);
@@ -43,7 +121,7 @@ button:focus-visible,
 a:focus-visible,
 input:focus-visible,
 textarea:focus-visible {
-    outline: 3px solid #bf7851;
+    outline: 3px solid var(--orange);
     outline-offset: 5px;
 }
 button {
@@ -70,8 +148,8 @@ button:disabled {
 .logo {
     display: flex;
     align-items: center;
-    font-weight: 700;
-    font-size: 29px;
+    font-weight: 600;
+    font-size: var(--title-l);
     letter-spacing: -1.4px;
 }
 .logo-mark {
@@ -79,7 +157,7 @@ button:disabled {
     place-items: center;
     width: 35px;
     height: 37px;
-    border-radius: 11px;
+    border-radius: var(--radius-m);
     background: var(--olive);
     color: var(--cream);
     margin-right: 9px;
@@ -92,7 +170,7 @@ nav {
     display: flex;
     gap: 33px;
     align-items: center;
-    font-size: 13px;
+    font-size: var(--text-body);
 }
 nav button {
     background: none;
@@ -100,7 +178,7 @@ nav button {
 }
 nav a:hover,
 nav button:hover {
-    color: var(--orange);
+    color: var(--orange-text);
 }
 
 /* My recipes, and the collections under it (#73): a panel that slides down
@@ -121,7 +199,7 @@ nav button:hover {
     color: var(--muted);
 }
 .nav-disclosure svg {
-    transition: rotate 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+    transition: rotate var(--dur-enter) var(--ease-enter);
 }
 .nav-disclosure[aria-expanded="true"] svg {
     rotate: 180deg;
@@ -136,21 +214,21 @@ nav button:hover {
     width: 270px;
 }
 .nav-collections-panel {
-    background: #fffdf8;
+    background: var(--paper);
     border: 1px solid var(--line);
-    border-radius: 14px;
-    box-shadow: 0 12px 40px #17231424;
+    border-radius: var(--radius-l);
+    box-shadow: var(--shadow-raised);
     padding: 16px 10px 12px;
 }
 .nav-collections-eyebrow {
-    font-size: 9px;
+    font-size: var(--text-eyebrow);
     letter-spacing: 1.7px;
     text-transform: uppercase;
-    color: #848975;
+    color: var(--muted);
     padding: 0 10px 10px;
 }
 .nav-collections-state {
-    font-size: 12px;
+    font-size: var(--text-small);
     line-height: 1.6;
     color: var(--muted);
     padding: 0 10px 10px;
@@ -166,19 +244,19 @@ li.nav-collections-more {
     align-items: baseline;
     gap: 10px;
     padding: 8px 10px;
-    border-radius: 8px;
+    border-radius: var(--radius-m);
 }
 .nav-collection {
-    transition: background 0.2s;
+    transition: background var(--dur-exit);
 }
 .nav-collection:hover {
-    background: #f0f1e7;
+    background: var(--wash);
 }
 .nav-collection-name {
     flex: 1;
     min-width: 0;
     font-family: "Playfair Display", Georgia, serif;
-    font-size: 15px;
+    font-size: var(--text-ui);
     color: var(--ink);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -186,11 +264,11 @@ li.nav-collections-more {
 }
 .nav-collection-count {
     flex-shrink: 0;
-    font-size: 10px;
-    color: #949486;
+    font-size: var(--text-meta);
+    color: var(--muted);
 }
 li.nav-collections-more {
-    font-size: 11px;
+    font-size: var(--text-meta);
     color: var(--muted);
 }
 .nav-collections-all {
@@ -200,30 +278,30 @@ li.nav-collections-more {
     margin: 4px 10px 0;
     padding-top: 12px;
     border-top: 1px solid var(--line);
-    font-size: 12px;
+    font-size: var(--text-small);
     color: var(--olive);
 }
 .button {
     background: var(--olive);
-    color: white;
-    border-radius: 6px;
+    color: var(--on-fill);
+    border-radius: var(--radius-s);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 25px;
     padding: 17px 23px;
-    font-size: 14px;
+    font-size: var(--text-ui);
     font-weight: 500;
     transition:
-        background 0.2s,
-        transform 0.2s;
+        background var(--dur-exit),
+        transform var(--dur-enter);
 }
 .button:hover {
-    background: #34432b;
+    background: var(--olive-deep);
     transform: translateY(-2px);
 }
 .button.small {
-    font-size: 12px;
+    font-size: var(--text-small);
     padding: 13px 17px;
     gap: 17px;
 }
@@ -232,10 +310,10 @@ li.nav-collections-more {
 }
 .count {
     background: var(--olive);
-    color: #fff;
+    color: var(--on-fill);
     padding: 2px 6px;
-    border-radius: 20px;
-    font-size: 10px;
+    border-radius: 999px;
+    font-size: var(--text-meta);
 }
 .hero {
     display: grid;
@@ -246,9 +324,9 @@ li.nav-collections-more {
     min-height: 660px;
 }
 .eyebrow {
-    font-size: 10px;
+    font-size: var(--text-meta);
     letter-spacing: 2px;
-    font-weight: 650;
+    font-weight: 600;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -264,6 +342,12 @@ h3,
 p {
     margin: 0;
 }
+/* The fonts are loaded at 400, 500 and 600: bold is the last of them. */
+b,
+strong,
+h3 {
+    font-weight: 600;
+}
 h1,
 h2,
 .floating-recipe h3 {
@@ -271,7 +355,7 @@ h2,
     font-weight: 400;
 }
 h1 {
-    font-size: 70px;
+    font-size: var(--display);
     line-height: 1.1;
     letter-spacing: -2.9px;
     margin: 22px 0;
@@ -289,22 +373,22 @@ h2 em {
     bottom: 3px;
     color: var(--orange);
     font-family: Georgia;
-    font-size: 53px;
+    font-size: var(--display);
     transform: rotate(12deg);
 }
 .hero-description {
     max-width: 385px;
-    font-size: 14px;
+    font-size: var(--text-ui);
     line-height: 1.9;
-    color: #77796f;
+    color: var(--ink-soft);
     margin-bottom: 25px;
 }
 .hero-note {
     display: flex;
     align-items: center;
     gap: 6px;
-    color: #858578;
-    font-size: 10px;
+    color: var(--muted);
+    font-size: var(--text-meta);
     margin-top: 13px;
 }
 .community {
@@ -329,13 +413,13 @@ h2 em {
     margin-left: 0;
 }
 .community-stars {
-    color: #ad784b;
+    color: var(--hand-star);
     letter-spacing: 2px;
-    font-size: 10px;
+    font-size: var(--text-meta);
 }
 .community p {
     color: var(--muted);
-    font-size: 10px;
+    font-size: var(--text-meta);
     margin-top: 3px;
 }
 .hero-visual {
@@ -349,10 +433,10 @@ h2 em {
     right: 0;
     top: 12px;
     height: 438px;
-    border-radius: 135px 10px 10px 10px;
+    border-radius: 135px var(--radius-m) var(--radius-m) var(--radius-m);
     overflow: hidden;
     transform: rotate(3deg);
-    background: #e2e6d7;
+    background: var(--sage-100);
 }
 .hero-photo {
     width: 100%;
@@ -363,14 +447,14 @@ h2 em {
 .photo-shade {
     position: absolute;
     inset: 60% 0 0;
-    background: linear-gradient(transparent, #15211485);
+    background: linear-gradient(transparent, color-mix(in srgb, var(--olive-black) 52%, transparent));
 }
 .photo-caption {
     position: absolute;
     bottom: 24px;
     right: 24px;
-    color: #fff;
-    font-size: 10px;
+    color: var(--on-fill);
+    font-size: var(--text-meta);
     letter-spacing: 0.3px;
 }
 .round-stamp {
@@ -379,10 +463,10 @@ h2 em {
     top: -17px;
     width: 106px;
     height: 106px;
-    background: #e8ecd9;
+    background: var(--sage-100);
     border: 5px solid var(--cream);
     border-radius: 50%;
-    font-size: 8px;
+    font-size: var(--text-tag);
     letter-spacing: 1.1px;
     display: flex;
     align-items: center;
@@ -399,31 +483,31 @@ h2 em {
     display: flex;
     align-items: center;
     gap: 12px;
-    background: #fffdf7;
-    border-radius: 9px;
-    box-shadow: 0 7px 35px #25342610;
+    background: var(--paper);
+    border-radius: var(--radius-m);
+    box-shadow: var(--shadow-raised);
     transform: rotate(-5deg);
 }
 .source-icon {
     width: 31px;
     height: 31px;
-    background: #f0eee4;
+    background: var(--wash);
     display: grid;
     place-items: center;
     border-radius: 50%;
 }
 .source-note small {
     display: block;
-    font-size: 9px;
-    color: #8d8d80;
+    font-size: var(--text-eyebrow);
+    color: var(--muted);
     margin-bottom: 3px;
 }
 .source-note strong {
-    font-size: 10px;
+    font-size: var(--text-meta);
     font-weight: 500;
 }
 .source-note > svg {
-    color: #9a835d;
+    color: var(--hand-brown);
     margin-left: 8px;
 }
 .floating-recipe {
@@ -431,13 +515,13 @@ h2 em {
     position: absolute;
     left: -12px;
     top: 265px;
-    background: #fffdf8;
+    background: var(--paper);
     width: 270px;
     padding: 21px;
-    border-radius: 9px;
-    box-shadow: 0 12px 40px #29302116;
+    border-radius: var(--radius-m);
+    box-shadow: var(--shadow-raised);
     transform: rotate(-5deg);
-    transition: transform 0.2s;
+    transition: transform var(--dur-enter);
 }
 .floating-recipe:hover {
     transform: rotate(-2deg) translateY(-4px);
@@ -446,18 +530,18 @@ h2 em {
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 7px;
+    font-size: var(--text-tag);
     letter-spacing: 1.25px;
-    color: #7f8973;
+    color: var(--muted);
 }
 .ready > span {
     width: 5px;
     height: 5px;
     border-radius: 50%;
-    background: #7c9664;
+    background: var(--olive-soft);
 }
 .floating-recipe h3 {
-    font-size: 27px;
+    font-size: var(--title-m);
     line-height: 1.15;
     margin: 13px 0;
 }
@@ -465,8 +549,8 @@ h2 em {
     display: flex;
     align-items: center;
     gap: 14px;
-    font-size: 9px;
-    color: #85857a;
+    font-size: var(--text-eyebrow);
+    color: var(--muted);
 }
 .floating-meta span:first-child {
     display: flex;
@@ -482,7 +566,7 @@ h2 em {
     align-items: center;
 }
 .floating-bottom > span:first-child {
-    font-size: 8px;
+    font-size: var(--text-eyebrow);
     display: flex;
     align-items: center;
     gap: 5px;
@@ -490,8 +574,8 @@ h2 em {
 .mini-bookmark {
     display: grid;
     place-items: center;
-    background: #edf0e4;
-    border-radius: 5px;
+    background: var(--wash);
+    border-radius: var(--radius-s);
     width: 27px;
     height: 27px;
 }
@@ -501,8 +585,8 @@ h2 em {
     top: 477px;
     font-family: "Playfair Display", Georgia, serif;
     font-style: italic;
-    font-size: 14px;
-    color: #8a896e;
+    font-size: var(--text-ui);
+    color: var(--hand-ink);
     transform: rotate(-6deg);
     line-height: 1.6;
 }
@@ -513,11 +597,11 @@ h2 em {
     position: absolute;
     right: -30px;
     top: -30px;
-    font-size: 40px;
+    font-size: var(--title-l);
 }
 .source-strip {
     border-block: 1px solid var(--line);
-    background: #f2f2e8;
+    background: var(--cream-deep);
 }
 .strip-inner {
     display: flex;
@@ -527,25 +611,25 @@ h2 em {
     padding-block: 25px;
 }
 .strip-inner p {
-    font-size: 8px;
+    font-size: var(--text-eyebrow);
     letter-spacing: 1.1px;
     max-width: 160px;
     line-height: 1.8;
-    color: #898a78;
+    color: var(--muted);
 }
 .strip-inner > div {
     display: flex;
     gap: 10px;
     align-items: center;
-    font-size: 11px;
-    color: #656e59;
+    font-size: var(--text-meta);
+    color: var(--ink-soft);
 }
 .strip-inner svg {
     width: 17px;
     height: 17px;
 }
 .strip-dot {
-    color: #b7baaa;
+    color: var(--faint);
 }
 .how-section {
     padding-block: 65px 59px;
@@ -557,20 +641,20 @@ h2 em {
     gap: 25px;
 }
 .section-heading .eyebrow {
-    font-size: 9px;
-    color: #848975;
+    font-size: var(--text-eyebrow);
+    color: var(--muted);
     letter-spacing: 1.7px;
     margin-bottom: 13px;
 }
 h2 {
-    font-size: 34px;
+    font-size: var(--title-l);
     letter-spacing: -0.9px;
     line-height: 1.35;
 }
 .section-heading > p {
-    font-size: 12px;
+    font-size: var(--text-small);
     line-height: 1.9;
-    color: #87877b;
+    color: var(--muted);
 }
 .steps-grid {
     display: grid;
@@ -597,46 +681,46 @@ h2 {
     height: 47px;
     display: grid;
     place-items: center;
-    border-radius: 13px;
+    border-radius: var(--radius-l);
     transform: rotate(-5deg);
 }
 .step-icon svg {
     transform: rotate(5deg);
 }
 .peach {
-    background: #f1e4d9;
-    color: #a97556;
+    background: var(--tint-peach);
+    color: var(--tint-peach-ink);
 }
 .green {
-    background: #e9ecdf;
-    color: #6f7c58;
+    background: var(--tint-green);
+    color: var(--tint-green-ink);
 }
 .yellow {
-    background: #f2ebd6;
-    color: #ab9150;
+    background: var(--tint-yellow);
+    color: var(--tint-yellow-ink);
 }
 .step-number {
     font-family: "Playfair Display", serif;
-    font-size: 31px;
-    color: #d2d4c5;
+    font-size: var(--title-l);
+    color: var(--line-strong);
 }
 .step h3 {
-    font-size: 15px;
-    font-weight: 550;
+    font-size: var(--text-ui);
+    font-weight: 500;
     letter-spacing: -0.25px;
     margin-bottom: 12px;
 }
 .step p {
-    font-size: 12px;
-    color: #858578;
+    font-size: var(--text-small);
+    color: var(--muted);
     line-height: 1.9;
     max-width: 305px;
 }
 .step-detail {
     display: block;
     margin-top: 15px;
-    color: #6d765e;
-    font-size: 10px;
+    color: var(--ink-soft);
+    font-size: var(--text-meta);
 }
 .recipes-section {
     padding-top: 42px;
@@ -647,9 +731,9 @@ h2 {
     display: flex;
     gap: 14px;
     align-items: center;
-    font-size: 12px;
+    font-size: var(--text-small);
     background: transparent;
-    border-bottom: 1px solid #c8cebd;
+    border-bottom: 1px solid var(--line-strong);
     padding: 0 0 8px;
 }
 .recipe-grid {
@@ -664,21 +748,21 @@ h2 {
 .recipe-image-wrap {
     height: 238px;
     position: relative;
-    border-radius: 9px;
+    border-radius: var(--radius-m);
     overflow: hidden;
 }
 .image-open {
     width: 100%;
     height: 100%;
     padding: 0;
-    background: #e4e7db;
+    background: var(--sage-100);
     display: block;
 }
 .image-open img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition: transform 0.4s;
+    transition: transform var(--dur-move);
 }
 .image-open:hover img {
     transform: scale(1.055);
@@ -687,13 +771,13 @@ h2 {
     position: absolute;
     bottom: 13px;
     left: 13px;
-    background: #fffdf5ed;
+    background: color-mix(in srgb, var(--paper) 93%, transparent);
     display: flex;
     align-items: center;
     gap: 6px;
     padding: 7px 9px;
-    border-radius: 4px;
-    font-size: 9px;
+    border-radius: var(--radius-s);
+    font-size: var(--text-eyebrow);
     pointer-events: none;
 }
 .save-button {
@@ -705,11 +789,11 @@ h2 {
     border-radius: 50%;
     display: grid;
     place-items: center;
-    background: #fffdf4ec;
+    background: color-mix(in srgb, var(--paper) 93%, transparent);
 }
 .save-button.saved {
     background: var(--olive);
-    color: white;
+    color: var(--on-fill);
 }
 .recipe-info {
     padding: 18px 2px;
@@ -717,7 +801,7 @@ h2 {
 .recipe-title {
     display: block;
     font-family: "Playfair Display", serif;
-    font-size: 22px;
+    font-size: var(--title-m);
     letter-spacing: -0.4px;
     padding: 0;
     margin-top: 7px;
@@ -725,14 +809,14 @@ h2 {
     text-align: left;
 }
 .recipe-title:hover {
-    color: var(--orange);
+    color: var(--orange-text);
 }
 .recipe-meta {
     display: flex;
     gap: 10px;
     align-items: center;
-    color: #949486;
-    font-size: 9px;
+    color: var(--muted);
+    font-size: var(--text-eyebrow);
     margin-top: 13px;
 }
 .recipe-meta > span:first-child {
@@ -741,36 +825,36 @@ h2 {
     gap: 5px;
 }
 .meta-dot {
-    color: #a4aa91;
+    color: var(--faint);
 }
 .closing {
     display: flex;
     align-items: center;
     gap: 30px;
-    background: #edefe3;
-    border-radius: 10px;
+    background: var(--wash);
+    border-radius: var(--radius-m);
     padding: 34px 36px;
     margin-bottom: 51px;
 }
 .closing-doodle {
-    color: #8c987b;
+    color: var(--olive-soft);
     transform: rotate(-20deg);
 }
 .closing .eyebrow {
-    font-size: 8px;
-    color: #7b8569;
+    font-size: var(--text-eyebrow);
+    color: var(--muted);
     letter-spacing: 1.5px;
     margin-bottom: 10px;
 }
 .closing h2 {
-    font-size: 24px;
+    font-size: var(--title-m);
     line-height: 1.5;
     letter-spacing: -0.5px;
 }
 .closing .button {
     margin-left: auto;
     white-space: nowrap;
-    font-size: 12px;
+    font-size: var(--text-small);
     padding: 15px 19px;
     gap: 22px;
 }
@@ -785,21 +869,21 @@ footer {
     gap: 25px;
 }
 footer .logo {
-    font-size: 24px;
+    font-size: var(--title-m);
 }
 footer .logo-mark {
     width: 29px;
     height: 30px;
-    border-radius: 8px;
+    border-radius: var(--radius-m);
 }
 footer p {
-    font-size: 10px;
-    color: #939485;
+    font-size: var(--text-meta);
+    color: var(--muted);
 }
 footer > span {
     margin-left: auto;
-    font-size: 9px;
-    color: #999b8a;
+    font-size: var(--text-eyebrow);
+    color: var(--muted);
     display: flex;
     gap: 8px;
     align-items: center;
@@ -810,22 +894,22 @@ footer > span {
     left: 50%;
     transform: translateX(-50%);
     background: var(--olive);
-    color: white;
-    border-radius: 8px;
+    color: var(--on-fill);
+    border-radius: var(--radius-m);
     padding: 15px 20px;
-    font-size: 12px;
+    font-size: var(--text-small);
     display: flex;
     gap: 10px;
     align-items: center;
     z-index: 20;
-    box-shadow: 0 10px 35px #202c2920;
+    box-shadow: var(--shadow-raised);
     max-width: 90vw;
     width: max-content;
 }
 .modal-backdrop {
     position: fixed;
     inset: 0;
-    background: #252e246b;
+    background: var(--backdrop);
     backdrop-filter: blur(6px);
     z-index: 30;
     display: flex;
@@ -836,11 +920,11 @@ footer > span {
 .modal {
     position: relative;
     background: var(--cream);
-    border-radius: 18px;
+    border-radius: var(--radius-xl);
     max-height: 90dvh;
     overflow: auto;
     width: 100%;
-    box-shadow: 0 30px 100px #17231440;
+    box-shadow: var(--shadow-overlay);
 }
 .import-modal {
     max-width: 540px;
@@ -862,22 +946,22 @@ footer > span {
     z-index: 1;
 }
 .import-modal .eyebrow {
-    font-size: 8px;
+    font-size: var(--text-eyebrow);
     margin-top: 5px;
 }
 .import-modal h2 {
-    font-size: 33px;
+    font-size: var(--title-l);
     margin: 15px 0;
 }
 .import-modal > p {
-    font-size: 13px;
+    font-size: var(--text-body);
     line-height: 1.8;
     color: var(--muted);
 }
 .import-tabs {
     display: flex;
-    background: #eeeee4;
-    border-radius: 7px;
+    background: var(--wash);
+    border-radius: var(--radius-s);
     padding: 5px;
     margin: 24px 0;
 }
@@ -889,15 +973,15 @@ footer > span {
     flex: 1;
     padding: 10px;
     background: none;
-    font-size: 12px;
-    border-radius: 5px;
+    font-size: var(--text-small);
+    border-radius: var(--radius-s);
 }
 .import-tabs button.active {
     background: var(--cream);
-    box-shadow: 0 2px 5px #00000009;
+    box-shadow: var(--shadow-low);
 }
 .field-label {
-    font-size: 12px;
+    font-size: var(--text-small);
     display: block;
 }
 input[type="url"],
@@ -906,11 +990,11 @@ textarea {
     width: 100%;
     margin: 9px 0 20px;
     padding: 13px;
-    border: 1px solid #d5d8c9;
-    border-radius: 6px;
-    background: #fffdf9;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-s);
+    background: var(--paper);
     color: var(--ink);
-    font-size: 12px;
+    font-size: var(--text-small);
 }
 textarea {
     resize: vertical;
@@ -924,7 +1008,7 @@ textarea {
     align-items: baseline;
     justify-content: space-between;
     gap: 14px;
-    font-size: 12px;
+    font-size: var(--text-small);
     line-height: 1.6;
     margin-bottom: 14px;
 }
@@ -934,13 +1018,13 @@ textarea {
 }
 .unsaved-warning,
 .add-failure {
-    font-size: 12px;
+    font-size: var(--text-small);
     line-height: 1.6;
     margin-top: 4px;
 }
 .unsaved-warning {
-    background: #f0f1e7;
-    border-radius: 8px;
+    background: var(--wash);
+    border-radius: var(--radius-m);
     padding: 14px 16px;
 }
 .unsaved-actions {
@@ -965,7 +1049,7 @@ textarea {
     display: inline-flex;
     align-items: center;
     gap: 10px;
-    font-size: 12px;
+    font-size: var(--text-small);
     color: var(--olive);
 }
 .saved-note:focus {
@@ -974,7 +1058,7 @@ textarea {
 .import-wait {
     text-align: center;
     margin-top: 15px;
-    font-size: 11px;
+    font-size: var(--text-meta);
     line-height: 1.6;
     color: var(--muted);
 }
@@ -983,25 +1067,25 @@ textarea {
     align-items: center;
     flex-direction: column;
     gap: 10px;
-    border: 1px dashed #b6bea8;
-    border-radius: 7px;
+    border: 1px dashed var(--line-dashed);
+    border-radius: var(--radius-s);
     padding: 25px 15px;
     margin-bottom: 20px;
-    font-size: 12px;
+    font-size: var(--text-small);
     cursor: pointer;
 }
 .file-upload span {
-    font-size: 10px;
+    font-size: var(--text-meta);
     color: var(--muted);
 }
 .file-upload input {
     max-width: 100%;
-    font-size: 11px;
+    font-size: var(--text-meta);
     margin-top: 8px;
 }
 .error {
-    color: #ac492f;
-    font-size: 12px;
+    color: var(--orange-deep);
+    font-size: var(--text-small);
     margin-bottom: 14px;
 }
 .detail-modal {
@@ -1019,19 +1103,19 @@ textarea {
     margin: 10px 0 18px;
 }
 .detail-content h3 {
-    font-size: 17px;
+    font-size: var(--title-s);
     margin: 26px 0 10px;
 }
 .detail-content h3 small {
-    font-size: 10px;
+    font-size: var(--text-meta);
     color: var(--muted);
     font-weight: 400;
     margin-left: 10px;
 }
 .detail-content li {
-    font-size: 13px;
+    font-size: var(--text-body);
     line-height: 1.8;
-    color: #757b6c;
+    color: var(--ink-soft);
     margin-bottom: 7px;
 }
 .detail-content ul,
@@ -1062,18 +1146,18 @@ textarea {
     padding: 3px;
     border: 1px solid var(--line);
     border-radius: 999px;
-    background: #f0f1e7;
+    background: var(--wash);
     cursor: pointer;
     font: inherit;
 }
 .unit-toggle span {
     padding: 4px 10px;
     border-radius: 999px;
-    font-size: 11px;
+    font-size: var(--text-meta);
     font-weight: 600;
     letter-spacing: 0.04em;
     color: var(--muted);
-    transition: background 0.15s, color 0.15s;
+    transition: background var(--dur-exit), color var(--dur-exit);
 }
 .unit-toggle span.active {
     background: var(--olive);
@@ -1106,20 +1190,20 @@ textarea {
    into in the same type and the same place, so nothing around it moves. */
 .editable {
     cursor: text;
-    border-radius: 4px;
+    border-radius: var(--radius-s);
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone;
-    transition: background 0.15s;
+    transition: background var(--dur-exit);
 }
 .editable:hover {
-    background: #f0f1e7;
+    background: var(--wash);
 }
 .editable:focus-visible {
     outline: 2px solid var(--olive);
     outline-offset: 2px;
 }
 .editable.empty {
-    color: #a3a597;
+    color: var(--faint);
     font-style: italic;
 }
 .editable.invalid {
@@ -1152,12 +1236,12 @@ h3 small .editable-field.active {
     letter-spacing: inherit;
     line-height: inherit;
     text-transform: none;
-    background: #f0f1e7;
+    background: var(--wash);
     border: none;
-    border-radius: 4px;
+    border-radius: var(--radius-s);
     padding: 0;
     margin: 0;
-    outline: 1px solid #d3d6c6;
+    outline: 1px solid var(--line-strong);
     outline-offset: 2px;
     vertical-align: baseline;
     max-width: 100%;
@@ -1177,14 +1261,14 @@ input.editable-input {
     min-width: 3ch;
 }
 .editable-input::placeholder {
-    color: #a3a597;
+    color: var(--faint);
     font-style: italic;
 }
 .field-count {
     position: absolute;
     right: 0;
     top: calc(100% + 6px);
-    font-size: 10px;
+    font-size: var(--text-meta);
     color: var(--muted);
 }
 .ingredient-inputs {
@@ -1206,7 +1290,7 @@ input.editable-input {
     display: flex;
     gap: 2px;
     opacity: 0;
-    transition: opacity 0.15s;
+    transition: opacity var(--dur-exit);
 }
 .edit-list li:hover .row-controls,
 .edit-list li:focus-within .row-controls {
@@ -1223,13 +1307,13 @@ input.editable-input {
     width: 28px;
     height: 28px;
     border: none;
-    border-radius: 6px;
+    border-radius: var(--radius-s);
     background: none;
     color: var(--muted);
     cursor: pointer;
 }
 .row-control:hover:not(:disabled) {
-    background: #f0f1e7;
+    background: var(--wash);
     color: var(--ink);
 }
 .row-control:disabled {
@@ -1241,7 +1325,7 @@ input.editable-input {
     align-items: center;
     gap: 6px;
     margin-top: 4px;
-    font-size: 13px;
+    font-size: var(--text-body);
 }
 .add-row:disabled {
     color: var(--muted);
@@ -1284,7 +1368,7 @@ input.editable-input {
     padding: 2px;
     border: 1px solid var(--line);
     border-radius: 999px;
-    background: #f0f1e7;
+    background: var(--wash);
 }
 .portion-control .row-control {
     border-radius: 50%;
@@ -1293,7 +1377,7 @@ input.editable-input {
 .scale-factor {
     min-width: 72px;
     text-align: center;
-    font-size: 12px;
+    font-size: var(--text-small);
     font-weight: 600;
     font-variant-numeric: tabular-nums;
 }
@@ -1301,10 +1385,10 @@ input.editable-input {
     min-width: 0;
     padding: 4px 10px;
     border-radius: 999px;
-    background: #f0f1e7;
+    background: var(--wash);
 }
 .scale-reset {
-    font-size: 12px;
+    font-size: var(--text-small);
 }
 /* An amount that can be set, to scale the rest to it. */
 .amount.scalable {
@@ -1315,13 +1399,13 @@ input.editable-input {
     border: none;
     padding: 0 2px;
     margin: 0 -2px;
-    border-radius: 4px;
+    border-radius: var(--radius-s);
     cursor: pointer;
-    text-decoration: underline dotted #b9bca9;
+    text-decoration: underline dotted var(--line-dashed);
     text-underline-offset: 4px;
 }
 .amount.scalable:hover {
-    background: #f0f1e7;
+    background: var(--wash);
 }
 /* The line the reader set: the rest follows it. */
 .amount.scalable.anchored {
@@ -1340,9 +1424,9 @@ input.editable-input {
 }
 .unscaled-note {
     margin-left: 6px;
-    font-size: 10px;
+    font-size: var(--text-meta);
     font-style: italic;
-    color: #a3a597;
+    color: var(--muted);
     white-space: nowrap;
 }
 
@@ -1360,12 +1444,12 @@ input.editable-input {
     padding: 14px 18px;
     background: var(--cream);
     border: 1px solid var(--line);
-    border-radius: 12px;
-    box-shadow: 0 12px 40px #17231424;
+    border-radius: var(--radius-l);
+    box-shadow: var(--shadow-raised);
 }
 .edit-bar-text p {
     margin: 0;
-    font-size: 13px;
+    font-size: var(--text-body);
 }
 .edit-bar-title {
     display: flex;
@@ -1381,7 +1465,7 @@ input.editable-input {
 }
 .edit-bar-problem {
     margin-top: 4px !important;
-    color: var(--orange);
+    color: var(--orange-text);
 }
 .edit-bar-actions {
     display: flex;
@@ -1403,7 +1487,7 @@ input.editable-input {
 .save-choice legend {
     padding: 0;
     margin-bottom: 8px;
-    font-size: 10px;
+    font-size: var(--text-meta);
     font-weight: 600;
     letter-spacing: 1.2px;
     text-transform: uppercase;
@@ -1415,21 +1499,21 @@ input.editable-input {
     align-items: flex-start;
     padding: 10px 12px;
     border: 1px solid var(--line);
-    border-radius: 10px;
-    background: #fffdf8;
+    border-radius: var(--radius-m);
+    background: var(--paper);
     cursor: pointer;
-    transition: border-color 0.15s, background 0.15s;
+    transition: border-color var(--dur-exit), background var(--dur-exit);
 }
 .save-option:hover {
-    border-color: #c9ccbb;
+    border-color: var(--line-strong);
 }
 .save-option.chosen {
     border-color: var(--olive);
-    background: #f0f1e7;
+    background: var(--wash);
 }
 .save-option.destructive.chosen {
     border-color: var(--orange);
-    background: #fbefe9;
+    background: var(--orange-wash);
 }
 .save-option input {
     margin-top: 3px;
@@ -1447,17 +1531,17 @@ input.editable-input {
     gap: 3px;
 }
 .save-option-title {
-    font-size: 13px;
+    font-size: var(--text-body);
     font-weight: 600;
 }
 .save-option-title small {
     margin-left: 4px;
-    font-size: 10px;
+    font-size: var(--text-meta);
     font-weight: 400;
     color: var(--muted);
 }
 .save-option-detail {
-    font-size: 11px;
+    font-size: var(--text-meta);
     line-height: 1.5;
     color: var(--muted);
 }
@@ -1480,15 +1564,15 @@ input.editable-input {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 12px;
+    font-size: var(--text-small);
     color: var(--ink);
 }
 .delete-recipe {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 12px;
-    color: var(--orange);
+    font-size: var(--text-small);
+    color: var(--orange-text);
 }
 @media (max-width: 800px) {
     .save-choice {
@@ -1505,12 +1589,12 @@ input.editable-input {
     padding: 34px 32px 28px;
 }
 .leave-content h2 {
-    font-size: 26px;
+    font-size: var(--title-m);
     margin: 0 0 10px;
 }
 .leave-content p {
     color: var(--muted);
-    font-size: 14px;
+    font-size: var(--text-ui);
     margin: 0 0 22px;
 }
 .leave-actions {
@@ -1522,9 +1606,9 @@ input.editable-input {
 .empty-collection {
     text-align: center;
     padding: 55px 20px;
-    background: #f0f1e7;
+    background: var(--wash);
     margin-top: 30px;
-    border-radius: 10px;
+    border-radius: var(--radius-m);
 }
 .empty-collection > svg {
     margin-bottom: 15px;
@@ -1532,7 +1616,7 @@ input.editable-input {
 .empty-collection p {
     margin: 15px 0 25px;
     color: var(--muted);
-    font-size: 13px;
+    font-size: var(--text-body);
 }
 @media (min-width: 1450px) {
     .hero {
@@ -1543,7 +1627,7 @@ input.editable-input {
         margin-left: 20px;
     }
     h1 {
-        font-size: 77px;
+        font-size: var(--display);
     }
     .photo-frame {
         height: 465px;
@@ -1555,7 +1639,7 @@ input.editable-input {
         top: 286px;
     }
     .hero-description {
-        font-size: 15px;
+        font-size: var(--text-ui);
         max-width: 420px;
     }
 }
@@ -1565,13 +1649,13 @@ input.editable-input {
     }
     nav {
         gap: 20px;
-        font-size: 12px;
+        font-size: var(--text-small);
     }
     .hero {
         gap: 25px;
     }
     h1 {
-        font-size: 59px;
+        font-size: var(--display);
     }
     .hero-description {
         max-width: 345px;
@@ -1595,18 +1679,18 @@ input.editable-input {
     .handwritten {
         top: 465px;
         right: 22px;
-        font-size: 12px;
+        font-size: var(--text-small);
     }
     .strip-inner {
         gap: 12px;
     }
     .strip-inner > div {
-        font-size: 10px;
+        font-size: var(--text-meta);
         gap: 6px;
     }
     .strip-inner p {
         max-width: 125px;
-        font-size: 7px;
+        font-size: var(--text-eyebrow);
     }
     .steps-grid {
         gap: 27px;
@@ -1618,10 +1702,10 @@ input.editable-input {
         height: 200px;
     }
     .recipe-title {
-        font-size: 19px;
+        font-size: var(--title-s);
     }
     .recipe-meta {
-        font-size: 8px;
+        font-size: var(--text-eyebrow);
         gap: 7px;
     }
     .closing {
@@ -1629,7 +1713,7 @@ input.editable-input {
         padding: 30px;
     }
     .closing h2 {
-        font-size: 21px;
+        font-size: var(--title-m);
     }
 }
 @media (max-width: 800px) {
@@ -1640,7 +1724,7 @@ input.editable-input {
         display: none;
     }
     h1 {
-        font-size: 51px;
+        font-size: var(--display);
     }
     .hero {
         padding-top: 46px;
@@ -1648,15 +1732,15 @@ input.editable-input {
         gap: 20px;
     }
     .hero-description {
-        font-size: 12px;
+        font-size: var(--text-small);
         max-width: 295px;
     }
     .title-star {
-        font-size: 38px;
+        font-size: var(--display);
         right: -35px;
     }
     .hero .eyebrow {
-        font-size: 8px;
+        font-size: var(--text-eyebrow);
         letter-spacing: 1.5px;
     }
     .photo-frame {
@@ -1670,7 +1754,7 @@ input.editable-input {
         width: 85px;
         right: -14px;
         top: 3px;
-        font-size: 6px;
+        font-size: var(--text-tag);
     }
     .source-note {
         top: 61px;
@@ -1682,10 +1766,10 @@ input.editable-input {
         display: none;
     }
     .source-note strong {
-        font-size: 8px;
+        font-size: var(--text-eyebrow);
     }
     .source-note small {
-        font-size: 8px;
+        font-size: var(--text-eyebrow);
     }
     .source-icon {
         width: 25px;
@@ -1698,12 +1782,12 @@ input.editable-input {
         padding: 17px;
     }
     .floating-recipe h3 {
-        font-size: 23px;
+        font-size: var(--title-m);
     }
     .handwritten {
         top: 458px;
         right: 15px;
-        font-size: 10px;
+        font-size: var(--text-meta);
     }
     .strip-inner {
         flex-wrap: wrap;
@@ -1719,10 +1803,10 @@ input.editable-input {
         display: none;
     }
     .section-heading > p {
-        font-size: 10px;
+        font-size: var(--text-meta);
     }
     h2 {
-        font-size: 28px;
+        font-size: var(--title-m);
     }
     .steps-grid {
         gap: 20px;
@@ -1731,13 +1815,13 @@ input.editable-input {
         padding-right: 15px;
     }
     .step h3 {
-        font-size: 13px;
+        font-size: var(--text-body);
     }
     .step p {
-        font-size: 11px;
+        font-size: var(--text-meta);
     }
     .step-detail {
-        font-size: 9px;
+        font-size: var(--text-eyebrow);
     }
     .recipe-grid {
         gap: 17px;
@@ -1746,13 +1830,13 @@ input.editable-input {
         height: 170px;
     }
     .recipe-title {
-        font-size: 18px;
+        font-size: var(--title-s);
     }
     .closing-doodle {
         display: none;
     }
     .closing h2 {
-        font-size: 19px;
+        font-size: var(--title-s);
     }
     .closing .button {
         gap: 12px;
@@ -1761,7 +1845,7 @@ input.editable-input {
         gap: 15px;
     }
     footer > span {
-        font-size: 8px;
+        font-size: var(--text-eyebrow);
     }
 }
 @media (max-width: 600px) {
@@ -1772,7 +1856,7 @@ input.editable-input {
         height: 77px;
     }
     .logo {
-        font-size: 27px;
+        font-size: var(--title-m);
     }
     .menu-button {
         display: grid !important;
@@ -1806,7 +1890,7 @@ input.editable-input {
     }
     .nav-collections-panel {
         box-shadow: none;
-        background: #f0f1e7;
+        background: var(--wash);
         border: 0;
     }
     .hero {
@@ -1819,21 +1903,21 @@ input.editable-input {
         padding-inline: 6px;
     }
     h1 {
-        font-size: 61px;
+        font-size: var(--display);
         letter-spacing: -2.8px;
         margin-top: 19px;
     }
     .title-star {
-        font-size: 43px;
+        font-size: var(--display);
         right: -46px;
     }
     .hero-description {
-        font-size: 13px;
+        font-size: var(--text-body);
         max-width: 355px;
         line-height: 1.85;
     }
     .hero .eyebrow {
-        font-size: 8px;
+        font-size: var(--text-eyebrow);
     }
     .community {
         margin-top: 23px;
@@ -1853,7 +1937,7 @@ input.editable-input {
         top: -2px;
         width: 91px;
         height: 91px;
-        font-size: 7px;
+        font-size: var(--text-tag);
     }
     .source-note {
         left: -14px;
@@ -1862,10 +1946,10 @@ input.editable-input {
         gap: 10px;
     }
     .source-note strong {
-        font-size: 9px;
+        font-size: var(--text-eyebrow);
     }
     .source-note small {
-        font-size: 8px;
+        font-size: var(--text-eyebrow);
     }
     .source-icon {
         width: 29px;
@@ -1878,17 +1962,17 @@ input.editable-input {
         padding: 20px;
     }
     .floating-recipe h3 {
-        font-size: 27px;
+        font-size: var(--title-m);
     }
     .handwritten {
         top: 447px;
         right: 6px;
-        font-size: 12px;
+        font-size: var(--text-small);
     }
     .hand-arrow {
         right: -21px;
         top: -23px;
-        font-size: 30px;
+        font-size: var(--title-l);
     }
     .strip-inner {
         padding-block: 21px;
@@ -1898,11 +1982,11 @@ input.editable-input {
     }
     .strip-inner p {
         grid-column: 1/-1;
-        font-size: 7px;
+        font-size: var(--text-eyebrow);
         letter-spacing: 1.4px;
     }
     .strip-inner > div {
-        font-size: 10px;
+        font-size: var(--text-meta);
         gap: 8px;
     }
     .how-section {
@@ -1914,13 +1998,13 @@ input.editable-input {
         flex-direction: column;
     }
     h2 {
-        font-size: 29px;
+        font-size: var(--title-m);
     }
     .section-heading > p br {
         display: none;
     }
     .section-heading > p {
-        font-size: 12px;
+        font-size: var(--text-small);
     }
     .steps-grid {
         grid-template-columns: 1fr;
@@ -1945,18 +2029,18 @@ input.editable-input {
         position: absolute;
         top: 61px;
         left: 11px;
-        font-size: 24px;
+        font-size: var(--title-m);
     }
     .step h3 {
-        font-size: 15px;
+        font-size: var(--text-ui);
         margin-bottom: 8px;
     }
     .step p {
-        font-size: 12px;
+        font-size: var(--text-small);
         max-width: none;
     }
     .step-detail {
-        font-size: 10px;
+        font-size: var(--text-meta);
         margin-top: 11px;
     }
     .step:last-child {
@@ -1967,7 +2051,7 @@ input.editable-input {
         padding-bottom: 33px;
     }
     .text-button {
-        font-size: 11px;
+        font-size: var(--text-meta);
     }
     .recipe-grid {
         grid-template-columns: 1fr;
@@ -1978,16 +2062,16 @@ input.editable-input {
         height: 250px;
     }
     .recipe-title {
-        font-size: 24px;
+        font-size: var(--title-m);
     }
     .recipe-info {
         padding-top: 15px;
     }
     .recipe-meta {
-        font-size: 10px;
+        font-size: var(--text-meta);
     }
     .source-chip {
-        font-size: 10px;
+        font-size: var(--text-meta);
         padding: 8px 10px;
     }
     .save-button {
@@ -2002,14 +2086,14 @@ input.editable-input {
         margin-bottom: 30px;
     }
     .closing h2 {
-        font-size: 23px;
+        font-size: var(--title-m);
     }
     .closing .button {
         margin-left: 0;
-        font-size: 12px;
+        font-size: var(--text-small);
     }
     .closing .eyebrow {
-        font-size: 7px;
+        font-size: var(--text-eyebrow);
     }
     footer {
         flex-wrap: wrap;
@@ -2018,18 +2102,18 @@ input.editable-input {
     }
     footer p {
         margin-left: auto;
-        font-size: 9px;
+        font-size: var(--text-eyebrow);
     }
     footer > span {
         width: 100%;
         margin-left: 0;
-        font-size: 9px;
+        font-size: var(--text-eyebrow);
     }
     .import-modal {
         padding: 36px 23px 25px;
     }
     .import-modal h2 {
-        font-size: 28px;
+        font-size: var(--title-m);
     }
     .modal-backdrop {
         padding: 15px;
@@ -2038,7 +2122,7 @@ input.editable-input {
         padding: 25px;
     }
     .detail-content h2 {
-        font-size: 28px;
+        font-size: var(--title-m);
     }
     .detail-image {
         height: 200px;
@@ -2063,12 +2147,12 @@ input.editable-input {
         min-width: 0;
     }
     .hero h1 {
-        font-size: clamp(38px, 12.3vw, 61px);
+        font-size: var(--display);
     }
     .hero .title-star {
         right: 0;
         bottom: 0;
-        font-size: 36px;
+        font-size: var(--display);
     }
 }
 
@@ -2084,7 +2168,7 @@ input.editable-input {
     gap: 40px;
     align-items: start;
     padding-block: 42px 60px;
-    transition: grid-template-columns 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: grid-template-columns var(--dur-move) var(--ease-move);
 }
 .collection.folded {
     grid-template-columns: 72px minmax(0, 1fr);
@@ -2110,13 +2194,13 @@ input.editable-input {
     margin-bottom: 22px;
 }
 .collection-heading .eyebrow {
-    font-size: 9px;
-    color: #848975;
+    font-size: var(--text-eyebrow);
+    color: var(--muted);
     letter-spacing: 1.7px;
     margin-bottom: 10px;
 }
 .collection-heading h1 {
-    font-size: 34px;
+    font-size: var(--title-l);
     letter-spacing: -0.9px;
     line-height: 1.2;
     margin: 0;
@@ -2137,12 +2221,12 @@ input.editable-input {
     align-items: center;
     gap: 14px;
     padding: 9px;
-    border-radius: 9px;
-    transition: background 0.2s;
+    border-radius: var(--radius-m);
+    transition: background var(--dur-exit);
 }
 .collection-entry:hover,
 .collection-entry.current {
-    background: #f0f1e7;
+    background: var(--wash);
 }
 .collection-entry:focus-visible {
     outline-offset: 0;
@@ -2165,18 +2249,18 @@ input.editable-input {
     color: var(--muted);
     opacity: 0;
     transition:
-        opacity 0.12s ease-in,
-        background 0.2s,
-        color 0.2s;
+        opacity var(--dur-exit) var(--ease-exit),
+        background var(--dur-exit),
+        color var(--dur-exit);
 }
 .collection-entries li:hover .entry-add,
 .entry-add:focus-visible {
     opacity: 1;
-    transition-duration: 0.2s;
+    transition-duration: var(--dur-enter);
 }
 .entry-add:hover {
     color: var(--olive);
-    background: #e4e7db;
+    background: var(--sage-100);
 }
 .collection.folded .entry-add {
     visibility: hidden;
@@ -2193,15 +2277,15 @@ input.editable-input {
 }
 .entry-title {
     font-family: "Playfair Display", Georgia, serif;
-    font-size: 17px;
+    font-size: var(--title-s);
     letter-spacing: -0.3px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 .entry-meta {
-    font-size: 10px;
-    color: #949486;
+    font-size: var(--text-meta);
+    color: var(--muted);
 }
 
 /* Tags (#13): small quiet chips, read wherever a recipe is shown, and on its
@@ -2217,9 +2301,9 @@ input.editable-input {
     gap: 3px;
     padding: 3px 8px;
     border-radius: 999px;
-    background: #e4e7db;
+    background: var(--sage-100);
     color: var(--olive);
-    font-size: 10px;
+    font-size: var(--text-meta);
     line-height: 1.3;
     white-space: nowrap;
 }
@@ -2241,7 +2325,7 @@ input.editable-input {
 }
 .tag-editor .tag {
     padding-right: 3px;
-    font-size: 11px;
+    font-size: var(--text-meta);
 }
 .tag-remove {
     display: grid;
@@ -2252,10 +2336,10 @@ input.editable-input {
     border-radius: 50%;
     background: transparent;
     color: var(--muted);
-    transition: background 0.2s, color 0.2s;
+    transition: background var(--dur-exit), color var(--dur-exit);
 }
 .tag-remove:hover {
-    background: #dde1d1;
+    background: var(--line-strong);
     color: var(--ink);
 }
 .tag-remove:focus-visible {
@@ -2266,7 +2350,7 @@ input.editable-input {
     align-items: center;
     gap: 6px;
     padding: 0 10px;
-    border: 1px dashed #cfd3c2;
+    border: 1px dashed var(--line-strong);
     border-radius: 999px;
     color: var(--muted);
 }
@@ -2280,14 +2364,14 @@ input.editable-input {
     border: 0;
     background: transparent;
     color: var(--ink);
-    font-size: 11px;
+    font-size: var(--text-meta);
     outline: none;
 }
 .tag-problem {
     flex-basis: 100%;
     margin: 2px 0 0;
-    color: #a85638;
-    font-size: 12px;
+    color: var(--orange-text);
+    font-size: var(--text-small);
 }
 
 /* Finding a recipe (#14): a search bar under the heading, the filters behind
@@ -2308,18 +2392,18 @@ input.editable-input {
 }
 .recipe-find .recipe-search input {
     padding: 10px 0;
-    font-size: 13px;
+    font-size: var(--text-body);
 }
 .filter-toggle {
     position: relative;
     flex-shrink: 0;
     width: 40px;
     height: 40px;
-    border: 1px solid #d5d8c9;
+    border: 1px solid var(--line-strong);
     border-radius: 50%;
-    background: #fffdf8;
+    background: var(--paper);
     color: var(--muted);
-    transition: background 0.2s, color 0.2s, border-color 0.2s;
+    transition: background var(--dur-exit), color var(--dur-exit), border-color var(--dur-exit);
 }
 .filter-toggle:hover,
 .filter-toggle[aria-expanded="true"] {
@@ -2329,7 +2413,7 @@ input.editable-input {
 .filter-toggle.active {
     border-color: var(--olive);
     background: var(--olive);
-    color: white;
+    color: var(--on-fill);
 }
 .filter-count {
     position: absolute;
@@ -2342,8 +2426,8 @@ input.editable-input {
     padding: 0 4px;
     border-radius: 999px;
     background: var(--orange);
-    color: white;
-    font-size: 10px;
+    color: var(--on-fill);
+    font-size: var(--text-meta);
     font-weight: 600;
 }
 .filter-panel {
@@ -2352,17 +2436,17 @@ input.editable-input {
     margin-bottom: 18px;
     padding: 18px;
     border: 1px solid var(--line);
-    border-radius: 10px;
-    background: #fffdf8;
+    border-radius: var(--radius-m);
+    background: var(--paper);
 }
 .filter-heading {
     margin: 0 0 8px;
     font-family: "DM Sans", sans-serif;
-    font-size: 9px;
+    font-size: var(--text-eyebrow);
     font-weight: 500;
     letter-spacing: 1.7px;
     text-transform: uppercase;
-    color: #6b6f5f;
+    color: var(--muted);
 }
 .filter-options {
     display: flex;
@@ -2375,12 +2459,12 @@ input.editable-input {
     align-items: center;
     gap: 5px;
     padding: 6px 11px;
-    border: 1px solid #d5d8c9;
+    border: 1px solid var(--line-strong);
     border-radius: 999px;
     background: transparent;
     color: var(--ink);
-    font-size: 11px;
-    transition: background 0.2s, color 0.2s, border-color 0.2s;
+    font-size: var(--text-meta);
+    transition: background var(--dur-exit), color var(--dur-exit), border-color var(--dur-exit);
 }
 .filter-option:hover {
     border-color: var(--olive);
@@ -2388,17 +2472,17 @@ input.editable-input {
 .filter-option[aria-pressed="true"] {
     border-color: var(--olive);
     background: var(--olive);
-    color: white;
+    color: var(--on-fill);
 }
 .filter-input {
     flex: 1;
     min-width: 140px;
     padding: 7px 11px;
-    border: 1px solid #d5d8c9;
+    border: 1px solid var(--line-strong);
     border-radius: 999px;
     background: transparent;
     color: var(--ink);
-    font-size: 11px;
+    font-size: var(--text-meta);
 }
 .filter-input:focus-visible {
     outline: none;
@@ -2406,14 +2490,14 @@ input.editable-input {
 }
 .filter-empty {
     margin: 0;
-    font-size: 12px;
-    color: #6d6e64;
+    font-size: var(--text-small);
+    color: var(--muted);
 }
 .filter-clear {
     justify-self: start;
     border: 0;
     padding: 0;
-    color: #a85638;
+    color: var(--orange-text);
 }
 .collection.folded .recipe-find,
 .collection.folded .filter-panel {
@@ -2439,12 +2523,12 @@ input.editable-input {
     flex-shrink: 0;
     width: 54px;
     height: 54px;
-    border-radius: 7px;
+    border-radius: var(--radius-s);
     overflow: hidden;
     display: grid;
     place-items: center;
-    background: #e4e7db;
-    color: #7b8569;
+    background: var(--sage-100);
+    color: var(--muted);
 }
 .recipe-thumb img {
     width: 100%;
@@ -2453,14 +2537,14 @@ input.editable-input {
 }
 .thumb-initial {
     font-family: "Playfair Display", Georgia, serif;
-    font-size: 24px;
+    font-size: var(--title-m);
     text-transform: uppercase;
 }
 .collection-pane {
     min-width: 0;
-    background: #fffdf8;
+    background: var(--paper);
     border: 1px solid var(--line);
-    border-radius: 14px;
+    border-radius: var(--radius-l);
     overflow: hidden;
     min-height: 60vh;
 }
@@ -2479,18 +2563,18 @@ input.editable-input {
 .collection-state {
     text-align: center;
     padding: 55px 20px;
-    background: #f0f1e7;
-    border-radius: 10px;
+    background: var(--wash);
+    border-radius: var(--radius-m);
 }
 .collection-state h2 {
-    font-size: 24px;
+    font-size: var(--title-m);
     margin-top: 12px;
 }
 .collection-state p {
     margin: 15px auto 25px;
     max-width: 340px;
     color: var(--muted);
-    font-size: 13px;
+    font-size: var(--text-body);
     line-height: 1.7;
 }
 .collection-pane .collection-state {
@@ -2501,7 +2585,7 @@ input.editable-input {
     flex-shrink: 0;
 }
 .rail-toggle:hover {
-    background: #f0f1e7;
+    background: var(--wash);
 }
 
 /* Folded: pictures only. The words stay where they were, invisible, for a
@@ -2530,13 +2614,13 @@ input.editable-input {
     /* Out quickly as the list folds; in once there is room to read them. */
     .collection-heading > div,
     .entry-text {
-        transition: opacity 0.2s ease 0.14s;
+        transition: opacity var(--dur-enter) var(--ease-enter) var(--dur-exit);
     }
     .collection.folded .collection-heading > div,
     .collection.folded .entry-text {
         opacity: 0;
         pointer-events: none;
-        transition-duration: 0.12s;
+        transition-duration: var(--dur-exit);
         transition-delay: 0s;
     }
     /* Centred on the rail, over the words it replaces. */
@@ -2544,7 +2628,7 @@ input.editable-input {
         position: absolute;
         top: 14px;
         left: 19px;
-        animation: fade-in 0.2s 0.15s both;
+        animation: fade-in var(--dur-enter) var(--dur-exit) both;
     }
 }
 
@@ -2581,10 +2665,10 @@ input.editable-input {
     gap: 12px 20px;
     margin: 0 0 22px;
     padding: 14px 18px;
-    background: #f5ede3;
-    border: 1px solid #ead7c4;
-    border-radius: 10px;
-    font-size: 13px;
+    background: var(--orange-wash);
+    border: 1px solid var(--orange-soft);
+    border-radius: var(--radius-m);
+    font-size: var(--text-body);
     line-height: 1.6;
 }
 .earlier-version p {
@@ -2609,13 +2693,13 @@ input.editable-input {
     margin-bottom: 28px;
 }
 .collections-heading .eyebrow {
-    font-size: 9px;
-    color: #848975;
+    font-size: var(--text-eyebrow);
+    color: var(--muted);
     letter-spacing: 1.7px;
     margin-bottom: 10px;
 }
 .collections-heading h1 {
-    font-size: 34px;
+    font-size: var(--title-l);
     letter-spacing: -0.9px;
     line-height: 1.2;
     margin: 0;
@@ -2630,9 +2714,9 @@ input.editable-input {
     max-width: 520px;
     padding: 0 16px;
     margin-bottom: 30px;
-    border: 1px solid #d5d8c9;
+    border: 1px solid var(--line-strong);
     border-radius: 999px;
-    background: #fffdf8;
+    background: var(--paper);
     color: var(--muted);
 }
 .collections-search:focus-within {
@@ -2645,7 +2729,7 @@ input.editable-input {
     border: 0;
     background: transparent;
     color: var(--ink);
-    font-size: 14px;
+    font-size: var(--text-ui);
     outline: none;
 }
 .collections-new {
@@ -2661,7 +2745,7 @@ input.editable-input {
 }
 .collections-none {
     color: var(--muted);
-    font-size: 13px;
+    font-size: var(--text-body);
     padding: 20px 0;
 }
 .collections-grid {
@@ -2681,26 +2765,26 @@ input.editable-input {
     grid-template-rows: 1fr 1fr;
     gap: 3px;
     aspect-ratio: 1;
-    border-radius: 14px;
+    border-radius: var(--radius-l);
     overflow: hidden;
-    background: #fffdf8;
+    background: var(--paper);
     border: 1px solid var(--line);
     margin-bottom: 14px;
 }
 .collection-mosaic.empty {
     grid-template: 1fr / 1fr;
     place-items: center;
-    background: #f0f1e7;
+    background: var(--wash);
     border-style: dashed;
-    border-color: #d5d8c9;
-    color: #8c987b;
+    border-color: var(--line-strong);
+    color: var(--olive-soft);
 }
 /* A tile past the collection's last recipe is paper, not a hole. */
 .mosaic-cell {
     display: grid;
     min-width: 0;
     min-height: 0;
-    background: #f6f5ee;
+    background: var(--cream-deep);
 }
 .mosaic-cell .recipe-thumb {
     width: 100%;
@@ -2711,7 +2795,7 @@ input.editable-input {
     color: var(--olive);
 }
 .collection-card-name {
-    font-size: 19px;
+    font-size: var(--title-s);
     letter-spacing: -0.3px;
     margin: 0 0 6px;
     overflow: hidden;
@@ -2725,8 +2809,8 @@ input.editable-input {
     gap: 12px;
 }
 .collection-card-count {
-    font-size: 10px;
-    color: #949486;
+    font-size: var(--text-meta);
+    color: var(--muted);
 }
 .collection-card-actions {
     display: flex;
@@ -2735,36 +2819,36 @@ input.editable-input {
 .collection-card-actions .text-button {
     border: 0;
     padding: 0;
-    font-size: 11px;
+    font-size: var(--text-meta);
     color: var(--muted);
 }
 .collection-card-actions .text-button:hover {
     color: var(--olive);
 }
 .collection-card-actions .delete-recipe:hover {
-    color: var(--orange);
+    color: var(--orange-text);
 }
 /* Where a pointer can reveal them, they wait for it. */
 @media (hover: hover) {
     .collection-card-footer .collection-card-actions {
         opacity: 0;
-        transition: opacity 0.12s ease-in;
+        transition: opacity var(--dur-exit) var(--ease-exit);
     }
     .collection-card:hover .collection-card-actions,
     .collection-card:focus-within .collection-card-actions {
         opacity: 1;
-        transition-duration: 0.2s;
+        transition-duration: var(--dur-enter);
     }
 }
 .collection-rename input {
     width: 100%;
     padding: 9px 11px;
-    border: 1px solid #d5d8c9;
-    border-radius: 6px;
-    background: #fffdf9;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-s);
+    background: var(--paper);
     color: var(--ink);
     font-family: "Playfair Display", Georgia, serif;
-    font-size: 17px;
+    font-size: var(--title-s);
     margin-bottom: 8px;
 }
 @media (max-width: 600px) {
@@ -2772,7 +2856,7 @@ input.editable-input {
         grid-template-columns: minmax(0, 1fr);
     }
     .collections-heading h1 {
-        font-size: 30px;
+        font-size: var(--title-l);
     }
 }
 
@@ -2786,7 +2870,7 @@ input.editable-input {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    font-size: 12px;
+    font-size: var(--text-small);
     color: var(--muted);
     margin-bottom: 22px;
 }
@@ -2810,10 +2894,10 @@ input.editable-input {
     max-width: 460px;
 }
 .collection-page-rename input {
-    font-size: 26px;
+    font-size: var(--title-m);
 }
 .collection-page-actions .text-button {
-    font-size: 12px;
+    font-size: var(--text-small);
 }
 .collection-page-problem {
     margin: 0 0 16px;
@@ -2834,13 +2918,13 @@ input.editable-input {
     align-items: center;
     gap: 8px;
     padding: 8px 10px 8px 4px;
-    border-radius: 12px;
-    background: #fffdf8;
+    border-radius: var(--radius-l);
+    background: var(--paper);
     border: 1px solid var(--line);
 }
 .order-row.dragging {
-    box-shadow: 0 12px 40px #17231424;
-    border-color: #d5d8c9;
+    box-shadow: var(--shadow-raised);
+    border-color: var(--line-strong);
     position: relative;
     z-index: 1;
 }
@@ -2850,14 +2934,14 @@ input.editable-input {
     width: 30px;
     height: 44px;
     flex-shrink: 0;
-    color: #949486;
+    color: var(--faint);
     cursor: grab;
     touch-action: none;
-    border-radius: 8px;
+    border-radius: var(--radius-m);
 }
 .order-handle:hover {
     color: var(--olive);
-    background: #f0f1e7;
+    background: var(--wash);
 }
 .order-row.dragging .order-handle {
     cursor: grabbing;
@@ -2869,7 +2953,7 @@ input.editable-input {
     flex: 1;
     min-width: 0;
     padding: 2px;
-    border-radius: 9px;
+    border-radius: var(--radius-m);
 }
 .order-link:hover .entry-title {
     color: var(--olive);
@@ -2880,13 +2964,13 @@ input.editable-input {
     align-items: flex-end;
     gap: 3px;
     flex-shrink: 0;
-    font-size: 10px;
-    color: var(--orange);
+    font-size: var(--text-meta);
+    color: var(--orange-text);
     white-space: nowrap;
 }
 .order-earlier a {
     color: var(--ink);
-    border-bottom: 1px solid #c8cebd;
+    border-bottom: 1px solid var(--line-strong);
 }
 .order-earlier a:hover {
     color: var(--olive);
@@ -2901,13 +2985,13 @@ input.editable-input {
 }
 .order-controls .icon-button:hover:not(:disabled) {
     color: var(--olive);
-    background: #f0f1e7;
+    background: var(--wash);
 }
 .order-controls .icon-button:disabled {
     opacity: 0.3;
 }
 .order-controls .order-remove:hover:not(:disabled) {
-    color: var(--orange);
+    color: var(--orange-text);
 }
 @media (max-width: 600px) {
     .order-row {
@@ -2936,8 +3020,8 @@ input.editable-input {
 }
 .picker-eyebrow {
     display: block;
-    font-size: 9px;
-    color: #848975;
+    font-size: var(--text-eyebrow);
+    color: var(--muted);
     letter-spacing: 1.7px;
     text-transform: uppercase;
     /* Clear of the close button, and one line however long the title. */
@@ -2947,7 +3031,7 @@ input.editable-input {
     white-space: nowrap;
 }
 .picker-content h2 {
-    font-size: 26px;
+    font-size: var(--title-m);
     margin: 10px 0 18px;
 }
 .picker-earlier {
@@ -2956,11 +3040,11 @@ input.editable-input {
 .picker-state {
     margin: 0 0 20px;
     padding: 18px;
-    background: #f0f1e7;
-    border-radius: 10px;
+    background: var(--wash);
+    border-radius: var(--radius-m);
     text-align: center;
     color: var(--muted);
-    font-size: 13px;
+    font-size: var(--text-body);
     line-height: 1.6;
 }
 .picker-state p {
@@ -2983,12 +3067,12 @@ input.editable-input {
     align-items: center;
     gap: 12px;
     padding: 11px 12px;
-    border-radius: 9px;
+    border-radius: var(--radius-m);
     cursor: pointer;
-    transition: background 0.2s;
+    transition: background var(--dur-exit);
 }
 .picker-option:hover {
-    background: #f0f1e7;
+    background: var(--wash);
 }
 .picker-option input {
     flex-shrink: 0;
@@ -3005,15 +3089,15 @@ input.editable-input {
 .picker-name {
     flex: 1;
     min-width: 0;
-    font-size: 14px;
+    font-size: var(--text-ui);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 .picker-count {
     flex-shrink: 0;
-    font-size: 10px;
-    color: #949486;
+    font-size: var(--text-meta);
+    color: var(--muted);
 }
 .picker-new-row {
     display: flex;
@@ -3024,11 +3108,11 @@ input.editable-input {
     flex: 1;
     min-width: 0;
     padding: 13px;
-    border: 1px solid #d5d8c9;
-    border-radius: 6px;
-    background: #fffdf9;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-s);
+    background: var(--paper);
     color: var(--ink);
-    font-size: 12px;
+    font-size: var(--text-small);
 }
 .picker-new-row .button {
     flex-shrink: 0;
@@ -3066,22 +3150,22 @@ input.editable-input {
     gap: 9px;
     background: transparent;
     padding: 6px 0;
-    font-size: 13px;
-    font-weight: 550;
+    font-size: var(--text-body);
+    font-weight: 500;
 }
 .history-summary {
     color: var(--muted);
     font-weight: 400;
 }
 .history-toggle:hover {
-    color: var(--orange);
+    color: var(--orange-text);
 }
 .history-panel {
     padding-top: 14px;
 }
 .history-note,
 .history-origin {
-    font-size: 12px;
+    font-size: var(--text-small);
     line-height: 1.7;
     color: var(--muted);
     max-width: 520px;
@@ -3095,10 +3179,10 @@ input.editable-input {
     color: var(--ink);
 }
 .history-origin a {
-    border-bottom: 1px solid #c8cebd;
+    border-bottom: 1px solid var(--line-strong);
 }
 .history-origin a:hover {
-    color: var(--orange);
+    color: var(--orange-text);
 }
 .history-chain {
     list-style: none;
@@ -3117,7 +3201,7 @@ input.editable-input {
     top: 20px;
     bottom: -14px;
     width: 1px;
-    background: #d3d6c6;
+    background: var(--line-strong);
 }
 .history-chain > .history-version:last-child::before {
     display: none;
@@ -3129,15 +3213,15 @@ input.editable-input {
     width: 11px;
     height: 11px;
     border-radius: 50%;
-    border: 1.5px solid #9aa28a;
-    background: #fffdf8;
+    border: 1.5px solid var(--olive-soft);
+    background: var(--paper);
 }
 .history-version.pinned > .history-dot {
     background: var(--olive);
     border-color: var(--olive);
 }
 .history-version.current > .history-dot {
-    box-shadow: 0 0 0 3px #f0d8c9;
+    box-shadow: 0 0 0 3px var(--orange-soft);
     border-color: var(--orange);
 }
 .history-row {
@@ -3146,10 +3230,10 @@ input.editable-input {
     justify-content: space-between;
     gap: 12px;
     padding: 8px 10px;
-    border-radius: 9px;
+    border-radius: var(--radius-m);
 }
 .history-version.current > .history-row {
-    background: #f0f1e7;
+    background: var(--wash);
 }
 .history-text {
     display: grid;
@@ -3157,25 +3241,25 @@ input.editable-input {
     min-width: 0;
 }
 .history-label {
-    font-size: 9px;
+    font-size: var(--text-eyebrow);
     letter-spacing: 1.5px;
-    font-weight: 650;
+    font-weight: 600;
     text-transform: uppercase;
-    color: #848975;
+    color: var(--muted);
 }
 .history-title {
     font-family: "Playfair Display", Georgia, serif;
-    font-size: 16px;
+    font-size: var(--text-ui);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 a.history-title:hover {
-    color: var(--orange);
+    color: var(--orange-text);
 }
 .history-meta {
-    font-size: 10px;
-    color: #949486;
+    font-size: var(--text-meta);
+    color: var(--muted);
 }
 .history-tags {
     display: flex;
@@ -3191,13 +3275,13 @@ a.history-title:hover {
     gap: 4px;
     margin-top: 3px;
     padding: 2px 8px;
-    border-radius: 20px;
-    font-size: 10px;
-    background: #e4e7db;
+    border-radius: 999px;
+    font-size: var(--text-meta);
+    background: var(--sage-100);
 }
 .history-tag.pinned {
     background: var(--olive);
-    color: #fff;
+    color: var(--on-fill);
 }
 .history-actions {
     display: flex;
@@ -3211,15 +3295,15 @@ a.history-title:hover {
     gap: 5px;
     min-height: 32px;
     padding: 0 9px;
-    border-radius: 6px;
+    border-radius: var(--radius-s);
     background: transparent;
-    font-size: 11px;
+    font-size: var(--text-meta);
 }
 .history-action:hover {
-    background: #e9ebdf;
+    background: var(--sage-100);
 }
 .history-action.delete {
-    color: var(--orange);
+    color: var(--orange-text);
 }
 .history-more {
     display: flex;
@@ -3230,7 +3314,7 @@ a.history-title:hover {
     margin-top: 14px;
     padding-top: 14px;
     border-top: 1px dashed var(--line);
-    font-size: 12px;
+    font-size: var(--text-small);
     color: var(--muted);
 }
 .history-more .button {
@@ -3264,14 +3348,14 @@ a.history-title:hover {
     grid-column: 1 / -1;
 }
 .profile .collection-state h1 {
-    font-size: 30px;
+    font-size: var(--title-l);
     margin: 12px auto 0;
     letter-spacing: -0.5px;
 }
 .profile-card {
-    background: #fffdf8;
+    background: var(--paper);
     border: 1px solid var(--line);
-    border-radius: 14px;
+    border-radius: var(--radius-l);
     padding: 30px 28px;
 }
 .profile-avatar {
@@ -3282,17 +3366,17 @@ a.history-title:hover {
     margin-bottom: 20px;
     border-radius: 50%;
     background: var(--olive);
-    color: #fff;
+    color: var(--on-fill);
     font-family: "Playfair Display", Georgia, serif;
-    font-size: 28px;
+    font-size: var(--title-l);
 }
 .profile-card .eyebrow {
-    font-size: 9px;
-    color: #848975;
+    font-size: var(--text-eyebrow);
+    color: var(--muted);
     letter-spacing: 1.7px;
 }
 .profile-name {
-    font-size: 32px;
+    font-size: var(--title-l);
     letter-spacing: -0.8px;
     width: auto;
     margin: 8px 0 22px;
@@ -3302,10 +3386,10 @@ a.history-title:hover {
     display: grid;
     gap: 4px;
     margin: 0 0 26px;
-    font-size: 13px;
+    font-size: var(--text-body);
 }
 .profile-details dt {
-    font-size: 10px;
+    font-size: var(--text-meta);
     color: var(--muted);
     margin-top: 10px;
 }
@@ -3325,17 +3409,17 @@ a.history-title:hover {
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 26px;
+    font-size: var(--title-m);
 }
 .profile-recipes-heading h2 .count {
     font-family: "DM Sans", sans-serif;
 }
 .profile-recipes-state {
     padding: 30px 20px;
-    background: #f0f1e7;
-    border-radius: 10px;
+    background: var(--wash);
+    border-radius: var(--radius-m);
     color: var(--muted);
-    font-size: 13px;
+    font-size: var(--text-body);
     line-height: 1.7;
 }
 .profile-recipes-state .text-button {
@@ -3376,12 +3460,12 @@ a.history-title:hover {
     gap: 8px;
 }
 .lineage-header .eyebrow {
-    font-size: 9px;
-    color: #848975;
+    font-size: var(--text-eyebrow);
+    color: var(--muted);
     letter-spacing: 1.7px;
 }
 .lineage-heading {
-    font-size: 38px;
+    font-size: var(--title-l);
     letter-spacing: -1px;
     width: auto;
     margin: 8px 0 0;
@@ -3393,7 +3477,7 @@ a.history-title:hover {
     display: flex;
     flex-wrap: wrap;
     gap: 8px 22px;
-    font-size: 11px;
+    font-size: var(--text-meta);
     color: var(--muted);
 }
 .lineage-legend li {
@@ -3404,9 +3488,9 @@ a.history-title:hover {
 .lineage-key {
     width: 14px;
     height: 14px;
-    border-radius: 4px;
-    border: 1.5px solid #c7cbb8;
-    background: #fffdf8;
+    border-radius: var(--radius-s);
+    border: 1.5px solid var(--line-strong);
+    background: var(--paper);
 }
 .lineage-key.pinned {
     border-color: var(--olive);
@@ -3414,7 +3498,7 @@ a.history-title:hover {
 }
 .lineage-key.current {
     border-color: var(--orange);
-    box-shadow: 0 0 0 3px #f0d8c9;
+    box-shadow: 0 0 0 3px var(--orange-soft);
 }
 .lineage-key.variant {
     border-style: dashed;
@@ -3425,7 +3509,7 @@ a.history-title:hover {
     position: relative;
     border-top: 1px solid var(--line);
     border-bottom: 1px solid var(--line);
-    background: #f6f5ee;
+    background: var(--cream-deep);
 }
 /* Vue Flow sizes itself as 100% of its parent's height, which a flex item's
    grown height is not; pinned to the canvas's edges instead, or it is 0 tall
@@ -3434,52 +3518,56 @@ a.history-title:hover {
     position: absolute;
     inset: 0;
 }
+/* The dots Vue Flow draws behind the tree: its fill attribute, overruled. */
+.lineage-canvas .vue-flow__background pattern circle {
+    fill: var(--line-strong);
+}
 .lineage-node {
     width: 290px;
     display: grid;
     gap: 4px;
     padding: 12px 14px;
-    background: #fffdf8;
-    border: 1.5px solid #d6d9c8;
-    border-radius: 11px;
+    background: var(--paper);
+    border: 1.5px solid var(--line-strong);
+    border-radius: var(--radius-m);
     text-align: left;
     color: var(--ink);
-    box-shadow: 0 6px 18px #1723140d;
+    box-shadow: var(--shadow-low);
 }
 .lineage-node.pinned {
     border-color: var(--olive);
 }
 .lineage-node.current {
     border-color: var(--orange);
-    box-shadow: 0 0 0 4px #f0d8c9;
+    box-shadow: 0 0 0 4px var(--orange-soft);
 }
 .lineage-node.variant,
 .lineage-node.origin {
     border-style: dashed;
-    background: #fbfaf4;
+    background: var(--paper);
 }
 .lineage-eyebrow {
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    font-size: 9px;
+    font-size: var(--text-eyebrow);
     letter-spacing: 1.5px;
-    font-weight: 650;
+    font-weight: 600;
     text-transform: uppercase;
-    color: #848975;
+    color: var(--muted);
 }
 .lineage-title {
     font-family: "Playfair Display", Georgia, serif;
-    font-size: 17px;
+    font-size: var(--title-s);
     line-height: 1.3;
     overflow-wrap: anywhere;
 }
 .lineage-title:hover {
-    color: var(--orange);
+    color: var(--orange-text);
 }
 .lineage-meta {
-    font-size: 10px;
-    color: #949486;
+    font-size: var(--text-meta);
+    color: var(--muted);
 }
 .lineage-actions {
     display: flex;
@@ -3489,6 +3577,13 @@ a.history-title:hover {
 .lineage-node .vue-flow__handle {
     opacity: 0;
     pointer-events: none;
+}
+/* Level with the title rather than halfway down: nodes grow with what
+   changed in them, and a branch's line should run straight across between
+   two of different heights. */
+.lineage-node .vue-flow__handle-left,
+.lineage-node .vue-flow__handle-right {
+    top: 34px;
 }
 .vue-flow__node-lineage {
     padding: 0;
@@ -3501,7 +3596,7 @@ a.history-title:hover {
     pointer-events: all !important;
 }
 .lineage-edge path.vue-flow__edge-path {
-    stroke: #9aa28a;
+    stroke: var(--olive-soft);
     stroke-width: 1.5;
 }
 .lineage-edge.variant path.vue-flow__edge-path {
@@ -3509,7 +3604,7 @@ a.history-title:hover {
 }
 @media (max-width: 600px) {
     .lineage-heading {
-        font-size: 28px;
+        font-size: var(--title-m);
     }
     .lineage-canvas {
         min-height: 400px;
@@ -3522,16 +3617,16 @@ a.history-title:hover {
 .lineage-changes {
     display: grid;
     gap: 1px;
-    font-size: 11px;
+    font-size: var(--text-meta);
     line-height: 1.5;
     color: var(--olive);
 }
 .changes-from {
-    font-size: 9px;
+    font-size: var(--text-eyebrow);
     letter-spacing: 1.2px;
     text-transform: uppercase;
-    font-weight: 650;
-    color: #a0a392;
+    font-weight: 600;
+    color: var(--muted);
 }
 .lineage-changes {
     margin-top: 4px;
@@ -3560,7 +3655,7 @@ a.history-title:hover {
     padding: 0;
     display: grid;
     gap: 5px;
-    font-size: 11px;
+    font-size: var(--text-meta);
     line-height: 1.45;
     color: var(--ink);
 }
@@ -3574,7 +3669,7 @@ a.history-title:hover {
     gap: 1px;
 }
 .change-mark {
-    font-weight: 650;
+    font-weight: 600;
     color: var(--muted);
 }
 .change.added .change-mark {
@@ -3582,7 +3677,7 @@ a.history-title:hover {
 }
 .change.removed .change-mark,
 .change.removed .change-step {
-    color: var(--orange);
+    color: var(--orange-text);
 }
 .change-text {
     overflow-wrap: anywhere;
@@ -3604,38 +3699,38 @@ a.history-title:hover {
 }
 .change del,
 .snippet del {
-    color: var(--orange);
+    color: var(--orange-text);
     text-decoration-thickness: 1px;
 }
 .change ins,
 .snippet ins {
     text-decoration: none;
-    background: #e3ead3;
+    background: var(--added);
     color: var(--olive);
-    border-radius: 3px;
+    border-radius: var(--radius-s);
     padding: 0 2px;
 }
 .change-by {
     margin-left: 2px;
     padding: 0 5px;
-    border-radius: 10px;
-    background: #eef0e6;
-    font-size: 10px;
+    border-radius: var(--radius-m);
+    background: var(--wash);
+    font-size: var(--text-meta);
     font-weight: 600;
     white-space: nowrap;
 }
 .change-step {
-    font-size: 9px;
+    font-size: var(--text-eyebrow);
     letter-spacing: 1.1px;
     text-transform: uppercase;
-    font-weight: 650;
-    color: #848975;
+    font-weight: 600;
+    color: var(--muted);
 }
 .snippet {
     color: var(--muted);
 }
 .change-more {
-    font-size: 10px;
+    font-size: var(--text-meta);
     color: var(--muted);
 }
 
@@ -3648,10 +3743,10 @@ a.history-title:hover {
 /* A collection's rows slide to their new places when the order changes, and
    a row taken out fades while the rest close up after it. */
 .reorder-move {
-    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform var(--dur-move) var(--ease-move);
 }
 .reorder-leave-active {
-    transition: opacity 0.12s ease-in;
+    transition: opacity var(--dur-exit) var(--ease-exit);
     position: absolute;
     left: 0;
     right: 0;
@@ -3663,13 +3758,13 @@ a.history-title:hover {
    back up quicker than it came. */
 .dropdown-enter-active {
     transition:
-        opacity 0.2s cubic-bezier(0.2, 0.8, 0.2, 1),
-        transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+        opacity var(--dur-enter) var(--ease-enter),
+        transform var(--dur-enter) var(--ease-enter);
 }
 .dropdown-leave-active {
     transition:
-        opacity 0.12s ease-in,
-        transform 0.12s ease-in;
+        opacity var(--dur-exit) var(--ease-exit),
+        transform var(--dur-exit) var(--ease-exit);
 }
 .dropdown-enter-from,
 .dropdown-leave-to {
@@ -3679,11 +3774,11 @@ a.history-title:hover {
 
 .dialog-enter-active,
 .dialog-leave-active {
-    transition: opacity 0.22s ease;
+    transition: opacity var(--dur-enter) var(--ease-enter);
 }
 .dialog-enter-active .modal,
 .dialog-leave-active .modal {
-    transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+    transition: transform var(--dur-enter) var(--ease-enter);
 }
 .dialog-enter-from,
 .dialog-leave-to {
@@ -3704,8 +3799,8 @@ a.history-title:hover {
 .toast-enter-active,
 .toast-leave-active {
     transition:
-        opacity 0.25s ease,
-        translate 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+        opacity var(--dur-enter) var(--ease-enter),
+        translate var(--dur-enter) var(--ease-enter);
 }
 .toast-enter-from,
 .toast-leave-to {
@@ -3720,8 +3815,8 @@ a.history-title:hover {
 .row-enter-active,
 .row-leave-active {
     transition:
-        transform 0.25s ease,
-        opacity 0.2s ease;
+        transform var(--dur-enter) var(--ease-enter),
+        opacity var(--dur-enter) var(--ease-enter);
 }
 .row-enter-from,
 .row-leave-to {
@@ -3742,8 +3837,8 @@ a.history-title:hover {
 .bar-enter-active,
 .bar-leave-active {
     transition:
-        opacity 0.16s ease,
-        transform 0.16s ease;
+        opacity var(--dur-exit) var(--ease-exit),
+        transform var(--dur-exit) var(--ease-exit);
 }
 .bar-enter-from {
     opacity: 0;
@@ -3756,7 +3851,7 @@ a.history-title:hover {
 /* Opacity alone: a transform on a page would hold its fixed dialogs to it. */
 .page-enter-active,
 .page-leave-active {
-    transition: opacity 0.16s ease;
+    transition: opacity var(--dur-exit) var(--ease-exit);
 }
 .page-enter-from,
 .page-leave-to {
@@ -3767,7 +3862,7 @@ a.history-title:hover {
 .edit-bar-problem,
 .add-failure,
 .import-failure {
-    animation: rise-in 0.2s ease;
+    animation: rise-in var(--dur-enter) var(--ease-enter);
 }
 @keyframes rise-in {
     from {
@@ -3784,7 +3879,7 @@ a.history-title:hover {
 }
 .preview-enter-active,
 .preview-leave-active {
-    transition: opacity 0.2s ease;
+    transition: opacity var(--dur-enter) var(--ease-enter);
 }
 .preview-leave-active {
     position: absolute;
