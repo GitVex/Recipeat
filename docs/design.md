@@ -1,38 +1,27 @@
 # Design
 
 How Recipeat looks and moves: its colours, type, shapes, the places in the
-app and how getting from one to another is drawn. What is marked
-**planned** is agreed but not in the CSS yet — the redesign moves the
-stylesheet onto it; the rest describes the app as it stands.
+app and how getting from one to another is drawn.
 
 The feel it is after is a kitchen notebook: warm paper, olive ink, one
 terracotta accent, a serif for what a recipe is called and a quiet sans for
 everything said about it. Nothing shouts, and nothing moves unless it is
 going somewhere.
 
-Everything here that has a value is meant to live as a custom property on
-`:root` in `app/assets/main.css`, so that this page and the stylesheet name
-the same things. Today five colours do; the rest is written out where it is
-used — 82 distinct colours, 38 font sizes, 17 radii, 10 durations.
+Everything here that has a value is a custom property on `:root` in
+`app/assets/main.css`, so that this page and the stylesheet name the same
+things, and the stylesheet sets colour, size, radius, shadow and motion only
+through them. A new component takes its values from here rather than
+writing its own; a theme is a second set of values for the same names.
 
 ## Colour
 
-### Named today
+### Palette
 
-| Token | Value | Use |
-|---|---|---|
-| `--cream` | `#faf8f2` | The page |
-| `--ink` | `#303c2d` | Headings and text that is read first |
-| `--olive` | `#48563a` | Primary buttons, selected states, links on hover |
-| `--muted` | `#7a7c70` | Secondary text |
-| `--line` | `#e5e5d9` | Rules and hairline borders |
-| `--orange` | `#bb603e` | The accent: italic words in headings, destructive actions |
-
-### Palette — planned
-
-The 82 colours fall into a handful of roles, each held by one or two values
-that differ from their neighbours by less than the eye separates. Grouped,
-they come to about thirty.
+The stylesheet had 82 colours, falling into a handful of roles, each held by
+one or two values that differed from their neighbours by less than the eye
+separates. Grouped, they came to about thirty. The "Takes in" columns say
+which of the old values each token replaced.
 
 **Surfaces**, lightest first:
 
@@ -49,18 +38,19 @@ they come to about thirty.
 | Token | Value | Takes in | Use |
 |---|---|---|---|
 | `--line` | `#e5e5d9` | | Hairlines between sections |
-| `--line-strong` | `#d5d8c9` | `#d6d9c8` `#d3d6c6` `#c9ccbb` `#c8cebd` `#c7cbb8` | Input and node borders, text-button underlines |
-| `--line-dashed` | `#b6bea8` | | Drop zones |
+| `--line-strong` | `#d5d8c9` | `#d6d9c8` `#d3d6c6` `#c9ccbb` `#c8cebd` `#c7cbb8` `#dde1d1` `#d2d4c5` `#cfd3c2` `#dcdccf` | Input and node borders, text-button underlines, the lineage canvas's dots |
+| `--line-dashed` | `#b6bea8` | `#b9bca9` | Drop zones, the dotted line under a scalable amount |
 
-**Text**, darkest first. The three greys are where the contrast problems
-are; see [Contrast](#contrast).
+**Text**, darkest first. The three greys were darkened to pass contrast;
+see [Contrast](#contrast).
 
 | Token | Value | Takes in | Use |
 |---|---|---|---|
 | `--ink` | `#303c2d` | | Headings, amounts, primary text |
-| `--ink-soft` | `#757b6c` | `#77796f` `#6d765e` `#656e59` | Recipe body: ingredients and steps |
-| `--muted` | `#7a7c70` | `#848975` ×7 `#85857a` `#858578` `#87877b` `#898a78` `#8d8d80` `#7f8973` `#7b8569` | Eyebrows, secondary copy |
-| `--faint` | `#949486` | `#999b8a` `#939485` `#a0a392` `#a3a597` `#a4aa91` `#b7baaa` | Meta lines, placeholders, separators |
+| `--ink-soft` | `#6a6f62` | `#757b6c` `#77796f` `#6d765e` `#656e59` | Recipe body: ingredients and steps |
+| `--muted` | `#6d6e64` | `#7a7c70` `#848975` ×7 `#85857a` `#858578` `#87877b` `#898a78` `#8d8d80` `#7f8973` `#7b8569` `#6b6f5f` | Eyebrows, meta lines, secondary copy |
+| `--faint` | `#949486` | `#999b8a` `#939485` `#a0a392` `#a3a597` `#a4aa91` `#b7baaa` | What is not read: placeholders, separators, dots, handles |
+| `--on-fill` | `#fff` | `white` | Text and icons on an olive or orange fill, and over photos |
 
 **Olive**, the brand:
 
@@ -68,36 +58,50 @@ are; see [Contrast](#contrast).
 |---|---|---|---|
 | `--olive` | `#48563a` | | Primary buttons, the current selection |
 | `--olive-deep` | `#34432b` | | Primary buttons on hover |
-| `--olive-soft` | `#8c987b` | `#9aa28a` `#7c9664` | Doodles, history dots, the "ready" mark |
+| `--olive-soft` | `#8c987b` | `#9aa28a` `#7c9664` | Doodles, history dots, the "ready" mark, lineage edges |
+| `--olive-black` | `#172314` | `#15211485` (the hero photo's shade) | The one shadow colour; mixed, never used flat |
 
 **Orange**, the accent:
 
 | Token | Value | Takes in | Use |
 |---|---|---|---|
-| `--orange` | `#bb603e` | `#bf7851` (focus ring) | Emphasis in headings, destructive actions, focus |
+| `--orange` | `#bb603e` | `#bf7851` (focus ring) | Fills, the italic word in a heading, the logo's dot, focus |
+| `--orange-text` | `#a85638` | | Orange as text of ordinary size: destructive actions, hovers, problems |
 | `--orange-deep` | `#ac492f` | | Error text |
 | `--orange-soft` | `#f0d8c9` | `#ead7c4` | Rings around the current version, the earlier-version border |
 | `--orange-wash` | `#fbefe9` | `#f5ede3` | A chosen destructive option, the earlier-version note |
 
 **Diff highlights:** `--added` `#e3ead3` for words that came in. Words that
-went are struck through in `--faint` rather than tinted.
+went are struck through in `--orange-text`.
+
+**Translucent paper**, over a photo, is `--paper` mixed to 93% — `#fffdf5ed`
+and `#fffdf4ec` were two hand-written versions of it.
 
 **Landing tints.** The landing page's source cards use three pairs of a
 background and a text colour, which stay as a set of their own rather than
-joining the palette: yellow `#f2ebd6` / `#ab9150`, peach `#f1e4d9` /
-`#a97556`, green `#e9ecdf` / `#6f7c58`. The handwritten notes and stars
-(`#8a896e`, `#9a835d`, `#ad784b`) belong with them.
+joining the palette: the one decorative exception, kept as `--tint-*` tokens
+so a theme can still reach them.
 
-**Shadows** are one colour, the olive-black `#172314`, at three strengths,
-where there are nine shadows in six colours today:
+| Token | Value |
+|---|---|
+| `--tint-yellow` / `--tint-yellow-ink` | `#f2ebd6` / `#ab9150` |
+| `--tint-peach` / `--tint-peach-ink` | `#f1e4d9` / `#a97556` |
+| `--tint-green` / `--tint-green-ink` | `#e9ecdf` / `#6f7c58` |
+| `--hand-ink` | `#74735a` — the handwritten note, darkened from `#8a896e` to 4.5:1 on cream, as it is read |
+| `--hand-brown` | `#9a835d` — the source note's sparkle |
+| `--hand-star` | `#ad784b` — the rating stars |
+
+**Shadows** are one colour, `--olive-black`, at three strengths, where there
+were nine shadows in six colours:
 
 | Token | Value | Use |
 |---|---|---|
-| `--shadow-low` | `0 6px 18px #1723140d` | Lineage nodes, tabs |
-| `--shadow-raised` | `0 12px 40px #17231424` | Things lifted over the page: the save bar, the toast, floating cards |
-| `--shadow-overlay` | `0 30px 100px #17231440` | Dialogs |
+| `--shadow-low` | `0 6px 18px`, 5% | Lineage nodes, the chosen import tab |
+| `--shadow-raised` | `0 12px 40px`, 14% | Things lifted over the page: the save bar, the toast, menus, floating cards |
+| `--shadow-overlay` | `0 30px 100px`, 25% | Dialogs |
 
-The dialog backdrop is `#252e246b` with a 6px blur.
+The strengths are `color-mix()` of `--olive-black` with transparent. The
+dialog backdrop is `--backdrop`, `#252e246b`, with a 6px blur.
 
 ### Contrast
 
@@ -109,27 +113,28 @@ Worst case is on `--wash`, where selected rows and empty states put text.
 | `--ink` | 10.9 | 11.4 | 10.2 | Passes |
 | `--olive` | 7.4 | 7.7 | 6.9 | Passes; white on olive 7.9 |
 | `--orange-deep` | 5.3 | 5.5 | 4.9 | Passes |
-| `--ink-soft` `#757b6c` | 4.1 | 4.3 | 3.8 | **Fails** — the recipe body |
-| `--muted` `#7a7c70` | 4.0 | 4.2 | 3.7 | **Fails** |
-| `--orange` `#bb603e` | 4.1 | 4.3 | 3.8 | **Fails** as text; white on orange 4.3 |
-| `#848975` (eyebrows) | 3.4 | 3.6 | 3.2 | **Fails** |
-| `--faint` `#949486` | 2.9 | 3.0 | 2.7 | **Fails** |
+| `--ink-soft` `#6a6f62` | 4.9 | 5.1 | 4.5 | Passes — the recipe body |
+| `--muted` `#6d6e64` | 4.9 | 5.1 | 4.5 | Passes |
+| `--orange-text` `#a85638` | 4.9 | 5.1 | 4.5 | Passes |
+| `--orange` `#bb603e` | 4.1 | 4.3 | 3.8 | Large text only; white on orange 4.3 |
+| `--faint` `#949486` | 2.9 | 3.0 | 2.7 | Not for text that is read |
 
-These greys are also the ones used smallest, at 7–10px, where contrast
-matters most. **Planned:** each is darkened just enough to reach 4.5:1 on
-`--wash`, which keeps its hue and most of its softness:
+These greys are also the ones used smallest, where contrast matters most.
+Each was darkened just enough to reach 4.5:1 on `--wash`, which keeps its
+hue and most of its softness:
 
-| Token | Now | Planned | On wash |
+| Token | Was | Is | On wash |
 |---|---|---|---|
 | `--ink-soft` | `#757b6c` | `#6a6f62` | 4.5 |
 | `--muted` | `#7a7c70` | `#6d6e64` | 4.5 |
-| eyebrows, into `--muted` | `#848975` | `#6b6f5f` | 4.5 |
-| `--orange`, as text | `#bb603e` | `#a85638` | 4.5 |
+| eyebrows, into `--muted` | `#848975` | `#6d6e64` | 4.5 |
+| orange as text, `--orange-text` | `#bb603e` | `#a85638` | 4.5 |
 
 `--faint` stays as it is for what is not read — separators, dots,
-placeholders — and is no longer used for meta lines, which move to `--muted`.
-The orange stays `#bb603e` as a fill and for the italic words in display
-headings, which are large enough for 3:1.
+placeholders, the drag handle — and meta lines are `--muted`. The landing
+page's big step numerals, 01 to 03, are `--line-strong`: drawn rather than
+read, like the dots. The orange stays `#bb603e` as a fill and for
+the italic words in display headings, which are large enough for 3:1.
 
 ## Type
 
@@ -143,33 +148,42 @@ Two families, both from Google Fonts:
 Eyebrows — the small line above a heading — are DM Sans in capitals, tracked
 out by 1.7px, in `--muted`.
 
-### Scale — planned
+### Scale
 
-Thirty-eight sizes today, many one pixel apart. Folded into ten. **Nothing
-is set smaller than 7px**, and 7px is only for the smallest UI elements —
-tags, chips, badges, a mark on a card — never for anything read as a line
-or a sentence. Text that is read starts at 9px: today's 8px eyebrows move up
-to it.
+There were thirty-eight sizes, many one pixel apart, folded into ten.
+**Nothing is set smaller than 7px**, and 7px is only for the smallest UI
+elements — tags, chips, badges, the landing page's stamp — never for
+anything read as a line or a sentence. Text that is read starts at 9px:
+the 8px eyebrows, and the 7px lines that were read, moved up to it.
 
 | Token | Size | Family | Use | Takes in |
 |---|---|---|---|---|
-| `--text-tag` | 7px | Sans, caps | Tags, chips, badges — the smallest UI elements only | 7px ×5 |
-| `--text-eyebrow` | 9px | Sans, caps | Eyebrows | 8px ×12 |
-| `--text-meta` | 10px | Sans | Meta lines, captions | 11px |
+| `--text-tag` | 7px | Sans, caps | Tags, chips, badges — the smallest UI elements only | 6px, 7px where it is a badge |
+| `--text-eyebrow` | 9px | Sans, caps | Eyebrows | 8px ×12, 7px where it is read |
+| `--text-meta` | 10px | Sans | Meta lines, captions, tags, text buttons | 11px |
 | `--text-small` | 12px | Sans | Small buttons, secondary copy | |
 | `--text-body` | 13px | Sans | Recipe body, paragraphs | |
 | `--text-ui` | 14px | Sans | Inputs, primary buttons | 15px, 16px |
 | `--title-s` | 17px | Serif | List entries, card titles | 18px, 19px |
-| `--title-m` | 24px | Serif | Section headings, states | 22px, 23px, 26px |
-| `--title-l` | 34px | Serif | Page and recipe titles | 27–33px |
+| `--title-m` | 24px | Serif | Section headings, states, a phone's titles | 21–23px, 26px |
+| `--title-l` | 34px | Serif | Page and recipe titles, the logo | 27–33px |
 | `--display` | `clamp(38px, 5vw, 61px)` | Serif | The hero and landing headings | 36–77px |
 
-Weights: 400, 500 and 600. The stylesheet uses six (400–700 in steps of 50),
-and the font is loaded with seven.
+The sizes are named by step rather than by family: the logo, in DM Sans, is
+`--title-l`, and an ingredient heading can be `--title-s`.
+
+**A size for a narrower screen folds to its nearest step**, not to the
+step its range folds into above: it is there to be smaller than the one it
+replaces, so a phone's 27–29px titles are `--title-m`, not `--title-l`.
+
+Weights: 400, 500 and 600, and those are all that are loaded — DM Sans at
+the three, Playfair Display at 400 and its italic, the only ones it is set
+in. `b`, `strong` and `h3` ask for 600 rather than the browser's 700.
 
 ## Shape
 
-**Radii**, seventeen today:
+**Radii**, from seventeen. The landing hero's photo keeps its 135px corner,
+a shape rather than a radius; its other three are `--radius-m`.
 
 | Token | Value | Use |
 |---|---|---|
@@ -229,7 +243,7 @@ than appearing — rows in the editor, the save bar.
 
 ## Motion
 
-### Tokens — planned
+### Tokens
 
 | Token | Value | For |
 |---|---|---|
@@ -240,8 +254,14 @@ than appearing — rows in the editor, the save bar.
 | `--ease-move` | `cubic-bezier(0.4, 0, 0.2, 1)` | Moving from one place to another |
 | `--ease-exit` | `ease-in` | Leaving |
 
-Today's ten durations map onto them: 0.12–0.16s to exit, 0.2–0.25s to
-enter, 0.35–0.4s to move. The 0.4s zoom on a hovered card image is a move.
+The ten durations there were map onto them: 0.12–0.16s to exit,
+0.2–0.25s to enter, 0.35–0.4s to move, and hover and focus colour changes
+to exit. The 0.4s zoom on a hovered card image is a move. A delay waiting
+for something to leave is `--dur-exit`.
+
+Where an arriving and a leaving transition share a rule, the leave still
+takes the arrival's time and easing. Splitting those rules, so leaving is
+quicker as the rules below ask, is still to do.
 
 ### Rules
 
@@ -290,7 +310,6 @@ Tests that measure where something is wait for it to settle first, 400–500ms.
   picture growing into the recipe.
 - **Dark mode is out of scope for now**, and will be an issue of its own.
   Keeping every colour a token is what this page does to leave room for it.
-- **The palette, contrast fixes, type scale, radii, shadows and motion
-  tokens above are agreed.** The redesign moves the stylesheet onto them:
-  tokens first, then a section of the stylesheet at a time, with a
-  screenshot of each page before and after.
+- **The stylesheet sets its values only through these tokens** (#64). The
+  landing page's tints are the one exception, and are still tokens, of a
+  set of their own.
