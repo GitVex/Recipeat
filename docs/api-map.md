@@ -134,7 +134,7 @@ Body `{ "url": string }`, http or https, at most 2048 characters. Same
 | 415 | Content type is not JSON |
 | 400 | Not valid JSON, or `url` missing, not a string, or not an http(s) address |
 | 413 | URL too long, or the page too large to read |
-| 422 | No scraper for that site, no recipe on the page, or the URL serves something that is not a page |
+| 422 | No recipe on the page (no scraper for the site and no schema.org markup), or the URL serves something that is not a page |
 | 502 | The site failed or was unreachable, or the fetcher could not be reached |
 | 504 | The site did not answer in time |
 
@@ -585,7 +585,7 @@ Content-Type: application/json
 |---|---|
 | 413 | The page is larger than the read limit |
 | 415 | The URL served something that is not a web page |
-| 422 | `url` missing or malformed, no scraper for the site, or no recipe on the page |
+| 422 | `url` missing or malformed, or no recipe on the page: no scraper for the site and no schema.org markup |
 | 502 | The site errored, was unreachable, or redirected too many times |
 | 504 | The site did not answer in time |
 

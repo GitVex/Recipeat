@@ -17,7 +17,17 @@ from recipeat_fetcher.app import app
 from recipeat_fetcher.config import Settings, get_settings
 
 RECIPE_HTML = b"<html><head><title>Pancakes</title></head><body>Pancakes</body></html>"
-GERMAN_HTML = "<html>Gr\u00fc\u00dfe aus der K\u00fcche</html>".encode("iso-8859-1")
+# A food blog no scraper is written for, carrying schema.org Recipe markup the
+# way most of them do.
+MARKED_HTML = b"""<html><head><title>Pancakes</title>
+<script type="application/ld+json">
+{"@context": "https://schema.org", "@type": "Recipe", "name": "Loopback Pancakes",
+ "recipeYield": "4 servings", "totalTime": "PT25M",
+ "recipeIngredient": ["1 1/2 cups milk", "2 eggs"],
+ "recipeInstructions": [{"@type": "HowToStep", "text": "Whisk."},
+                        {"@type": "HowToStep", "text": "Fry."}]}
+</script></head><body>Pancakes</body></html>"""
+GERMAN_HTML ="<html>Gr\u00fc\u00dfe aus der K\u00fcche</html>".encode("iso-8859-1")
 
 
 class _Handler(BaseHTTPRequestHandler):
@@ -27,6 +37,7 @@ class _Handler(BaseHTTPRequestHandler):
     def do_GET(self):  # noqa: N802 - BaseHTTPRequestHandler's spelling
         routes = {
             "/recipe": (RECIPE_HTML, "text/html; charset=utf-8"),
+            "/marked": (MARKED_HTML, "text/html; charset=utf-8"),
             "/latin": (GERMAN_HTML, "text/html; charset=iso-8859-1"),
             "/no-charset": (GERMAN_HTML, "text/html"),
             "/pdf": (b"%PDF-1.4", "application/pdf"),

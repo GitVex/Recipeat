@@ -3,12 +3,7 @@ from typing import Annotated, Callable, TypeVar
 from fastapi import APIRouter, Depends, HTTPException
 from ingredient_parser import parse_multiple_ingredients
 from ingredient_parser.dataclasses import ParsedIngredient
-from recipe_scrapers import (
-    NoSchemaFoundInWildMode,
-    RecipeSchemaNotFound,
-    WebsiteNotImplementedError,
-    scrape_html,
-)
+from recipe_scrapers import NoSchemaFoundInWildMode, RecipeSchemaNotFound, scrape_html
 
 from ..config import Settings, get_settings
 from ..models import (
@@ -89,12 +84,12 @@ def fetch(
     html, final_url = fetch_page(str(request.url), settings)
 
     try:
-        scraper = scrape_html(html, org_url=final_url)
-    except WebsiteNotImplementedError as error:
-        raise HTTPException(
-            status_code=422,
-            detail=f"No recipe scraper supports {request.url.host}.",
-        ) from error
+        # A host with no scraper of its own falls back to the page's schema.org
+        # Recipe markup. Passed explicitly, because the library's default is to
+        # refuse such a host, and a default can change under an upgrade. With
+        # the fallback on, no host is refused for being unknown, so
+        # WebsiteNotImplementedError cannot be raised here.
+        scraper = scrape_html(html, org_url=final_url, supported_only=False)
     except (NoSchemaFoundInWildMode, RecipeSchemaNotFound) as error:
         raise HTTPException(
             status_code=422,

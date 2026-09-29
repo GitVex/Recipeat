@@ -47,6 +47,7 @@ def scraped(monkeypatch):
         def scrape_html(html, org_url, **kwargs):
             seen["html"] = html
             seen["org_url"] = org_url
+            seen["kwargs"] = kwargs
             return StubScraper(**fields)
 
         monkeypatch.setattr("recipeat_fetcher.routers.fetch.scrape_html", scrape_html)
@@ -112,12 +113,33 @@ def test_more_ingredients_than_the_cap_are_not_parsed(client, site, scraped):
     assert len(body["ingredients"]) == MAX_INGREDIENTS
 
 
-def test_a_site_without_a_scraper_says_so(client, site):
-    """The real dispatch: loopback is not a recipe site, and the fetch has
-    already happened by the time anyone knows that."""
+def test_the_markup_fallback_is_asked_for_rather_than_defaulted(client, site, scraped):
+    """The library's default for an unknown host is to refuse it. Relying on
+    the default either way would let an upgrade change which sites work."""
+    seen = scraped(ingredients=[], instructions_list=[])
+    client.post("/fetch", json={"url": site("/recipe")})
+    assert seen["kwargs"] == {"supported_only": False}
+
+
+def test_a_site_without_a_scraper_is_read_from_its_recipe_markup(client, site):
+    """The real dispatch: loopback has no scraper, so this is the schema.org
+    fallback reading the page, not a stub."""
+    response = client.post("/fetch", json={"url": site("/marked")})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["title"] == "Loopback Pancakes"
+    assert body["yields"] == "4 servings"
+    assert body["totalTime"] == 25
+    assert [item["originalText"] for item in body["ingredients"]] == ["1 1/2 cups milk", "2 eggs"]
+    assert body["steps"] == ["Whisk.", "Fry."]
+
+
+def test_a_site_without_a_scraper_or_markup_holds_no_recipe(client, site):
+    """Nothing is refused for its host any more; a page is refused for having
+    nothing to read, and only after it has been fetched."""
     response = client.post("/fetch", json={"url": site("/recipe")})
     assert response.status_code == 422
-    assert "127.0.0.1" in response.json()["detail"]
+    assert response.json()["detail"] == "That page does not contain a recipe."
 
 
 @pytest.mark.parametrize("url", ["not-a-url", "ftp://example.com/r", "", None])

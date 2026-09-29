@@ -315,8 +315,8 @@ test('fetcher failures become the status the caller should see', async () => {
 
   // A detail from the fetcher is a message we wrote about the caller's own
   // URL, so it is passed on rather than replaced with something vaguer.
-  await assert.rejects(extract(served({ detail: 'No recipe scraper supports example.com.' }, { status: 422 })),
-    error => status(422)(error) && /No recipe scraper supports/.test((error as Error).message))
+  await assert.rejects(extract(served({ detail: 'That page does not contain a recipe.' }, { status: 422 })),
+    error => status(422)(error) && /does not contain a recipe/.test((error as Error).message))
   await assert.rejects(extract(served({ detail: 'That page is too large to read.' }, { status: 413 })), status(413))
   await assert.rejects(extract(served({ detail: 'example.com answered 404.' }, { status: 502 })),
     error => status(502)(error) && /answered 404/.test((error as Error).message))
