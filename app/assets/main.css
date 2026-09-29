@@ -3736,10 +3736,10 @@ a.history-title:hover {
 /* A collection's rows slide to their new places when the order changes, and
    a row taken out fades while the rest close up after it. */
 .reorder-move {
-    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform var(--dur-move) var(--ease-move);
 }
 .reorder-leave-active {
-    transition: opacity 0.12s ease-in;
+    transition: opacity var(--dur-exit) var(--ease-exit);
     position: absolute;
     left: 0;
     right: 0;
@@ -3751,13 +3751,13 @@ a.history-title:hover {
    back up quicker than it came. */
 .dropdown-enter-active {
     transition:
-        opacity 0.2s cubic-bezier(0.2, 0.8, 0.2, 1),
-        transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+        opacity var(--dur-enter) var(--ease-enter),
+        transform var(--dur-enter) var(--ease-enter);
 }
 .dropdown-leave-active {
     transition:
-        opacity 0.12s ease-in,
-        transform 0.12s ease-in;
+        opacity var(--dur-exit) var(--ease-exit),
+        transform var(--dur-exit) var(--ease-exit);
 }
 .dropdown-enter-from,
 .dropdown-leave-to {
@@ -3767,11 +3767,11 @@ a.history-title:hover {
 
 .dialog-enter-active,
 .dialog-leave-active {
-    transition: opacity 0.22s ease;
+    transition: opacity var(--dur-enter) var(--ease-enter);
 }
 .dialog-enter-active .modal,
 .dialog-leave-active .modal {
-    transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+    transition: transform var(--dur-enter) var(--ease-enter);
 }
 .dialog-enter-from,
 .dialog-leave-to {
@@ -3792,8 +3792,8 @@ a.history-title:hover {
 .toast-enter-active,
 .toast-leave-active {
     transition:
-        opacity 0.25s ease,
-        translate 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+        opacity var(--dur-enter) var(--ease-enter),
+        translate var(--dur-enter) var(--ease-enter);
 }
 .toast-enter-from,
 .toast-leave-to {
@@ -3808,8 +3808,8 @@ a.history-title:hover {
 .row-enter-active,
 .row-leave-active {
     transition:
-        transform 0.25s ease,
-        opacity 0.2s ease;
+        transform var(--dur-enter) var(--ease-enter),
+        opacity var(--dur-enter) var(--ease-enter);
 }
 .row-enter-from,
 .row-leave-to {
@@ -3830,8 +3830,8 @@ a.history-title:hover {
 .bar-enter-active,
 .bar-leave-active {
     transition:
-        opacity 0.16s ease,
-        transform 0.16s ease;
+        opacity var(--dur-exit) var(--ease-exit),
+        transform var(--dur-exit) var(--ease-exit);
 }
 .bar-enter-from {
     opacity: 0;
@@ -3844,7 +3844,7 @@ a.history-title:hover {
 /* Opacity alone: a transform on a page would hold its fixed dialogs to it. */
 .page-enter-active,
 .page-leave-active {
-    transition: opacity 0.16s ease;
+    transition: opacity var(--dur-exit) var(--ease-exit);
 }
 .page-enter-from,
 .page-leave-to {
@@ -3855,7 +3855,7 @@ a.history-title:hover {
 .edit-bar-problem,
 .add-failure,
 .import-failure {
-    animation: rise-in 0.2s ease;
+    animation: rise-in var(--dur-enter) var(--ease-enter);
 }
 @keyframes rise-in {
     from {
@@ -3872,7 +3872,7 @@ a.history-title:hover {
 }
 .preview-enter-active,
 .preview-leave-active {
-    transition: opacity 0.2s ease;
+    transition: opacity var(--dur-enter) var(--ease-enter);
 }
 .preview-leave-active {
     position: absolute;
