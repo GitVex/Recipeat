@@ -4,6 +4,12 @@ import type {
   ExtractionRequest,
   ExtractionSource,
 } from "~/composables/useExtraction";
+import {
+  NO_MARKUP,
+  SITE_HINT,
+  siteSupport,
+  type SiteSupport,
+} from "#shared/utils/siteSupport";
 const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{
   close: [];
@@ -17,6 +23,41 @@ const mode = ref<ExtractionSource>("website");
 const input = ref("");
 const file = ref<File | null>(null);
 const error = ref("");
+
+// The hosts with a scraper of their own, asked for the first time the Website
+// tab is shown. Until they arrive, or if they never do, no hint is given:
+// with no list every link would look unsupported.
+const sites = useLazyFetch<{ hosts: string[] }>("/api/extract/sites", {
+  key: "supported-sites",
+  server: false,
+  immediate: false,
+  retry: 0,
+});
+const hosts = computed(() =>
+  sites.data.value ? new Set(sites.data.value.hosts) : null,
+);
+const support = computed(() =>
+  mode.value === "website" && hosts.value
+    ? siteSupport(input.value, hosts.value)
+    : null,
+);
+watchEffect(() => {
+  if (
+    props.open &&
+    loggedIn.value &&
+    mode.value === "website" &&
+    sites.status.value === "idle"
+  )
+    sites.execute();
+});
+// What the hint said about the link that was sent, so a page with no recipe
+// on it is refused in the same words.
+const sentSupport = ref<SiteSupport | null>(null);
+const failureMessage = computed(() =>
+  failure.value?.action === "edit" && sentSupport.value === "markup"
+    ? NO_MARKUP
+    : failure.value?.message,
+);
 
 // Signing in leaves the page, so what was typed goes to sessionStorage first
 // and comes back when the provider sends the user home. A photo cannot make
@@ -110,6 +151,7 @@ async function submit() {
   error.value = "";
   const next = request();
   if (!next) return;
+  sentSupport.value = support.value;
   const recipe = await extract(next);
   if (recipe) emit("extracted", recipe);
 }
@@ -160,6 +202,7 @@ const WAIT: Record<ExtractionSource, string> = {
             v-model="input"
             type="url"
             placeholder="https://your-favorite-food-blog.com/recipe"
+            aria-describedby="site-hint"
             required /></label
         ><label v-else-if="mode === 'text'" class="field-label"
           >Recipe text<textarea
@@ -175,13 +218,24 @@ const WAIT: Record<ExtractionSource, string> = {
           ><span>JPG, PNG, or another image format</span
           ><input type="file" accept="image/*" @change="chooseFile"
         /></label>
+        <p
+          v-if="mode === 'website'"
+          id="site-hint"
+          :class="['site-hint', support]"
+          aria-live="polite"
+        >
+          <template v-if="support">{{ SITE_HINT[support] }} </template
+          ><NuxtLink to="/sites" target="_blank">{{
+            support ? "See the list" : "See which sites are supported"
+          }}</NuxtLink>
+        </p>
         <p v-if="error" role="alert" class="error">{{ error }}</p>
         <div
           v-else-if="failure"
           role="alert"
           :class="['import-failure', { error: failure.fault }]"
         >
-          <p>{{ failure.message }}</p>
+          <p>{{ failureMessage }}</p>
           <button
             v-if="failure.action === 'retry'"
             type="submit"

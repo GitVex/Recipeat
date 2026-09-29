@@ -54,7 +54,7 @@ Response: the same `{ "recipe": { … } }` as above.
 | 415 | Content type is not JSON |
 | 400 | Body is not valid JSON, or `url` is missing, not a string, or not an http(s) address |
 | 413 | The URL is too long, or the page is too large to read |
-| 422 | No scraper supports that site, the page holds no recipe, or the URL serves something that is not a page |
+| 422 | The page holds no recipe, or the URL serves something that is not a page |
 | 502 | The site failed or was unreachable, or the fetcher could not be reached |
 | 504 | The site did not answer in time |
 
@@ -62,6 +62,35 @@ Response: the same `{ "recipe": { … } }` as above.
 data and `ingredient-parser` segments each ingredient line, both
 deterministically. A page that took 2m 17s through the model takes seconds, which
 is why this is an ordinary request and not a job and a poll.
+
+### Which sites work
+
+Any site can be tried; none is refused for its address. How a page is read
+depends on its host:
+
+- **A supported site.** `recipe-scrapers` has a scraper written for the host,
+  over 700 of them, and reads the page with it. This is the reliable case.
+  Matching is on the host with a leading `www.` removed, and nothing else: a
+  country variant is supported only if it is on the list itself
+  (`bbcgoodfood.com` is, a subdomain of it is not).
+- **Any other site with recipe markup.** The fetcher falls back to the page's
+  schema.org `Recipe` data, the JSON-LD most food blogs publish for search
+  engines. It usually works, but nothing guarantees how complete the markup
+  is: a field the page leaves out arrives as null.
+- **Neither.** A page with no `Recipe` markup is a 422, found out only after
+  the page was fetched.
+
+The fallback is asked for (`supported_only=False`) rather than left to the
+library's default, which is to refuse an unknown host; an upgrade that moves the
+default cannot change which sites work.
+
+The import dialog says which of the first two a link is while it is typed,
+from the fetcher's list (`GET /api/extract/sites`) and without fetching the
+page: "Supported", or "Not on the supported list, so we'll try reading the
+page's recipe markup". It never blocks a link. When an unlisted page turns out
+to have no recipe, the 422 is shown in the hint's words, so the failure is
+the thing the hint said would be tried. The whole list is at `/sites`.
+Matching is in `shared/utils/siteSupport.ts`.
 
 The fetcher's own 4xx messages name the host the caller asked for, so they are
 passed on rather than replaced with something vaguer. Its 415 arrives as a 422,

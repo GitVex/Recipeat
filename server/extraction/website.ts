@@ -101,6 +101,37 @@ async function askFetcher(
   return payload as Record<string, unknown>
 }
 
+// A list of hostnames and nothing else; a response too large for that is not
+// one. The installed library has a few hundred.
+const MAX_SITES = 10_000
+const SITES_TIMEOUT_MS = 10_000
+
+/**
+ * The hosts the fetcher has a scraper for, as its installed recipe-scrapers
+ * lists them. Only a hint is drawn from it, so anything malformed is a 502
+ * the dialog can go without rather than something to repair.
+ */
+export async function supportedSites(
+  config: FetcherConfig,
+  fetcher: typeof globalThis.fetch = globalThis.fetch,
+): Promise<string[]> {
+  let payload: unknown
+  try {
+    const response = await fetcher(`${config.fetcherBaseUrl.replace(/[/]+$/, '')}/sites`, {
+      signal: AbortSignal.timeout(SITES_TIMEOUT_MS),
+    })
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    payload = await response.json()
+  } catch (error) {
+    throw fail(502, 'The recipe fetcher could not list its sites.', error)
+  }
+  const hosts = (payload as { hosts?: unknown } | null)?.hosts
+  if (!Array.isArray(hosts) || hosts.length > MAX_SITES || !hosts.every(host => typeof host === 'string')) {
+    throw fail(502, 'The recipe fetcher returned a malformed site list.', payload)
+  }
+  return hosts
+}
+
 /**
  * The website modality. No model runs here: the fetcher reads the page's
  * structured data and segments its ingredient lines, so this only renames what

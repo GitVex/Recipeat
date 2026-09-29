@@ -134,7 +134,7 @@ Body `{ "url": string }`, http or https, at most 2048 characters. Same
 | 415 | Content type is not JSON |
 | 400 | Not valid JSON, or `url` missing, not a string, or not an http(s) address |
 | 413 | URL too long, or the page too large to read |
-| 422 | No scraper for that site, no recipe on the page, or the URL serves something that is not a page |
+| 422 | No recipe on the page (no scraper for the site and no schema.org markup), or the URL serves something that is not a page |
 | 502 | The site failed or was unreachable, or the fetcher could not be reached |
 | 504 | The site did not answer in time |
 
@@ -144,6 +144,18 @@ confirm the app is wired to a service at all.
 Note the one deliberate remapping: the fetcher's own 415 (a URL serving a PDF)
 arrives here as **422**, because that is a problem with what was asked for, not
 with the content type of the asking.
+
+### `GET /api/extract/sites`
+
+```
+GET {{app}}/api/extract/sites
+```
+
+`{ "hosts": string[] }`: the fetcher's `GET /sites`, passed on. No session,
+since it is the public library's list. Cached in the server for a day and in
+the browser for an hour, so after a fetcher upgrade the new list can take a day
+to show; restarting the app clears it. 502 when the fetcher could not be asked,
+which the import dialog takes as "no hint" rather than as an error.
 
 ### `POST /api/extract/photo`
 
@@ -557,6 +569,12 @@ a fetcher problem from an app problem.
 
 `{"status": "ok"}` once it is up.
 
+### `GET /sites`
+
+`{"hosts": ["101cookbooks.com", …]}`: every host the installed
+`recipe-scrapers` has a scraper for, sorted, with no `www.`. Any other host is
+read from its schema.org markup instead.
+
 ### `POST /fetch`
 
 ```
@@ -585,7 +603,7 @@ Content-Type: application/json
 |---|---|
 | 413 | The page is larger than the read limit |
 | 415 | The URL served something that is not a web page |
-| 422 | `url` missing or malformed, no scraper for the site, or no recipe on the page |
+| 422 | `url` missing or malformed, or no recipe on the page: no scraper for the site and no schema.org markup |
 | 502 | The site errored, was unreachable, or redirected too many times |
 | 504 | The site did not answer in time |
 

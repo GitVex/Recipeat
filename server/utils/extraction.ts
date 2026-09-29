@@ -3,7 +3,7 @@
 // read -> extract -> parseExtraction -> normalizeRecipe.
 export { MAX_TEXT_LENGTH, readExtractionText, validateText } from '../extraction/text.ts'
 export { MAX_PHOTO_BYTES, readExtractionPhoto, type Photo } from '../extraction/photo.ts'
-export { extractWebsite, readExtractionUrl, validateUrl, type FetcherConfig } from '../extraction/website.ts'
+export { extractWebsite, readExtractionUrl, supportedSites, validateUrl, type FetcherConfig } from '../extraction/website.ts'
 // Both model-backed modalities. The photo path sends the photograph itself, so
 // there is no reading step between the page and the recipe and nothing that has
 // to decide the page's layout first.

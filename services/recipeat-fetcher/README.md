@@ -35,8 +35,11 @@ has its own suite. `units.json` is checked from both sides — here, and by
 
 ## Fetch
 
-`POST /fetch` scrapes a recipe from a supported site and parses its ingredient
-lines in the same call.
+`POST /fetch` scrapes a recipe from a page and parses its ingredient lines in
+the same call. A host `recipe-scrapers` has a scraper for is read with it; any
+other falls back to the page's schema.org `Recipe` markup
+(`supported_only=False`, passed explicitly because the library's default is to
+refuse the host).
 
 ```sh
 curl -X POST http://localhost:8103/fetch \
@@ -63,7 +66,7 @@ curl -X POST http://localhost:8103/fetch \
 |---|---|
 | 413 | The page is larger than the read limit |
 | 415 | The URL served something that is not a web page |
-| 422 | `url` is missing or malformed, the site has no scraper, or the page holds no recipe |
+| 422 | `url` is missing or malformed, or the page holds no recipe: no scraper for the site and no schema.org markup |
 | 502 | The site answered with an error, was unreachable, or redirected too many times |
 | 504 | The site did not answer in time |
 
@@ -83,6 +86,20 @@ in another encoding.
 redirect is followed wherever it points, so a URL given to this service can
 reach anything the container can. Until that lands, it must not share a network
 with anything private.
+
+## Supported sites
+
+`GET /sites` lists the hosts with a scraper of their own, read from the
+installed library's `SCRAPERS` so an upgrade updates it. The import dialog
+checks a link against it to say which way the page will be read.
+
+```jsonc
+{ "hosts": ["101cookbooks.com", "15gram.be", "…"] }
+```
+
+A key is what `scrape_html` compares a page's host with once a leading `www.`
+is gone, exactly: `cooking.nytimes.com` is listed and `nytimes.com` is not, and
+each country variant (`hellofresh.de`, `hellofresh.at`) is its own entry.
 
 ## Parse ingredients
 
