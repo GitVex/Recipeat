@@ -1,10 +1,88 @@
+/* The design tokens (docs/design.md). Everything below sets colour, size,
+   radius, shadow and motion through these, so a theme is a second set of
+   values for them. */
 :root {
+    /* Surfaces, lightest first. */
+    --paper: #fffdf8;
     --cream: #faf8f2;
-    --ink: #303c2d;
-    --olive: #48563a;
-    --muted: #7a7c70;
+    --cream-deep: #f6f5ee;
+    --wash: #f0f1e7;
+    --sage-100: #e4e7db;
+
+    /* Lines. */
     --line: #e5e5d9;
+    --line-strong: #d5d8c9;
+    --line-dashed: #b6bea8;
+
+    /* Text, darkest first. --faint is for what is not read: separators,
+       dots, placeholders. */
+    --ink: #303c2d;
+    --ink-soft: #757b6c;
+    --muted: #7a7c70;
+    --faint: #949486;
+    --on-fill: #fff;
+
+    /* Olive, the brand. */
+    --olive: #48563a;
+    --olive-deep: #34432b;
+    --olive-soft: #8c987b;
+    --olive-black: #172314;
+
+    /* Orange, the accent: a fill and the italic word in a heading at
+       --orange, text at --orange-text. */
     --orange: #bb603e;
+    --orange-text: #a85638;
+    --orange-deep: #ac492f;
+    --orange-soft: #f0d8c9;
+    --orange-wash: #fbefe9;
+
+    --added: #e3ead3;
+
+    /* One shadow colour at three strengths. */
+    --shadow-low: 0 6px 18px color-mix(in srgb, var(--olive-black) 5%, transparent);
+    --shadow-raised: 0 12px 40px color-mix(in srgb, var(--olive-black) 14%, transparent);
+    --shadow-overlay: 0 30px 100px color-mix(in srgb, var(--olive-black) 25%, transparent);
+    --backdrop: #252e246b;
+
+    /* Type. --text-tag is for the smallest UI elements alone — tags, chips,
+       badges; anything read starts at --text-eyebrow. */
+    --text-tag: 7px;
+    --text-eyebrow: 9px;
+    --text-meta: 10px;
+    --text-small: 12px;
+    --text-body: 13px;
+    --text-ui: 14px;
+    --title-s: 17px;
+    --title-m: 24px;
+    --title-l: 34px;
+    --display: clamp(38px, 5vw, 61px);
+
+    /* Radii. Pills are 999px and round things 50%. */
+    --radius-s: 6px;
+    --radius-m: 10px;
+    --radius-l: 14px;
+    --radius-xl: 18px;
+
+    /* Motion. Leaving is quicker than arriving. */
+    --dur-exit: 120ms;
+    --dur-enter: 200ms;
+    --dur-move: 350ms;
+    --ease-enter: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --ease-move: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-exit: ease-in;
+
+    /* The landing page's source cards and handwriting: a set of their own,
+       decoration rather than palette. */
+    --tint-yellow: #f2ebd6;
+    --tint-yellow-ink: #ab9150;
+    --tint-peach: #f1e4d9;
+    --tint-peach-ink: #a97556;
+    --tint-green: #e9ecdf;
+    --tint-green-ink: #6f7c58;
+    --hand-ink: #8a896e;
+    --hand-brown: #9a835d;
+    --hand-star: #ad784b;
+
     font-family: "DM Sans", sans-serif;
     color: var(--ink);
     background: var(--cream);
