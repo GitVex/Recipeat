@@ -195,7 +195,7 @@ useHead(() => ({
           <template #node-lineage="{ data }">
             <LineageNode :data="data" />
           </template>
-          <Background :gap="24" pattern-color="#dcdccf" />
+          <Background :gap="24" />
           <Controls :show-interactive="false" position="bottom-right" />
         </VueFlow>
       </div>
