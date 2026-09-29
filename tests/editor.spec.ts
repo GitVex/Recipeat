@@ -75,7 +75,10 @@ test('a field is typed into where it stands, and Save writes the edit and render
   await expect(bar(page)).toHaveCount(0)
 
   // Reading and typing take the same room: nothing below the title moves.
+  // Measured once the list has folded into the rail, which widens the pane
+  // and reflows everything in it.
   const heading = page.getByRole('heading', { name: 'Ingredients' })
+  await page.waitForTimeout(500)
   const before = await heading.boundingBox()
   await page.getByRole('button', { name: 'Edit title: Focaccia' }).click()
   const title = page.getByRole('textbox', { name: 'title' })
