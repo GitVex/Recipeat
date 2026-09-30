@@ -4,6 +4,7 @@
 export { MAX_TEXT_LENGTH, readExtractionText, validateText } from '../extraction/text.ts'
 export { MAX_PHOTO_BYTES, readExtractionPhoto, type Photo } from '../extraction/photo.ts'
 export { extractWebsite, readExtractionUrl, supportedSites, validateUrl, type FetcherConfig } from '../extraction/website.ts'
+export { extractInstagram, instagramShortcode, readExtractionInstagram, validateInstagramUrl } from '../extraction/instagram.ts'
 // Both model-backed modalities. The photo path sends the photograph itself, so
 // there is no reading step between the page and the recipe and nothing that has
 // to decide the page's layout first.
@@ -11,6 +12,7 @@ export {
   askGemini,
   extractPhoto,
   extractText,
+  INSTAGRAM_PROMPT,
   PHOTO_PROMPT,
   SYSTEM_PROMPT,
   type GeminiConfig,

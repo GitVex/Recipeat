@@ -187,6 +187,34 @@ Expect five to nine seconds for a page. Nothing on this side decodes the image,
 so the media type the browser declared is forwarded as-is and an unreadable one
 is answered for by the model, not caught here.
 
+### `POST /api/extract/instagram`
+
+```
+POST {{app}}/api/extract/instagram
+Content-Type: application/json
+Cookie: nuxt-oidc-auth=<value>
+
+{ "url": "https://www.instagram.com/p/DbXWEUaxWVd/" }
+```
+
+Body `{ "url": string }`: a link to one post — `/p/`, `/reel/` or `/tv/` on
+`instagram.com`, query string allowed. Same `{ "recipe": { … } }` shape, with an
+`instagram` source.
+
+| Status | Meaning |
+|---|---|
+| 401 | No session |
+| 415 | Content type is not JSON |
+| 400 | Not valid JSON, or `url` missing, not a string, or not a link to an Instagram post |
+| 413 | URL too long, or the post's images too large together |
+| 422 | The post is missing or private (logged out they look the same), or the model found no recipe in it |
+| 502 | Instagram, the fetcher or the model failed or was unreachable |
+| 503 | Instagram is throttling the fetcher, or the model is busy; retry later |
+| 504 | Instagram or the model did not answer in time |
+
+Two calls: the fetcher's `POST /instagram`, then the model with the caption and
+every image at once. Only the shortcode reaches the fetcher.
+
 ### `POST /api/recipes`
 
 ```
@@ -615,6 +643,13 @@ address is resolved and checked, and redirects are followed wherever they
 point. On a tunnel you are driving it from your laptop but it resolves from
 inside the container, so treat what you send it as you would a request made
 from the VPS itself.
+
+### `POST /instagram`
+
+`{ "shortcode": "DbXWEUaxWVd" }` → the post's `url`, `author`, `caption` and
+`images` (`{ mimeType, data }`, base64). Statuses and limits are in the
+fetcher's README. Unlike `/fetch`, it cannot be pointed at a host: it takes a
+shortcode, and reads media from Instagram's hosts only.
 
 ### `POST /ingredients`
 

@@ -105,6 +105,7 @@ const ORIGIN: Record<RecipeSource['type'], { service: string, where: string }> =
   text: { service: 'The extraction service', where: 'in that text' },
   website: { service: 'The recipe fetcher', where: 'on that page' },
   photo: { service: 'The extraction service', where: 'in that photo' },
+  instagram: { service: 'The extraction service', where: 'in that post' },
 }
 
 export function parseExtraction(value: unknown, source: RecipeSource): ExtractedRecipe {

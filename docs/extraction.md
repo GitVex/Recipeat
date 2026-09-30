@@ -168,9 +168,19 @@ the browser sent is recorded. Object storage is what fills it in; see
 
 ## Instagram
 
+```sh
+curl -X POST http://localhost:8100/api/extract/instagram   -b 'your-session-cookie'   -H 'Content-Type: application/json'   -d '{"url":"https://www.instagram.com/p/DbXWEUaxWVd/"}'
+```
+
+Request: `{ "url": string }`, a link to one post. Response: the same
+`{ "recipe": { … } }` as above. Statuses are in the [API map](./api-map.md).
+
 A post has no recipe markup, so it is on the model path: the caption and the
-post's images go to the model together, since these recipes are routinely split
-across the two.
+post's images go to the model together, in one call, since these recipes are
+routinely split across the two. The prompt adds that the caption comes first
+and the images after it in order, that hashtags and calls to follow are not the
+recipe, and that a picture of the finished dish is neither ingredient nor step.
+A video contributes its cover image; nothing watches the video.
 
 **How a post is read: scraped, logged out (#111).** The fetcher reads a post
 with [instaloader](https://instaloader.github.io/) and no account.

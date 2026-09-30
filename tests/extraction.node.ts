@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import { createServer } from 'node:http'
 import { readFileSync } from 'node:fs'
 import { createApp, defineEventHandler, readRawBody, toNodeListener, toWebHandler } from 'h3'
-import { extractPhoto, extractText, extractWebsite, isUnit, normalizeRecipe, parseExtraction, parseQuantity, readExtractionPhoto, readExtractionText, supportedSites, unitInfo, validateText, validateUrl } from '../server/utils/extraction.ts'
+import { extractInstagram, extractPhoto, extractText, extractWebsite, validateInstagramUrl, isUnit, normalizeRecipe, parseExtraction, parseQuantity, readExtractionPhoto, readExtractionText, supportedSites, unitInfo, validateText, validateUrl } from '../server/utils/extraction.ts'
 
 const bread = { originalText: '1 slice bread', quantity: '1 slice', name: 'bread' }
 const recipe = { title: 'Toast', source_lang: 'en', portions: 1, ingredients: [bread], steps: ['Toast the bread.'] }
@@ -542,4 +542,78 @@ test('the site list is the fetcher\'s, and anything else from it is a 502', asyn
   }
   await assert.rejects(supportedSites(fetcherConfig, served({ detail: 'down' }, { status: 500 })), status(502))
   await assert.rejects(supportedSites(fetcherConfig, async () => { throw new TypeError('fetch failed') }), status(502))
+})
+
+test('only a link to an Instagram post is taken, and only its shortcode goes on', () => {
+  for (const url of [
+    'https://www.instagram.com/p/DbXWEUaxWVd/',
+    'https://instagram.com/p/DbXWEUaxWVd',
+    'https://www.instagram.com/reel/DbXWEUaxWVd/?igsh=abc',
+    'https://www.instagram.com/noor.baqtiar/p/DbXWEUaxWVd/',
+    'http://m.instagram.com/tv/DbXWEUaxWVd/',
+  ]) assert.equal(validateInstagramUrl({ url }), 'DbXWEUaxWVd', url)
+
+  for (const url of [
+    'https://www.instagram.com/noor.baqtiar/',
+    'https://www.instagram.com/p/',
+    'https://evil.example/p/DbXWEUaxWVd/',
+    'https://instagram.com.evil.example/p/DbXWEUaxWVd/',
+    'https://www.instagram.com/p/DbX/../../x/',
+    'javascript:alert(1)',
+  ]) assert.throws(() => validateInstagramUrl({ url }), status(400), url)
+  for (const body of [null, [], {}, { url: 42 }]) assert.throws(() => validateInstagramUrl(body), status(400))
+})
+
+const post = {
+  url: 'https://www.instagram.com/p/DbXWEUaxWVd/',
+  author: 'cook',
+  caption: 'Toast #breakfast\n• 1 slice bread',
+  images: [{ mimeType: 'image/jpeg', data: 'AQID' }, { mimeType: 'image/png', data: 'BAUG' }],
+}
+const instagramConfig = { ...fetcherConfig, ...geminiConfig }
+
+test('an Instagram post reaches the model as its caption and images in one call', async () => {
+  const calls: { url: string, body: any }[] = []
+  const fetcher: typeof fetch = async (url, init) => {
+    calls.push({ url: String(url), body: JSON.parse(init!.body as string) })
+    return Response.json(calls.length === 1 ? post : interaction(recipe))
+  }
+
+  const { recipe: result } = await extractInstagram('DbXWEUaxWVd', instagramConfig, fetcher)
+
+  assert.deepEqual(calls.map(call => call.url), ['http://recipeat-fetcher:8103/instagram', 'https://generativelanguage.googleapis.com/v1beta/interactions'])
+  assert.deepEqual(calls[0]!.body, { shortcode: 'DbXWEUaxWVd' })
+  // The caption is its own part, never interpolated into the instructions.
+  assert.deepEqual(calls[1]!.body.input, [
+    { type: 'text', text: post.caption },
+    { type: 'image', data: 'AQID', mime_type: 'image/jpeg' },
+    { type: 'image', data: 'BAUG', mime_type: 'image/png' },
+  ])
+  assert.match(calls[1]!.body.system_instruction, /Instagram post/)
+  assert.equal(result.title, 'Toast')
+  const source = result.source as { type: string, url: string, author: string | null, retrievedAt: string }
+  assert.deepEqual({ ...source, retrievedAt: null }, { type: 'instagram', url: post.url, author: 'cook', retrievedAt: null })
+  assert.ok(Date.parse(source.retrievedAt))
+})
+
+test('a post with nothing to read, or nothing that is a recipe, is a 422', async () => {
+  const empty = { ...post, caption: '  ', images: [] }
+  await assert.rejects(extractInstagram('DbXWEUaxWVd', instagramConfig, served(empty)), status(422))
+
+  let call = 0
+  const notARecipe: typeof fetch = async () =>
+    Response.json(call++ ? interaction({ ...recipe, ingredients: [], steps: [] }) : post)
+  await assert.rejects(extractInstagram('DbXWEUaxWVd', instagramConfig, notARecipe),
+    error => status(422)(error) && /in that post/.test((error as Error).message))
+})
+
+test("the fetcher's answer about a post is checked, and its failures passed on", async () => {
+  const extract = (fetcher: typeof fetch) => extractInstagram('DbXWEUaxWVd', instagramConfig, fetcher)
+  for (const images of [undefined, 'x', [{ mimeType: 'text/html', data: 'x' }], [{ mimeType: 'image/png' }]]) {
+    await assert.rejects(extract(served({ ...post, images })), status(502), JSON.stringify(images))
+  }
+  await assert.rejects(extract(served({ detail: 'That post could not be found. It may be private or deleted.' }, { status: 422 })),
+    error => status(422)(error) && /private or deleted/.test((error as Error).message))
+  // Throttled: busy, not broken, so the caller hears retry-later.
+  await assert.rejects(extract(served({ detail: 'Instagram is not answering requests from us right now; try again later.' }, { status: 503 })), status(503))
 })

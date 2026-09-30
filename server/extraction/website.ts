@@ -19,7 +19,9 @@ const MAX_DETAIL_LENGTH = 200
 // 415 means the URL served something that is not a page. That is a problem
 // with what the caller asked for, not with the request they made, so it must
 // not reach them as a content-type error about their own body.
-const STATUS = new Map([[413, 413], [415, 422], [422, 422], [504, 504]])
+// 503 is Instagram throttling the fetcher: busy rather than broken, so it is
+// passed on as a retry-later like the model's own quota.
+const STATUS = new Map([[413, 413], [415, 422], [422, 422], [503, 503], [504, 504]])
 
 export function validateUrl(body: unknown): string {
   if (typeof body !== 'object' || body === null || Array.isArray(body)) {
@@ -55,21 +57,23 @@ function portionsOf(yields: unknown): number | null {
 const attribution = (value: unknown): string | null =>
   typeof value === 'string' && value.trim() ? value.trim().slice(0, 300) : null
 
-async function askFetcher(
-  url: string,
+/** One POST to the fetcher, with its failures mapped. Instagram shares it. */
+export async function askFetcher(
+  path: string,
+  request: Record<string, unknown>,
   config: FetcherConfig,
   fetcher: typeof globalThis.fetch,
 ): Promise<Record<string, unknown>> {
   // Trailing slashes are trimmed rather than resolved away, so a base URL
   // carrying a path prefix survives.
-  const base = `${config.fetcherBaseUrl.replace(/[/]+$/, '')}/fetch`
+  const base = `${config.fetcherBaseUrl.replace(/[/]+$/, '')}${path}`
 
   let response: Response
   try {
     response = await fetcher(base, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url }),
+      body: JSON.stringify(request),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     })
   } catch (error) {
@@ -143,7 +147,7 @@ export async function extractWebsite(
   config: FetcherConfig,
   fetcher: typeof globalThis.fetch = globalThis.fetch,
 ): Promise<{ recipe: ExtractedRecipe }> {
-  const page = await askFetcher(url, config, fetcher)
+  const page = await askFetcher('/fetch', { url }, config, fetcher)
 
   // An ingredient already arrives shaped like a draft's, which is the point of
   // the service naming its fields after the ones the model is asked for.
