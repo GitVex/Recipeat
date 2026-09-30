@@ -23,6 +23,7 @@ url ──────▶ fetcher ─┘
 | Import UI wired to the API | Done for the shared part (#36): all three tabs call their route and open what comes back. Per-source polish is #37–#39. An import can be added to the collection (#41) |
 | Website import | Done; returns a recipe, stores nothing. No SSRF guard yet |
 | Photo import | Done; the model reads the photo directly, returns a recipe, stores nothing. The image itself is discarded |
+| Instagram import | Done for one public post (#22): pasted in the Website tab, read logged out by the fetcher, caption and images to the model together. Profile scanning is #116 |
 
 ## Waves
 

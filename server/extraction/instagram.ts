@@ -5,20 +5,7 @@ import { askGemini, INSTAGRAM_PROMPT, type GeminiConfig, type Part } from './gem
 import { parseExtraction, type ExtractedRecipe } from './recipe.ts'
 import { httpUrl, MAX_URL_LENGTH } from './url.ts'
 import { askFetcher, type FetcherConfig } from './website.ts'
-
-// instagram.com/p/…, /reel/…, /tv/…, and the /{user}/p/… a share can produce.
-// Only the shortcode goes on to the fetcher, which is what keeps the caller
-// from naming any other host.
-const HOSTS = new Set(['instagram.com', 'www.instagram.com', 'm.instagram.com'])
-const POST_PATH = /^\/(?:[\w.]+\/)?(?:p|reels?|tv)\/([\w-]{5,64})\/?$/
-
-/** The shortcode of an Instagram post link, or null for anything else. */
-export function instagramShortcode(value: unknown): string | null {
-  const url = httpUrl(value)
-  if (!url) return null
-  const parsed = new URL(url)
-  return HOSTS.has(parsed.hostname) ? POST_PATH.exec(parsed.pathname)?.[1] ?? null : null
-}
+import { instagramShortcode } from '../../shared/utils/instagram.ts'
 
 export function validateInstagramUrl(body: unknown): string {
   if (typeof body !== 'object' || body === null || Array.isArray(body)) {

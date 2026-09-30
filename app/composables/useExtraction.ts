@@ -5,10 +5,10 @@ import type { ExtractedRecipe } from "#shared/types/recipe";
 // messages are sanitized but written for whoever is testing the API, so none
 // of them are shown here.
 
-export type ExtractionSource = "website" | "text" | "photo";
+export type ExtractionSource = "website" | "text" | "photo" | "instagram";
 
 export type ExtractionRequest =
-  | { source: "website"; url: string }
+  | { source: "website" | "instagram"; url: string }
   | { source: "text"; text: string }
   | { source: "photo"; file: File };
 
@@ -29,12 +29,17 @@ const SLOW_AFTER_MS: Record<ExtractionSource, number> = {
   website: 10_000,
   text: 20_000,
   photo: 20_000,
+  instagram: 20_000,
 };
 
 const NOT_FOUND: Record<ExtractionSource, string> = {
   website: "We couldn’t find a recipe on that page.",
   text: "We couldn’t find a recipe in that text.",
   photo: "We couldn’t find a recipe in that photo.",
+  // Logged out, a private or deleted post answers the same 422 as one with
+  // no recipe in it, so the message covers both.
+  instagram:
+    "We couldn’t find a recipe in that post. If it’s private or was deleted, we can’t read it.",
 };
 
 function failureFor(
@@ -92,7 +97,8 @@ function failureFor(
 }
 
 function bodyOf(request: ExtractionRequest) {
-  if (request.source === "website") return { url: request.url };
+  if (request.source === "website" || request.source === "instagram")
+    return { url: request.url };
   if (request.source === "text") return { text: request.text };
   // No Content-Type is set for this one: the browser writes the multipart
   // boundary into it, and a header set by hand would drop it.

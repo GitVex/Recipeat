@@ -10,6 +10,7 @@ import {
   siteSupport,
   type SiteSupport,
 } from "#shared/utils/siteSupport";
+import { instagramShortcode } from "#shared/utils/instagram";
 const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{
   close: [];
@@ -36,10 +37,15 @@ const sites = useLazyFetch<{ hosts: string[] }>("/api/extract/sites", {
 const hosts = computed(() =>
   sites.data.value ? new Set(sites.data.value.hosts) : null,
 );
-const support = computed(() =>
-  mode.value === "website" && hosts.value
-    ? siteSupport(input.value, hosts.value)
-    : null,
+const instagram = computed(
+  () => mode.value === "website" && !!instagramShortcode(input.value),
+);
+const support = computed<SiteSupport | null>(() =>
+  instagram.value
+    ? "instagram"
+    : mode.value === "website" && hosts.value
+      ? siteSupport(input.value, hosts.value)
+      : null,
 );
 watchEffect(() => {
   if (
@@ -130,7 +136,8 @@ function request(): ExtractionRequest | null {
         "Enter a full recipe URL, such as https://example.com/recipe.";
       return null;
     }
-    return { source: "website", url: input.value };
+    // Pasted in the same field, read by its own route.
+    return { source: instagram.value ? "instagram" : "website", url: input.value };
   }
   if (mode.value === "text") {
     if (!input.value.trim()) {
@@ -166,6 +173,7 @@ const WAIT: Record<ExtractionSource, string> = {
   website: "Reading the page. This usually takes a few seconds.",
   text: "Reading your recipe. This usually takes several seconds.",
   photo: "Reading your photo. This usually takes several seconds.",
+  instagram: "Reading the post. This usually takes several seconds.",
 };
 </script>
 

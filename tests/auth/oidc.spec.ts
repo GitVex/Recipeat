@@ -410,6 +410,36 @@ test('a supported page with no recipe keeps the plain answer', async ({ page }) 
   await expect(page.getByRole('alert')).toContainText('We couldn’t find a recipe on that page.')
 })
 
+test('an Instagram post link goes to its own route, with or without the site list', async ({ page }) => {
+  const sent: { route: string, body: unknown }[] = []
+  await page.route('**/api/extract/sites', route => route.fulfill({ status: 502, json: { statusCode: 502 } }))
+  for (const name of ['website', 'instagram']) {
+    await page.route(`**/api/extract/${name}`, route => {
+      sent.push({ route: name, body: route.request().postDataJSON() })
+      return route.fulfill(answer(sent.length === 1 ? 422 : 200))
+    })
+  }
+  await signIn(page)
+  await page.getByRole('button', { name: 'Save your first recipe' }).click()
+  const field = page.getByLabel('Recipe URL')
+  const hint = page.locator('#site-hint')
+
+  // A profile is not a post, so it gets no Instagram hint and no list either.
+  await field.fill('https://www.instagram.com/noor.baqtiar/')
+  await expect(hint).toHaveText('See which sites are supported')
+  await field.fill('https://www.instagram.com/p/DbXWEUaxWVd/?igsh=abc')
+  await expect(hint).toContainText('An Instagram post')
+
+  await page.getByRole('button', { name: 'Bring it in' }).click()
+  await expect(page.getByRole('alert')).toContainText('We couldn’t find a recipe in that post.')
+  await page.getByRole('button', { name: 'Bring it in' }).click()
+  await expect(page.getByRole('dialog')).toContainText(extracted.title!)
+  expect(sent).toEqual([
+    { route: 'instagram', body: { url: 'https://www.instagram.com/p/DbXWEUaxWVd/?igsh=abc' } },
+    { route: 'instagram', body: { url: 'https://www.instagram.com/p/DbXWEUaxWVd/?igsh=abc' } },
+  ])
+})
+
 test('without the site list there is no hint, and importing still works', async ({ page }) => {
   await page.route('**/api/extract/sites', route => route.fulfill({ status: 502, json: { statusCode: 502 } }))
   await page.route('**/api/extract/website', route => route.fulfill(answer(200)))
