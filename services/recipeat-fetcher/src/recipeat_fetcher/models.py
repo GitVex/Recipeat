@@ -74,6 +74,26 @@ class Recipe(Wire):
     steps: list[str]
 
 
+class InstagramRequest(Wire):
+    # The code in /p/{shortcode}/. A shortcode rather than a URL, so the caller
+    # has no way to name a host.
+    shortcode: str = Field(pattern=r"^[A-Za-z0-9_-]{5,64}$")
+
+
+class InstagramImage(Wire):
+    mime_type: str
+    # Base64: the app forwards it to the model as inline data, which is base64.
+    data: str
+
+
+class InstagramPost(Wire):
+    url: str
+    author: str | None = None
+    caption: str | None = None
+    # In the post's order; a video contributes its cover.
+    images: list[InstagramImage]
+
+
 class FetchRequest(Wire):
     url: HttpUrl
 

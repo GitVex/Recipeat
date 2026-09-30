@@ -19,6 +19,12 @@ class Settings(BaseSettings):
     fetch_max_bytes: int = 5_000_000
     fetch_max_redirects: int = 3
 
+    # Instagram (#113). Media are read only from these hosts and their
+    # subdomains. The byte limit is for all of a post's images together: they
+    # reach the model base64-encoded in one request, which Gemini caps at 20 MB.
+    instagram_media_hosts: tuple[str, ...] = ("cdninstagram.com", "fbcdn.net")
+    instagram_max_bytes: int = 10_000_000
+
 
 @lru_cache
 def get_settings() -> Settings:

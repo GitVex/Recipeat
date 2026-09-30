@@ -11,6 +11,7 @@ dependencies = [
     "fastapi[standard]>=0.141.1",
     "httpx>=0.28.1",
     "ingredient-parser-nlp>=2.3.0",
+    "instaloader>=4.15.3",
     "pydantic-settings>=2.15.0",
     "recipe-scrapers>=15.12.0",
 ]
