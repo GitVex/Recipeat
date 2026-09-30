@@ -58,6 +58,10 @@ class _Handler(BaseHTTPRequestHandler):
             self.send_header("Location", "/recipe")
             self.end_headers()
             return
+        elif self.path in ("/forbidden", "/broken"):
+            self.send_response(403 if self.path == "/forbidden" else 500)
+            self.end_headers()
+            return
         elif self.path in routes:
             body, content_type = routes[self.path]
         else:

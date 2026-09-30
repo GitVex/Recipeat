@@ -55,7 +55,8 @@ Response: the same `{ "recipe": { … } }` as above.
 | 400 | Body is not valid JSON, or `url` is missing, not a string, or not an http(s) address |
 | 413 | The URL is too long, or the page is too large to read |
 | 422 | The page holds no recipe, or the URL serves something that is not a page |
-| 502 | The site failed or was unreachable, or the fetcher could not be reached |
+| 424 | The site answered with an error (refused the page, did not have it, or broke) |
+| 502 | The site was unreachable, or the fetcher could not be reached |
 | 504 | The site did not answer in time |
 
 **No model runs on this path.** `recipe-scrapers` reads the page's structured

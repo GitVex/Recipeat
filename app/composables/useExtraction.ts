@@ -39,8 +39,9 @@ const NOT_FOUND: Record<ExtractionSource, string> = {
 
 function failureFor(
   status: number | undefined,
-  source: ExtractionSource,
+  request: ExtractionRequest,
 ): ExtractionFailure {
+  const source = request.source;
   switch (status) {
     case undefined:
       return {
@@ -60,6 +61,14 @@ function failureFor(
       };
     case 422:
       return { action: "edit", message: NOT_FOUND[source], fault: false };
+    // The site answered the fetcher with an error. Asking again gets the same
+    // answer, so the way on is the recipe's text.
+    case 424:
+      return {
+        action: "none",
+        message: `${hostOf(request)} wouldn’t give us that page. Copy the recipe from it and paste it into the Text tab instead.`,
+        fault: false,
+      };
     // Busy or over quota. Not a fault, and the same request will work shortly.
     case 503:
       return {
@@ -88,6 +97,14 @@ function failureFor(
         message: "Something went wrong with that import. Please try again.",
         fault: true,
       };
+  }
+}
+
+function hostOf(request: ExtractionRequest) {
+  try {
+    return request.source === "website" ? new URL(request.url).host : "That site";
+  } catch {
+    return "That site";
   }
 }
 
@@ -150,7 +167,7 @@ export function useExtraction() {
       if (!own.signal.aborted) {
         failure.value = failureFor(
           (error as { statusCode?: number }).statusCode,
-          request.source,
+          request,
         );
       }
       return null;

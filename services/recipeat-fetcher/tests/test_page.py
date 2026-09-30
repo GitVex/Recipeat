@@ -68,8 +68,11 @@ def test_a_redirect_loop_ends(site):
     assert status_of(site("/loop")) == 502
 
 
-def test_an_error_from_the_site_is_reported_as_one(site):
-    assert status_of(site("/missing")) == 502
+@pytest.mark.parametrize("path", ["/forbidden", "/missing", "/broken"])
+def test_an_error_from_the_site_is_not_reported_as_our_own(path, site):
+    """403, 404 and 500 from the site all say the site would not serve the
+    page, which a 502 would pass off as this service being down."""
+    assert status_of(site(path)) == 424
 
 
 def test_an_unreachable_host_fails_fast_rather_than_hanging():
