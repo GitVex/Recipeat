@@ -1,6 +1,7 @@
 # A separate Compose project from the app on purpose. The fetcher opens
-# connections to URLs a user supplies and has no SSRF guard yet, so it must not
-# share a network with anything private — its own project gives it its own
+# connections to URLs a user supplies. It refuses private addresses in code
+# (#117), and as a second layer it must not share a network with anything
+# private — its own project gives it its own
 # network, and it publishes only on loopback, which a container cannot reach
 # through the host.
 name: recipeat-fetch
@@ -23,7 +24,7 @@ services:
     mem_limit: 1g
     memswap_limit: 1g
     # Deliberately NOT on Coolify's shared `coolify` network. This opens
-    # connections to URLs a user supplies and has no SSRF guard, so it gets a
+    # connections to URLs a user supplies, so even with its SSRF guard it gets a
     # network shared with the app and nothing else. The alias is declared here
     # rather than relying on container_name, because Coolify renames
     # containers.

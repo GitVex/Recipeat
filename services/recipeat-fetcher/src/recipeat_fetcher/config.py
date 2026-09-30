@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     fetch_timeout: float = 10.0
     fetch_max_bytes: int = 5_000_000
     fetch_max_redirects: int = 3
+    # Turns the SSRF guard off, so the tests can fetch from their loopback
+    # server. Never set it anywhere else.
+    fetch_allow_private: bool = False
 
 
 @lru_cache

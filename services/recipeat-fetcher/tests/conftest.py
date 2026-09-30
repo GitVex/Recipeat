@@ -53,6 +53,12 @@ class _Handler(BaseHTTPRequestHandler):
             self.send_header("Location", "/loop")
             self.end_headers()
             return
+        elif self.path == "/to-internal":
+            # A public page redirecting inward; test_guard.py resolves the name.
+            self.send_response(302)
+            self.send_header("Location", "http://internal.example/recipe")
+            self.end_headers()
+            return
         elif self.path == "/moved":
             self.send_response(302)
             self.send_header("Location", "/recipe")
@@ -92,6 +98,9 @@ def client():
         fetch_timeout=0.5,
         fetch_max_bytes=1_000_000,
         fetch_max_redirects=2,
+        # The loopback server is private by definition; test_guard.py covers
+        # the guard with it on.
+        fetch_allow_private=True,
     )
     with TestClient(app) as test_client:
         yield test_client

@@ -11,7 +11,8 @@ from fastapi import HTTPException
 from recipeat_fetcher.config import Settings
 from recipeat_fetcher.page import fetch_page
 
-SETTINGS = Settings(fetch_timeout=0.5, fetch_max_bytes=1_000_000, fetch_max_redirects=2)
+# The loopback server is private; the guard itself is test_guard.py's.
+SETTINGS = Settings(fetch_timeout=0.5, fetch_max_bytes=1_000_000, fetch_max_redirects=2, fetch_allow_private=True)
 
 
 def status_of(url: str) -> int:
