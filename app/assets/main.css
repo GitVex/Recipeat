@@ -1389,6 +1389,31 @@ input.editable-input {
     gap: 8px;
     flex-shrink: 0;
 }
+.wake-toggle svg {
+    align-self: center;
+    margin: 0 2px 0 6px;
+    color: var(--muted);
+}
+.wake-lock-error {
+    flex-basis: 100%;
+    margin: 0;
+    text-align: right;
+    font-size: var(--text-meta);
+    color: var(--muted);
+}
+/* Three switches do not fit beside a title on a phone; they go under it. */
+@media (max-width: 600px) {
+    .title-row {
+        flex-wrap: wrap;
+    }
+    .title-controls {
+        flex-basis: 100%;
+        justify-content: flex-start;
+    }
+    .wake-lock-error {
+        text-align: left;
+    }
+}
 .mode-toggle:disabled {
     cursor: not-allowed;
     opacity: 0.6;

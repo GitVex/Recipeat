@@ -161,6 +161,7 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", warnBeforeUnloa
       >
         <!-- Changed in place rather than replaced: a new recipe object is a
              new edit, and an unsaved one would be lost to a tag. -->
+        <template #controls><WakeLockToggle /></template>
         <TagEditor :recipe="recipe" @change="(tags) => (recipe!.tags = tags)" />
         <!-- Reached by going back down the line. Saying so here, before
              anything is changed, is what keeps an edit to it from looking like

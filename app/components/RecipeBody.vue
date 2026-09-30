@@ -182,6 +182,7 @@ const typedTime = computed(() => {
         />
         <!-- Only where switching would change something on the page. -->
         <UnitToggle v-if="convertible" :system="system" @toggle="toggle" />
+        <slot name="controls" />
       </div>
     </div>
     <slot />
