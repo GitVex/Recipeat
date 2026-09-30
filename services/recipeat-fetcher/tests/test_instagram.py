@@ -46,7 +46,8 @@ def post(monkeypatch):
 def loopback_cdn():
     """Let the loopback server count as Instagram's media host."""
     app.dependency_overrides[get_settings] = lambda: Settings(
-        fetch_timeout=0.5, instagram_media_hosts=("127.0.0.1",), instagram_max_bytes=1_000_000
+        fetch_timeout=0.5, instagram_media_hosts=("127.0.0.1",), instagram_max_bytes=1_000_000,
+        fetch_allow_private=True,
     )
 
 
@@ -73,6 +74,20 @@ def test_only_a_shortcode_is_accepted(client, shortcode):
 def test_media_on_any_other_host_is_not_fetched(client, site, post):
     # The client fixture's settings: Instagram's hosts only, not loopback.
     post(StubPost([site("/slide1.jpg")]))
+    response = client.post("/instagram", json={"shortcode": "DbXWEUaxWVd"})
+    assert response.status_code == 502
+    assert "host" in response.json()["detail"]
+
+
+def test_an_allowed_media_host_that_resolves_inward_is_refused(client, site, post, monkeypatch):
+    # On the allowlist, but the name resolves to a private address: the guard
+    # under the allowlist refuses it.
+    import socket
+    real = socket.getaddrinfo
+    monkeypatch.setattr(socket, "getaddrinfo", lambda host, port, *a, **k: [
+        (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.0.0.5", port))] if host == "scontent.cdninstagram.com" else real(host, port, *a, **k))
+    app.dependency_overrides[get_settings] = lambda: Settings(fetch_timeout=0.5)
+    post(StubPost(["https://scontent.cdninstagram.com/v/slide.jpg"]))
     response = client.post("/instagram", json={"shortcode": "DbXWEUaxWVd"})
     assert response.status_code == 502
     assert "host" in response.json()["detail"]

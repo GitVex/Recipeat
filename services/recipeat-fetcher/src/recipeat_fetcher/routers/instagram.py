@@ -27,6 +27,7 @@ from instaloader.exceptions import (
 )
 
 from ..config import Settings, get_settings
+from ..guard import BlockedAddress, guarded_client
 from ..models import InstagramImage, InstagramPost, InstagramRequest
 
 router = APIRouter(tags=["instagram"])
@@ -79,7 +80,9 @@ def _allowed(url: httpx.URL, settings: Settings) -> bool:
 def _download(urls: list[str], settings: Settings) -> list[InstagramImage]:
     images: list[InstagramImage] = []
     total = 0
-    with httpx.Client(timeout=settings.fetch_timeout, follow_redirects=False) as client:
+    # Guarded under the allowlist: a CDN name that resolved inward is refused
+    # too (#117).
+    with guarded_client(settings.fetch_allow_private, timeout=settings.fetch_timeout, follow_redirects=False) as client:
         for raw in urls[:MAX_IMAGES]:
             url = httpx.URL(raw)
             # The post names these, so they are as untrusted as the rest of it.
@@ -98,6 +101,8 @@ def _download(urls: list[str], settings: Settings) -> list[InstagramImage]:
                         total += len(chunk)
                         if total > settings.instagram_max_bytes:
                             raise HTTPException(status_code=413, detail="That post's images are too large to read.")
+            except BlockedAddress as error:
+                raise HTTPException(status_code=502, detail="That post named media on a host we do not read from.") from error
             except httpx.TimeoutException as error:
                 raise HTTPException(status_code=504, detail="Instagram's media host did not answer in time.") from error
             except httpx.RequestError as error:
