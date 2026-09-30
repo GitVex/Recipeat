@@ -22,7 +22,7 @@ export type RecipeFilters = {
   sources: RecipeSource['type'][]
 }
 
-export const SOURCE_TYPES = ['website', 'photo', 'text'] as const satisfies readonly RecipeSource['type'][]
+export const SOURCE_TYPES = ['website', 'instagram', 'photo', 'text'] as const satisfies readonly RecipeSource['type'][]
 
 // Ceilings on what a query may carry, so a request cannot hand the listing
 // statement a thousand patterns. Far past anything the filter panel makes.

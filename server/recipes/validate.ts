@@ -98,15 +98,20 @@ const sourceOf = (value: unknown): RecipeSource => {
   switch (source.type) {
     case 'text':
       return { type: 'text', originalText: string(source.originalText, LIMITS.step, 'the source text') }
-    case 'website': {
+    // Both are a link someone read, and differ only in what the page called
+    // itself: a post has an author and no site name worth keeping.
+    case 'website':
+    case 'instagram': {
       const url = httpUrl(source.url)
-      if (!url) throw fail(400, 'A website source needs an http or https URL.')
+      if (!url) throw fail(400, `A ${source.type} source needs an http or https URL.`)
       const retrievedAt = string(source.retrievedAt, 40, '"retrievedAt"')
       if (Number.isNaN(Date.parse(retrievedAt))) throw fail(400, '"retrievedAt" must be a date.')
+      const author = optional(source.author, () => string(source.author, LIMITS.title, 'the author'))
+      if (source.type === 'instagram') return { type: 'instagram', url, author, retrievedAt }
       return {
         type: 'website',
         url,
-        author: optional(source.author, () => string(source.author, LIMITS.title, 'the author')),
+        author,
         siteName: optional(source.siteName, () => string(source.siteName, LIMITS.title, 'the site name')),
         retrievedAt,
       }
@@ -120,7 +125,7 @@ const sourceOf = (value: unknown): RecipeSource => {
         originalFilename: optional(source.originalFilename, () => string(source.originalFilename, LIMITS.title, 'the filename')),
       }
     default:
-      throw fail(400, 'A recipe source must be text, website or photo.')
+      throw fail(400, 'A recipe source must be text, website, photo or instagram.')
   }
 }
 

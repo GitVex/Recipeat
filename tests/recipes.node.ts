@@ -95,6 +95,10 @@ test('the source is checked variant by variant, not trusted', () => {
   const website = withSource({ type: 'website', url: 'https://example.com/r', retrievedAt: '2026-09-26T10:00:00.000Z', author: null, siteName: 'Example' })
   assert.deepEqual(website.source, { type: 'website', url: 'https://example.com/r', author: null, siteName: 'Example', retrievedAt: '2026-09-26T10:00:00.000Z' })
 
+  const post = withSource({ type: 'instagram', url: 'https://www.instagram.com/p/abc/', author: 'cook', retrievedAt: '2026-09-30T10:00:00.000Z', siteName: 'dropped' })
+  assert.deepEqual(post.source, { type: 'instagram', url: 'https://www.instagram.com/p/abc/', author: 'cook', retrievedAt: '2026-09-30T10:00:00.000Z' })
+  assert.throws(() => withSource({ type: 'instagram', url: 'javascript:alert(1)', retrievedAt: '2026-09-30T10:00:00.000Z' }), status(400))
+
   // objectKey is storage's to assign, and there is no storage yet. A client
   // naming one is not believed.
   const photo = withSource({ type: 'photo', objectKey: 'someone-elses/photo.jpg', originalFilename: 'card.jpg' })

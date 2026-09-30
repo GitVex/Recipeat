@@ -262,6 +262,7 @@ type RecipeSource =
   | { type: 'text', originalText: string }
   | { type: 'website', url: string, author: string | null, siteName: string | null, retrievedAt: string }
   | { type: 'photo', objectKey: string | null, originalFilename: string | null }
+  | { type: 'instagram', url: string, author: string | null, retrievedAt: string }
 
 type Ingredient = {
   id: string                    // "ingredient_1", dense and stable

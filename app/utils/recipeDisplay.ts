@@ -9,12 +9,14 @@ export const recipeTitle = (recipe: Pick<ExtractedRecipe, "title">) =>
 
 export const SOURCE_LABEL: Record<RecipeSource["type"], string> = {
   website: "From a website",
+  instagram: "From Instagram",
   photo: "From a photo",
   text: "From your notes",
 };
 
 export const SOURCE_ICON: Record<RecipeSource["type"], string> = {
   website: "link",
+  instagram: "post",
   photo: "camera",
   text: "text",
 };

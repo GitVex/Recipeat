@@ -210,7 +210,7 @@ it. `owner_sub` comes from the session and is never read from the body.
 |---|---|
 | 401 | No session, or a session whose token carries no subject |
 | 415 | Content type is not JSON |
-| 400 | A field is the wrong type, an amount is not positive, a URL is not http(s), or the source is not one of text/website/photo |
+| 400 | A field is the wrong type, an amount is not positive, a URL is not http(s), or the source is not one of text/website/photo/instagram |
 | 413 | Over a limit: 300-character title, 200 ingredients, 100 steps, 5 000 characters a step |
 | 422 | No ingredients and no steps — well-formed, but not a recipe |
 | 503 | This deployment has no database configured |
@@ -377,7 +377,7 @@ GET {{app}}/api/recipes?q=soup&tag=Winter&tag=soup&ingredient=leek&maxTime=60&mi
 | `ingredient` | An ingredient's name contains this, for every one given |
 | `maxTime` | It states a total time, and it is this many minutes or fewer |
 | `minPortions`, `maxPortions` | It states portions, and they are in range |
-| `source` | It came from any of these: `website`, `photo`, `text` |
+| `source` | It came from any of these: `website`, `instagram`, `photo`, `text` |
 
 Terms are trimmed. A term given twice in different cases counts once. A
 filter the server cannot read is a **400**, rather than being dropped. That

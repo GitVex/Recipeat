@@ -54,6 +54,7 @@ export type RecipeSource =
   // objectKey is null until object storage lands: the photo is read and
   // thrown away, so there is nothing yet to point at. See docs/planning.md.
   | { type: 'photo', objectKey: string | null, originalFilename: string | null }
+  | { type: 'instagram', url: string, author: string | null, retrievedAt: string }
 
 export type ExtractedRecipe = {
   title: string | null
