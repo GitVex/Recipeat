@@ -166,6 +166,40 @@ Nothing stores the image, so `source.objectKey` is null and only the filename
 the browser sent is recorded. Object storage is what fills it in; see
 [planning](./planning.md).
 
+## Instagram
+
+A post has no recipe markup, so it is on the model path: the caption and the
+post's images go to the model together, since these recipes are routinely split
+across the two.
+
+**How a post is read: scraped, logged out (#111).** The fetcher reads a post
+with [instaloader](https://instaloader.github.io/) and no account.
+
+- **Official API: none that fits.** The Basic Display API was shut down in
+  December 2024, and the Graph API reads the media of the business or creator
+  account that authorised it, not somebody else's public post.
+- **Terms of service.** Instagram's terms forbid automated collection, and this
+  is that. What it risks is the fetcher's address being rate-limited or
+  blocked, not an account, because there is none to ban.
+- **Authentication.** None, and none is stored. A logged-in scraper
+  (instagrapi) would be more reliable, but would need an account's session as a
+  deployment secret and could get that account banned.
+- **What works logged out, as of 2026-09-30.** One post by its URL: caption,
+  author and media URLs, several times in a row. A profile lookup was refused
+  on the first request (`401 Please wait a few minutes`), so scanning a profile
+  logged out is not a route even before it is a design question.
+- **What breaks it.** Instagram changing its private endpoints, or throttling
+  the fetcher's address. Either arrives as a failed fetch, and the text and
+  photo tabs remain a way in: paste the caption, or add a screenshot.
+
+Private posts are out of scope: reading them needs the user's own Instagram
+session, which is a different trust relationship from anything Recipeat holds
+today. Scanning a profile for new recipes is its own plan (#116).
+
+Images come from `*.cdninstagram.com`. The fetcher requests only Instagram's own
+hosts, including for media URLs the post itself names, so this path does not
+inherit the website path's missing SSRF guard.
+
 ## The pipeline
 
 Four steps, in `server/extraction/`, behind the barrel at
