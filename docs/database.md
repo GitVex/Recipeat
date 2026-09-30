@@ -38,8 +38,9 @@ containers — a database in there would restart each time, and its volume would
 live in a namespace Coolify tears down with the resource.
 
 It is not on `recipeat-fetch-net`. That network exists to contain the fetcher,
-which opens connections to URLs a user supplies and has no SSRF guard; a
-database is exactly what it must not be able to reach.
+which opens connections to URLs a user supplies. It refuses private addresses
+in code (#117), and the network keeps a database out of reach even if that
+check ever fails.
 
 ## Collections
 

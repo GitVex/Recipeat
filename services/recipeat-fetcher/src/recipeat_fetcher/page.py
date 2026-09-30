@@ -6,9 +6,8 @@ much it will read, and a hard `.decode("utf-8")` that fails outright on a page
 served in any other encoding. Fetching here and handing the HTML to
 `scrape_html` puts those three under our control.
 
-What is deliberately *not* here yet is the SSRF guard: nothing resolves the
-host and checks the address, and a redirect is followed wherever it points.
-Until that lands, this service must not be able to reach anything private.
+The client comes from `guard.py`, so every connection this makes, redirects
+included, goes to a public address on port 80 or 443 (#117).
 """
 
 import httpx
@@ -16,6 +15,7 @@ from fastapi import HTTPException
 from recipe_scrapers import HEADERS
 
 from .config import Settings
+from .guard import BlockedAddress, guarded_client
 
 HTML_TYPES = frozenset({"text/html", "application/xhtml+xml"})
 
@@ -28,7 +28,8 @@ def fetch_page(url: str, settings: Settings) -> tuple[str, str]:
     """
     host = httpx.URL(url).host
     try:
-        with httpx.Client(
+        with guarded_client(
+            settings.fetch_allow_private,
             timeout=settings.fetch_timeout,
             follow_redirects=True,
             max_redirects=settings.fetch_max_redirects,
@@ -67,6 +68,13 @@ def fetch_page(url: str, settings: Settings) -> tuple[str, str]:
             encoding = response.charset_encoding or "utf-8"
             return bytes(body).decode(encoding, errors="replace"), str(response.url)
 
+    except BlockedAddress as error:
+        # The host, which may be a redirect's rather than the one asked for,
+        # and never the address it resolved to.
+        raise HTTPException(
+            status_code=422,
+            detail=f"{error.host} is not a public address, so it can't be read.",
+        ) from error
     except httpx.TooManyRedirects as error:
         raise HTTPException(status_code=502, detail=f"{host} redirected too many times.") from error
     except httpx.TimeoutException as error:
