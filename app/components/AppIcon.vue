@@ -24,7 +24,8 @@ const paths: Record<string, string> = {
   user: 'M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0M4 21a8 8 0 0 1 16 0',
   search: 'M17 11a6 6 0 1 1-12 0 6 6 0 0 1 12 0M21 21l-4.3-4.3',
   tag: 'M3 3h8l10 10-8 8L3 11V3M7.5 7.5h.01',
-  filter: 'M4 6h16M7 12h10M10 18h4'
+  filter: 'M4 6h16M7 12h10M10 18h4',
+  sun: 'M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4'
 }
 </script>
 <template><svg :width="size || 20" :height="size || 20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path :d="paths[name] || paths.sparkle" /></svg></template>
