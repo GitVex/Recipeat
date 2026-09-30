@@ -67,7 +67,8 @@ curl -X POST http://localhost:8103/fetch \
 | 413 | The page is larger than the read limit |
 | 415 | The URL served something that is not a web page |
 | 422 | `url` is missing or malformed, or the page holds no recipe: no scraper for the site and no schema.org markup |
-| 502 | The site answered with an error, was unreachable, or redirected too many times |
+| 424 | The site answered with an error status (403, 404, 500, …) |
+| 502 | The site was unreachable or redirected too many times |
 | 504 | The site did not answer in time |
 
 Every field but `canonicalUrl` and the two lists can be null: `to_json` on a

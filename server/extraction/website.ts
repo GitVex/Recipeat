@@ -18,8 +18,9 @@ export type FetcherConfig = { fetcherBaseUrl: string }
 const MAX_DETAIL_LENGTH = 200
 // 415 means the URL served something that is not a page. That is a problem
 // with what the caller asked for, not with the request they made, so it must
-// not reach them as a content-type error about their own body.
-const STATUS = new Map([[413, 413], [415, 422], [422, 422], [504, 504]])
+// not reach them as a content-type error about their own body. 424 is the
+// site refusing the page, which is no fault of ours and has no retry in it.
+const STATUS = new Map([[413, 413], [415, 422], [422, 422], [424, 424], [504, 504]])
 
 export function validateUrl(body: unknown): string {
   if (typeof body !== 'object' || body === null || Array.isArray(body)) {

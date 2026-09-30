@@ -135,7 +135,8 @@ Body `{ "url": string }`, http or https, at most 2048 characters. Same
 | 400 | Not valid JSON, or `url` missing, not a string, or not an http(s) address |
 | 413 | URL too long, or the page too large to read |
 | 422 | No recipe on the page (no scraper for the site and no schema.org markup), or the URL serves something that is not a page |
-| 502 | The site failed or was unreachable, or the fetcher could not be reached |
+| 424 | The site answered with an error (refused the page, did not have it, or broke) |
+| 502 | The site was unreachable, or the fetcher could not be reached |
 | 504 | The site did not answer in time |
 
 **Seconds, not minutes** — no model runs on this path. It is the fastest way to
@@ -604,7 +605,8 @@ Content-Type: application/json
 | 413 | The page is larger than the read limit |
 | 415 | The URL served something that is not a web page |
 | 422 | `url` missing or malformed, or no recipe on the page: no scraper for the site and no schema.org markup |
-| 502 | The site errored, was unreachable, or redirected too many times |
+| 424 | The site answered with an error status |
+| 502 | The site was unreachable or redirected too many times |
 | 504 | The site did not answer in time |
 
 Every field but `canonicalUrl` and the two lists can be null. Only the first

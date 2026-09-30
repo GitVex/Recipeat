@@ -35,9 +35,11 @@ def fetch_page(url: str, settings: Settings) -> tuple[str, str]:
             headers=HEADERS,
         ) as client:
             with client.stream("GET", url) as response:
+                # 424, not 502: the site turning us away is not this service
+                # failing, and the caller has to be able to tell the two apart.
                 if response.status_code >= 400:
                     raise HTTPException(
-                        status_code=502,
+                        status_code=424,
                         detail=f"{host} answered {response.status_code}.",
                     )
 
