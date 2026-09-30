@@ -21,7 +21,7 @@ url ──────▶ fetcher ─┘
 | Save, progression, variant | Done; the three write routes, with the pin moving on a progression |
 | Storage | Done; Postgres, the `recipes` table, a migration runner, and every route the collection needs. Nothing in the browser calls them yet |
 | Import UI wired to the API | Done for the shared part (#36): all three tabs call their route and open what comes back. Per-source polish is #37–#39. An import can be added to the collection (#41) |
-| Website import | Done; returns a recipe, stores nothing. No SSRF guard yet |
+| Website import | Done; returns a recipe, stores nothing. The fetcher only reaches public addresses (#117) |
 | Photo import | Done; the model reads the photo directly, returns a recipe, stores nothing. The image itself is discarded |
 | Instagram import | Done for one public post (#22): pasted in the Website tab, read logged out by the fetcher, caption and images to the model together. Profile scanning is #116 |
 
@@ -255,11 +255,12 @@ tree, can disagree with it, and earns itself only if the UI shows a number
   per-line confidence that was also dropped; now there is nothing to drop.
   Showing the source line beside each ingredient is the affordance that
   survives — `originalText` is already stored for exactly that.
-- **No SSRF guard.** The fetcher resolves no addresses and follows a redirect
-  wherever it points, so a URL given to it reaches anything its container can.
-  It runs as its own Compose project to keep that blast radius small, which is
-  a mitigation and not the fix. The fix is to resolve each hop and reject
-  private, loopback and link-local addresses before connecting.
+- **The SSRF guard is in code only.** Since #117 the fetcher resolves each
+  connection's host once, refuses any non-public address or a port other than
+  80 and 443, and connects to the address it checked, redirects included
+  (`guard.py`). Its own Compose project still keeps the blast radius small as a
+  second layer. A host firewall rule would be a third, against a bug in the
+  guard or a library making requests of its own (#118).
 - **One `Unit`, two languages.** The fetcher emits `Unit` values directly, and
   may only emit ones `parseQuantity` could also produce. Where the two
   disagree nothing throws — `normalizeRecipe` simply stops linking a step's

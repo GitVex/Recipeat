@@ -638,11 +638,12 @@ Content-Type: application/json
 Every field but `canonicalUrl` and the two lists can be null. Only the first
 200 ingredient lines are parsed.
 
-**This endpoint will fetch any URL you give it.** There is no SSRF guard: no
-address is resolved and checked, and redirects are followed wherever they
-point. On a tunnel you are driving it from your laptop but it resolves from
-inside the container, so treat what you send it as you would a request made
-from the VPS itself.
+**Only public addresses are fetched.** Every connection, redirects included,
+has its host resolved once and is refused if any address is loopback, private,
+link-local, CGNAT, multicast or reserved, or if the port is not 80 or 443. The
+socket then goes to the address that was checked. A refusal is a **422**
+("… is not a public address") naming the host, never the address. On a tunnel,
+note that names resolve from inside the container, not from your laptop.
 
 ### `POST /instagram`
 

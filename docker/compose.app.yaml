@@ -3,12 +3,13 @@
 # and it is addressed by the alias the fetcher declares.
 #
 # That network is the fetcher's alone rather than Coolify's shared one, because
-# the fetcher opens connections to URLs a user supplies and has no SSRF guard.
+# the fetcher opens connections to URLs a user supplies. It refuses private
+# addresses in code (#117); the network is the second layer.
 #
 # The remaining cost is stated rather than hidden: on recipeat-fetch-net the
-# fetcher can open connections to this app. Docker does not route between
-# networks, so that is as far as it gets — an SSRF through the fetcher reaches
-# this app's API and nothing else on the host.
+# fetcher can open connections to this app, and only the guard stops it. Docker
+# does not route between networks, so if the guard ever failed, an SSRF through
+# the fetcher would reach this app's API and nothing else on the host.
 #
 # Extraction itself no longer runs here. The model is Gemini, reached over the
 # internet with NUXT_GEMINI_API_KEY, which is why this is the first of these

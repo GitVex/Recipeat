@@ -82,10 +82,13 @@ before it checks whether a scraper exists for the host, and does it with no
 timeout, no read limit, and a strict UTF-8 decode that fails on any page served
 in another encoding.
 
-**There is no SSRF guard yet.** No address is resolved and checked, and a
-redirect is followed wherever it points, so a URL given to this service can
-reach anything the container can. Until that lands, it must not share a network
-with anything private.
+**Only public addresses are fetched** (`guard.py`, #117). Every connection,
+redirects included, resolves its host once and is refused if any address is
+not public (loopback, private, link-local, CGNAT, multicast, reserved, and the
+IPv4-in-IPv6 forms of those) or the port is not 80 or 443. The socket goes to
+the address that was checked, so a DNS server that answers differently the
+second time gets no second time. A refusal is a 422 naming the host and never
+the address. Every HTTP client in this service comes from `guarded_client`.
 
 ## Instagram
 
@@ -220,7 +223,7 @@ Two rules keep the parsers comparable:
 directory and publishes the service on loopback, the way Ollama is published.
 
 It is a separate Compose project from the Ollama one on purpose. This service
-opens connections to URLs a user supplies and has no SSRF guard yet, so it must
+opens connections to URLs a user supplies, and even with its SSRF guard it must
 not share a network with anything private: its own project gives it its own
 network, and a loopback-only published port is not reachable from inside
 another container.
@@ -265,9 +268,9 @@ docker network create recipeat-fetch-net
 
 Ollama and the OCR service need no such thing — they sit on Coolify's shared
 `coolify` network, which costs them little because neither ever opens an
-outbound connection. **This service does, to URLs a user supplies, with no SSRF
-guard.** On `coolify` an SSRF through it would reach every resource in the
-install; on a network shared with the app alone it reaches the app's API and
+outbound connection. **This service does, to URLs a user supplies.** The guard
+refuses private addresses, but the network is what holds if it ever fails: on
+`coolify` an SSRF through it would reach every resource in the install; on a network shared with the app alone it reaches the app's API and
 stops there, because Docker does not route between networks.
 
 Which means: **"Connect To Predefined Network" must stay off for this resource
@@ -294,6 +297,7 @@ optional.
 | `FETCHER_FETCH_TIMEOUT` | `10.0` | Seconds to wait on a recipe site |
 | `FETCHER_FETCH_MAX_BYTES` | `5000000` | Largest page to read |
 | `FETCHER_FETCH_MAX_REDIRECTS` | `3` | Redirects to follow |
+| `FETCHER_FETCH_ALLOW_PRIVATE` | `false` | Turns the SSRF guard off. For the tests' loopback server only; never set it in a deployment |
 | `FETCHER_INSTAGRAM_MEDIA_HOSTS` | `["cdninstagram.com","fbcdn.net"]` | Hosts, and their subdomains, a post's images may be read from |
 | `FETCHER_INSTAGRAM_MAX_BYTES` | `10000000` | All of one post's images together |
 
