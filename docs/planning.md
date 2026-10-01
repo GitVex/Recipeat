@@ -23,6 +23,7 @@ url ──────▶ fetcher ─┘
 | Import UI wired to the API | Done for the shared part (#36): all three tabs call their route and open what comes back. Per-source polish is #37–#39. An import can be added to the collection (#41) |
 | Website import | Done; returns a recipe, stores nothing. The fetcher only reaches public addresses (#117) |
 | Photo import | Done; the model reads the photo directly, returns a recipe, stores nothing. The image itself is discarded |
+| Instagram import | Done for one public post (#22), as a kind of website import (#120): pasted in the Website tab, read logged out by the fetcher, caption links tried first (#122), then caption and images to the model together. The creator's site is #123, reel audio #124, profile scanning #116 |
 
 ## Waves
 
@@ -30,7 +31,7 @@ Work is scheduled in Waves, one GitHub milestone each (`Wave N`). The
 **current Wave** is the lowest-numbered open one.
 
 - **Features.** A Wave holds at most **4 top-level features**: issues that are
-  not bugs and have no parent issue. Sub-issues of those features don't count
+  not bugs, not chores and have no parent issue. Sub-issues of those features don't count
   and belong in the same Wave.
 - **Migrations.** At most **one** issue in a Wave, bugs included, may add a
   database migration. Issues that will are labelled `needs:migration` when
@@ -49,6 +50,13 @@ Work is scheduled in Waves, one GitHub milestone each (`Wave N`). The
   move to the next Wave.
 - **Full Waves.** When a feature doesn't fit, it goes into the next Wave that
   has room, opening a new one if none does.
+
+### Issue Types
+
+- **Plan:** A plan is a one-line summary of a feature or task. It is a title only or a quick description.
+- **Bug:** A bug is a problem or issue that needs to be fixed.
+- **Chore:** A chore is a task that needs to be done but is not a feature.
+- **Feature:** A feature is a new or existing functionality that needs to be implemented.
 
 ## Next: storage
 

@@ -43,6 +43,9 @@ class _Handler(BaseHTTPRequestHandler):
             "/pdf": (b"%PDF-1.4", "application/pdf"),
             "/no-type": (RECIPE_HTML, None),
             "/big": (b"<html>" + b"x" * 2_000_000, "text/html"),
+            "/slide1.jpg": (b"jpeg-first", "image/jpeg"),
+            "/slide2.png": (b"png-second", "image/png"),
+            "/big.jpg": (b"x" * 2_000_000, "image/jpeg"),
         }
 
         if self.path == "/slow":

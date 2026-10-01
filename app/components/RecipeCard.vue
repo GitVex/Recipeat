@@ -19,8 +19,8 @@ const emit = defineEmits<{ select: [recipe: ShelfRecipe] }>();
           loading="lazy"
         /></button
       ><span class="source-chip"
-        ><AppIcon :name="SOURCE_ICON[recipe.source.type]" :size="13" />{{
-          SOURCE_LABEL[recipe.source.type]
+        ><AppIcon :name="sourceIcon(recipe.source)" :size="13" />{{
+          sourceLabel(recipe.source)
         }}</span
       >
     </div>

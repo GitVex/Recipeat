@@ -133,13 +133,22 @@ Body `{ "url": string }`, http or https, at most 2048 characters. Same
 | 401 | No session |
 | 415 | Content type is not JSON |
 | 400 | Not valid JSON, or `url` missing, not a string, or not an http(s) address |
-| 413 | URL too long, or the page too large to read |
-| 422 | No recipe on the page (no scraper for the site and no schema.org markup), or the URL serves something that is not a page |
-| 502 | The site failed or was unreachable, or the fetcher could not be reached |
-| 504 | The site did not answer in time |
+| 413 | URL too long, or the page too large to read, or a post's images too large together |
+| 422 | No recipe on the page (no scraper for the site and no schema.org markup), or the URL serves something that is not a page. For a post: missing or private (logged out they look the same), or no recipe found in it |
+| 502 | The site, Instagram, the fetcher or the model failed or was unreachable |
+| 503 | Instagram is throttling the fetcher, or the model is busy; retry later |
+| 504 | The site, Instagram or the model did not answer in time |
 
 **Seconds, not minutes** — no model runs on this path. It is the fastest way to
 confirm the app is wired to a service at all.
+
+**A link to an Instagram post** (`/p/`, `/reel/` or `/tv/` on `instagram.com`,
+query string allowed) is read differently (#120). The fetcher's `POST /instagram`
+reads the post, given only its shortcode. Then up to three web links in the
+caption are tried as above, and the first with a recipe wins. Failing that, the
+model reads the caption and every image in one call. Either way the source is a
+website source with a `post: { url, author }` crediting it. Expect several
+seconds, and longer when the caption links to pages without a recipe.
 
 Note the one deliberate remapping: the fetcher's own 415 (a URL serving a PDF)
 arrives here as **422**, because that is a problem with what was asked for, not
@@ -377,7 +386,7 @@ GET {{app}}/api/recipes?q=soup&tag=Winter&tag=soup&ingredient=leek&maxTime=60&mi
 | `ingredient` | An ingredient's name contains this, for every one given |
 | `maxTime` | It states a total time, and it is this many minutes or fewer |
 | `minPortions`, `maxPortions` | It states portions, and they are in range |
-| `source` | It came from any of these: `website`, `photo`, `text` |
+| `source` | It came from any of these: `website`, `photo`, `text`. A recipe from an Instagram post is `website` |
 
 Terms are trimmed. A term given twice in different cases counts once. A
 filter the server cannot read is a **400**, rather than being dropped. That
@@ -616,6 +625,13 @@ link-local, CGNAT, multicast or reserved, or if the port is not 80 or 443. The
 socket then goes to the address that was checked. A refusal is a **422**
 ("… is not a public address") naming the host, never the address. On a tunnel,
 note that names resolve from inside the container, not from your laptop.
+
+### `POST /instagram`
+
+`{ "shortcode": "DbXWEUaxWVd" }` → the post's `url`, `author`, `caption` and
+`images` (`{ mimeType, data }`, base64). Statuses and limits are in the
+fetcher's README. Unlike `/fetch`, it cannot be pointed at a host: it takes a
+shortcode, and reads media from Instagram's hosts only.
 
 ### `POST /ingredients`
 

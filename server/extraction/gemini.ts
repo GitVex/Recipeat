@@ -54,6 +54,16 @@ export const PHOTO_PROMPT = [
   'Anything that is not part of the recipe — a page number, a caption, a headline from the facing page — is neither an ingredient nor a step.',
 ].join(' ')
 
+// What is true of an Instagram post. The caption and the images arrive as
+// separate parts, and the recipe is often split between them.
+export const INSTAGRAM_PROMPT = [
+  SYSTEM_PROMPT,
+  'The user message is an Instagram post: its caption, when it has one, followed by its images in order.',
+  'The recipe is often split between them — ingredients in the caption and steps on a slide, or the other way round — so read all of them and combine them into one recipe.',
+  'Hashtags, mentions, requests to follow, like, save or comment, and sponsorship notes are not part of the recipe.',
+  'An image that only shows the finished dish is neither an ingredient nor a step. Read quantities in images with particular care.',
+].join(' ')
+
 /**
  * The transport, shared by every input modality. Sends one interaction and
  * returns the decoded recipe draft, still unvalidated. Each modality supplies

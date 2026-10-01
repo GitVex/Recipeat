@@ -106,9 +106,11 @@ const ORIGIN: Record<RecipeSource['type'], { service: string, where: string }> =
   website: { service: 'The recipe fetcher', where: 'on that page' },
   photo: { service: 'The extraction service', where: 'in that photo' },
 }
+// Read from an Instagram post by the model, rather than from a page.
+const POST_ORIGIN = { service: 'The extraction service', where: 'in that post' }
 
 export function parseExtraction(value: unknown, source: RecipeSource): ExtractedRecipe {
-  const origin = ORIGIN[source.type]
+  const origin = source.type === 'website' && source.post?.url === source.url ? POST_ORIGIN : ORIGIN[source.type]
   // For the model these are unreachable while the response schema holds:
   // reaching them means the schema was ignored, and then nothing below can be
   // trusted.

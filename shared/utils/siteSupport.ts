@@ -3,11 +3,16 @@
 // Recipe markup for every other one, so the list decides which of the two a
 // link gets. Whether an unlisted page has markup is not knowable without
 // fetching it, which is why the second case is worded as an attempt.
-export type SiteSupport = 'supported' | 'markup'
+// An Instagram post is neither: it has no markup, so its caption links are
+// followed and then the model reads it (#120), and it needs no list to say so.
+// The hint asks for the recipe's own link first, which reads more reliably
+// than anything worked out from the post (#121).
+export type SiteSupport = 'supported' | 'markup' | 'instagram'
 
 export const SITE_HINT: Record<SiteSupport, string> = {
   supported: 'Supported: we know how to read this site.',
   markup: 'Not on the supported list, so we’ll try reading the page’s recipe markup.',
+  instagram: 'Instagram post recognised. If its caption points to the full recipe on a website, paste that link instead: it reads more reliably. Otherwise we’ll read the post. Public posts only.',
 }
 
 // The 422 for an unlisted page, in the hint's own words, so what failed is

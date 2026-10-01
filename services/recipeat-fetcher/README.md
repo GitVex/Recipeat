@@ -90,6 +90,40 @@ the address that was checked, so a DNS server that answers differently the
 second time gets no second time. A refusal is a 422 naming the host and never
 the address. Every HTTP client in this service comes from `guarded_client`.
 
+## Instagram
+
+`POST /instagram` reads one public post, logged out, with
+[instaloader](https://instaloader.github.io/). Why that route, and what it
+risks, is in the app's `docs/extraction.md` → Instagram.
+
+```sh
+curl -X POST http://localhost:8103/instagram   -H 'Content-Type: application/json'   -d '{"shortcode":"DbXWEUaxWVd"}'
+```
+
+```jsonc
+{
+  "url": "https://www.instagram.com/p/DbXWEUaxWVd/",
+  "author": "noor.baqtiar",
+  "caption": "…",             // null for a post without one
+  "images": [                 // in the post's order; a video gives its cover
+    { "mimeType": "image/jpeg", "data": "<base64>" }
+  ]
+}
+```
+
+The request is a shortcode, not a URL, so there is no host to name. The images
+are downloaded here rather than returned as URLs, from Instagram's media hosts
+only and without following redirects: a post names its own media, and that is
+as untrusted as anything else it says.
+
+| Status | Meaning |
+|---|---|
+| 422 | The shortcode is malformed, or the post is missing or private — logged out, the two look the same |
+| 413 | The post's images are over `FETCHER_INSTAGRAM_MAX_BYTES` together |
+| 502 | Instagram failed otherwise, or a post named media on another host |
+| 503 | Instagram is throttling us; try later |
+| 504 | Instagram or its media host did not answer in time |
+
 ## Supported sites
 
 `GET /sites` lists the hosts with a scraper of their own, read from the
@@ -264,6 +298,8 @@ optional.
 | `FETCHER_FETCH_MAX_BYTES` | `5000000` | Largest page to read |
 | `FETCHER_FETCH_MAX_REDIRECTS` | `3` | Redirects to follow |
 | `FETCHER_FETCH_ALLOW_PRIVATE` | `false` | Turns the SSRF guard off. For the tests' loopback server only; never set it in a deployment |
+| `FETCHER_INSTAGRAM_MEDIA_HOSTS` | `["cdninstagram.com","fbcdn.net"]` | Hosts, and their subdomains, a post's images may be read from |
+| `FETCHER_INSTAGRAM_MAX_BYTES` | `10000000` | All of one post's images together |
 
 ## Layout
 

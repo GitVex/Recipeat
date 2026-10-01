@@ -19,6 +19,14 @@ export const SOURCE_ICON: Record<RecipeSource["type"], string> = {
   text: "text",
 };
 
+// A website source that came through an Instagram post says so, though it
+// files under websites (#120).
+export const sourceLabel = (source: RecipeSource) =>
+  source.type === "website" && source.post ? "From Instagram" : SOURCE_LABEL[source.type];
+
+export const sourceIcon = (source: RecipeSource) =>
+  source.type === "website" && source.post ? "post" : SOURCE_ICON[source.type];
+
 // Minutes as a person would say them — shared, because the editor reads them
 // back in the same form.
 export { formatMinutes } from "#shared/utils/recipeText";

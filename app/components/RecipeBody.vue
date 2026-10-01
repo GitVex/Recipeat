@@ -42,7 +42,7 @@ function toggleMode() {
 const edit = computed(() => (editing.value ? (props.editor?.edit.value ?? null) : null));
 const problems = computed(() => props.editor?.problems.value ?? []);
 
-const source = computed(() => SOURCE_LABEL[props.recipe.source.type]);
+const source = computed(() => sourceLabel(props.recipe.source));
 const time = computed(() => formatMinutes(props.recipe.totalTime));
 
 // Amounts print from the parsed quantities and steps from their parts, so an

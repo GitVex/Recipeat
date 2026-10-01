@@ -22,6 +22,12 @@ class Settings(BaseSettings):
     # server. Never set it anywhere else.
     fetch_allow_private: bool = False
 
+    # Instagram (#113). Media are read only from these hosts and their
+    # subdomains. The byte limit is for all of a post's images together: they
+    # reach the model base64-encoded in one request, which Gemini caps at 20 MB.
+    instagram_media_hosts: tuple[str, ...] = ("cdninstagram.com", "fbcdn.net")
+    instagram_max_bytes: int = 10_000_000
+
 
 @lru_cache
 def get_settings() -> Settings:
