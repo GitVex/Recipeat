@@ -9,17 +9,23 @@ export const recipeTitle = (recipe: Pick<ExtractedRecipe, "title">) =>
 
 export const SOURCE_LABEL: Record<RecipeSource["type"], string> = {
   website: "From a website",
-  instagram: "From Instagram",
   photo: "From a photo",
   text: "From your notes",
 };
 
 export const SOURCE_ICON: Record<RecipeSource["type"], string> = {
   website: "link",
-  instagram: "post",
   photo: "camera",
   text: "text",
 };
+
+// A website source that came through an Instagram post says so, though it
+// files under websites (#120).
+export const sourceLabel = (source: RecipeSource) =>
+  source.type === "website" && source.post ? "From Instagram" : SOURCE_LABEL[source.type];
+
+export const sourceIcon = (source: RecipeSource) =>
+  source.type === "website" && source.post ? "post" : SOURCE_ICON[source.type];
 
 // Minutes as a person would say them — shared, because the editor reads them
 // back in the same form.

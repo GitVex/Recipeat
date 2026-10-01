@@ -50,11 +50,15 @@ export type Step = {
 // one builds this itself and hands it to parseExtraction.
 export type RecipeSource =
   | { type: 'text', originalText: string }
-  | { type: 'website', url: string, author: string | null, siteName: string | null, retrievedAt: string }
+  // post is set when the link was an Instagram post (#120): the recipe was read
+  // from the post itself, or from a page its caption linked to, and either way
+  // the post is credited alongside the page.
+  | { type: 'website', url: string, author: string | null, siteName: string | null, retrievedAt: string, post?: InstagramPostRef }
   // objectKey is null until object storage lands: the photo is read and
   // thrown away, so there is nothing yet to point at. See docs/planning.md.
   | { type: 'photo', objectKey: string | null, originalFilename: string | null }
-  | { type: 'instagram', url: string, author: string | null, retrievedAt: string }
+
+export type InstagramPostRef = { url: string, author: string | null }
 
 export type ExtractedRecipe = {
   title: string | null

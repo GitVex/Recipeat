@@ -133,13 +133,22 @@ Body `{ "url": string }`, http or https, at most 2048 characters. Same
 | 401 | No session |
 | 415 | Content type is not JSON |
 | 400 | Not valid JSON, or `url` missing, not a string, or not an http(s) address |
-| 413 | URL too long, or the page too large to read |
-| 422 | No recipe on the page (no scraper for the site and no schema.org markup), or the URL serves something that is not a page |
-| 502 | The site failed or was unreachable, or the fetcher could not be reached |
-| 504 | The site did not answer in time |
+| 413 | URL too long, or the page too large to read, or a post's images too large together |
+| 422 | No recipe on the page (no scraper for the site and no schema.org markup), or the URL serves something that is not a page. For a post: missing or private (logged out they look the same), or no recipe found in it |
+| 502 | The site, Instagram, the fetcher or the model failed or was unreachable |
+| 503 | Instagram is throttling the fetcher, or the model is busy; retry later |
+| 504 | The site, Instagram or the model did not answer in time |
 
 **Seconds, not minutes** — no model runs on this path. It is the fastest way to
 confirm the app is wired to a service at all.
+
+**A link to an Instagram post** (`/p/`, `/reel/` or `/tv/` on `instagram.com`,
+query string allowed) is read differently (#120). The fetcher's `POST /instagram`
+reads the post, given only its shortcode. Then up to three web links in the
+caption are tried as above, and the first with a recipe wins. Failing that, the
+model reads the caption and every image in one call. Either way the source is a
+website source with a `post: { url, author }` crediting it. Expect several
+seconds, and longer when the caption links to pages without a recipe.
 
 Note the one deliberate remapping: the fetcher's own 415 (a URL serving a PDF)
 arrives here as **422**, because that is a problem with what was asked for, not
@@ -187,34 +196,6 @@ Expect five to nine seconds for a page. Nothing on this side decodes the image,
 so the media type the browser declared is forwarded as-is and an unreadable one
 is answered for by the model, not caught here.
 
-### `POST /api/extract/instagram`
-
-```
-POST {{app}}/api/extract/instagram
-Content-Type: application/json
-Cookie: nuxt-oidc-auth=<value>
-
-{ "url": "https://www.instagram.com/p/DbXWEUaxWVd/" }
-```
-
-Body `{ "url": string }`: a link to one post — `/p/`, `/reel/` or `/tv/` on
-`instagram.com`, query string allowed. Same `{ "recipe": { … } }` shape, with an
-`instagram` source.
-
-| Status | Meaning |
-|---|---|
-| 401 | No session |
-| 415 | Content type is not JSON |
-| 400 | Not valid JSON, or `url` missing, not a string, or not a link to an Instagram post |
-| 413 | URL too long, or the post's images too large together |
-| 422 | The post is missing or private (logged out they look the same), or the model found no recipe in it |
-| 502 | Instagram, the fetcher or the model failed or was unreachable |
-| 503 | Instagram is throttling the fetcher, or the model is busy; retry later |
-| 504 | Instagram or the model did not answer in time |
-
-Two calls: the fetcher's `POST /instagram`, then the model with the caption and
-every image at once. Only the shortcode reaches the fetcher.
-
 ### `POST /api/recipes`
 
 ```
@@ -238,7 +219,7 @@ it. `owner_sub` comes from the session and is never read from the body.
 |---|---|
 | 401 | No session, or a session whose token carries no subject |
 | 415 | Content type is not JSON |
-| 400 | A field is the wrong type, an amount is not positive, a URL is not http(s), or the source is not one of text/website/photo/instagram |
+| 400 | A field is the wrong type, an amount is not positive, a URL is not http(s), or the source is not one of text/website/photo |
 | 413 | Over a limit: 300-character title, 200 ingredients, 100 steps, 5 000 characters a step |
 | 422 | No ingredients and no steps — well-formed, but not a recipe |
 | 503 | This deployment has no database configured |
@@ -405,7 +386,7 @@ GET {{app}}/api/recipes?q=soup&tag=Winter&tag=soup&ingredient=leek&maxTime=60&mi
 | `ingredient` | An ingredient's name contains this, for every one given |
 | `maxTime` | It states a total time, and it is this many minutes or fewer |
 | `minPortions`, `maxPortions` | It states portions, and they are in range |
-| `source` | It came from any of these: `website`, `instagram`, `photo`, `text` |
+| `source` | It came from any of these: `website`, `photo`, `text`. A recipe from an Instagram post is `website` |
 
 Terms are trimmed. A term given twice in different cases counts once. A
 filter the server cannot read is a **400**, rather than being dropped. That

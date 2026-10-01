@@ -169,15 +169,30 @@ the browser sent is recorded. Object storage is what fills it in; see
 ## Instagram
 
 ```sh
-curl -X POST http://localhost:8100/api/extract/instagram   -b 'your-session-cookie'   -H 'Content-Type: application/json'   -d '{"url":"https://www.instagram.com/p/DbXWEUaxWVd/"}'
+curl -X POST http://localhost:8100/api/extract/website   -b 'your-session-cookie'   -H 'Content-Type: application/json'   -d '{"url":"https://www.instagram.com/p/DbXWEUaxWVd/"}'
 ```
 
-Request: `{ "url": string }`, a link to one post. Response: the same
-`{ "recipe": { … } }` as above. Statuses are in the [API map](./api-map.md).
+A link to an Instagram post is a website import (#120): same route, same
+`{ "recipe": { … } }`. Statuses are in the [API map](./api-map.md). The source
+is a website source with a `post: { url, author }` crediting the post, and the
+library files it under websites.
 
-A post has no recipe markup, so it is on the model path: the caption and the
-post's images go to the model together, in one call, since these recipes are
-routinely split across the two. The prompt adds that the caption comes first
+A post has no recipe markup, so it is read in this order, and the first that
+finds a recipe wins:
+
+1. **A page the caption links to** (#122), through the website import above.
+   Up to three `http(s)://` or `www.` links, in order, Instagram's own skipped.
+   The recipe is the page's, and `post` credits where the link was found. A
+   page without a recipe, or one that can't be read, moves on to the next.
+2. **The caption and images**, through the model. The import dialog's hint asks
+   for the recipe's own link first, since that reads more reliably than this
+   (#121).
+
+Still to come, each its own plan: the creator's site found through the bio
+link (#123), and a reel's audio as a last resort (#124).
+
+In step 2 the caption and the post's images go to the model together, in one
+call, since these recipes are routinely split across the two. The prompt adds that the caption comes first
 and the images after it in order, that hashtags and calls to follow are not the
 recipe, and that a picture of the finished dish is neither ingredient nor step.
 A video contributes its cover image; nothing watches the video.
@@ -207,8 +222,10 @@ session, which is a different trust relationship from anything Recipeat holds
 today. Scanning a profile for new recipes is its own plan (#116).
 
 Images come from `*.cdninstagram.com`. The fetcher requests only Instagram's own
-hosts, including for media URLs the post itself names, so this path does not
-inherit the website path's missing SSRF guard.
+hosts for them, including for media URLs the post itself names, and under that
+allowlist the SSRF guard (#117) refuses any non-public address. Caption links go
+through the same guarded website fetch as any pasted link: a post's author
+chooses them, which is what #117 was written for.
 
 ## The pipeline
 
@@ -304,9 +321,9 @@ type Recipe = {
 
 type RecipeSource =
   | { type: 'text', originalText: string }
-  | { type: 'website', url: string, author: string | null, siteName: string | null, retrievedAt: string }
+  | { type: 'website', url: string, author: string | null, siteName: string | null, retrievedAt: string,
+      post?: { url: string, author: string | null } }  // through an Instagram post
   | { type: 'photo', objectKey: string | null, originalFilename: string | null }
-  | { type: 'instagram', url: string, author: string | null, retrievedAt: string }
 
 type Ingredient = {
   id: string                    // "ingredient_1", dense and stable

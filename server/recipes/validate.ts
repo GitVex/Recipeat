@@ -4,6 +4,7 @@ import { fail } from '../extraction/errors.ts'
 import { isUnit } from '../extraction/quantity.ts'
 import { LIMITS, type IngredientDraft, type Quantity, type RecipeDraft, type RecipeSource } from '../extraction/recipe.ts'
 import { httpUrl, MAX_URL_LENGTH } from '../extraction/url.ts'
+import type { InstagramPostRef } from '../../shared/types/recipe.ts'
 
 /**
  * A recipe on its way in from a browser.
@@ -90,6 +91,15 @@ const ingredientOf = (value: unknown, index: number): IngredientDraft => {
   }
 }
 
+// The Instagram post a website source came through. Its URL is rendered as a
+// link like the page's, so it is held to the same rule.
+const postOf = (value: unknown): InstagramPostRef => {
+  const post = object(value, '"source.post"')
+  const url = httpUrl(post.url)
+  if (!url) throw fail(400, 'An Instagram post needs an http or https URL.')
+  return { url, author: optional(post.author, () => string(post.author, LIMITS.title, 'the post author')) }
+}
+
 // Where a recipe came from is not the client's to invent: it is echoed back
 // from an extraction, it lands in a JSONB column, and #22 and object storage
 // will both read it. Each variant is checked field by field.
@@ -98,22 +108,20 @@ const sourceOf = (value: unknown): RecipeSource => {
   switch (source.type) {
     case 'text':
       return { type: 'text', originalText: string(source.originalText, LIMITS.step, 'the source text') }
-    // Both are a link someone read, and differ only in what the page called
-    // itself: a post has an author and no site name worth keeping.
-    case 'website':
-    case 'instagram': {
+    case 'website': {
       const url = httpUrl(source.url)
-      if (!url) throw fail(400, `A ${source.type} source needs an http or https URL.`)
+      if (!url) throw fail(400, 'A website source needs an http or https URL.')
       const retrievedAt = string(source.retrievedAt, 40, '"retrievedAt"')
       if (Number.isNaN(Date.parse(retrievedAt))) throw fail(400, '"retrievedAt" must be a date.')
-      const author = optional(source.author, () => string(source.author, LIMITS.title, 'the author'))
-      if (source.type === 'instagram') return { type: 'instagram', url, author, retrievedAt }
+      const post = optional(source.post, () => postOf(source.post))
       return {
         type: 'website',
         url,
-        author,
+        author: optional(source.author, () => string(source.author, LIMITS.title, 'the author')),
         siteName: optional(source.siteName, () => string(source.siteName, LIMITS.title, 'the site name')),
         retrievedAt,
+        // Only when there is one, so a plain website source stays as it was.
+        ...(post && { post }),
       }
     }
     case 'photo':
@@ -125,7 +133,7 @@ const sourceOf = (value: unknown): RecipeSource => {
         originalFilename: optional(source.originalFilename, () => string(source.originalFilename, LIMITS.title, 'the filename')),
       }
     default:
-      throw fail(400, 'A recipe source must be text, website, photo or instagram.')
+      throw fail(400, 'A recipe source must be text, website or photo.')
   }
 }
 

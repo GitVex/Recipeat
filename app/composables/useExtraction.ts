@@ -1,6 +1,7 @@
 import type { ExtractedRecipe } from "#shared/types/recipe";
 
-// One call path for all three extraction routes. The dialog says what to read;
+// One call path for all three extraction routes. An Instagram post is a
+// website import (#120); it is its own source here only for its wording. The dialog says what to read;
 // this says how it went, in words a person can act on. The server's own
 // messages are sanitized but written for whoever is testing the API, so none
 // of them are shown here.
@@ -147,7 +148,7 @@ export function useExtraction() {
     );
     try {
       const { recipe } = await $fetch<{ recipe: ExtractedRecipe }>(
-        `/api/extract/${request.source}`,
+        `/api/extract/${request.source === "instagram" ? "website" : request.source}`,
         { method: "POST", body: bodyOf(request), signal: own.signal, retry: 0 },
       );
       // An answer that arrives after the request was given up on opens nothing.

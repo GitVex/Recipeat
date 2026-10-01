@@ -65,7 +65,6 @@ const servesOn = (each: Serves) =>
 
 const SOURCES: Record<RecipeFilters["sources"][number], string> = {
   website: "A website",
-  instagram: "Instagram",
   photo: "A photo",
   text: "Your notes",
 };
