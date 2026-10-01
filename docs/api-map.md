@@ -545,6 +545,36 @@ are its own.
 | 413 | A name over 40 characters, or more than 20 tags |
 | 415 | Content type is not JSON |
 
+### `GET /api/preferences`
+
+```
+GET {{app}}/api/preferences
+Cookie: nuxt-oidc-auth=<value>
+```
+
+Answers `{ "preferences": { "unitSystem", "portions" } }`. Either is null for
+"as the recipe is written", and both are until something is saved.
+
+### `PUT /api/preferences`
+
+```
+PUT {{app}}/api/preferences
+Content-Type: application/json
+Cookie: nuxt-oidc-auth=<value>
+
+{ "unitSystem": "imperial", "portions": 4 }
+```
+
+Replaces the whole set and answers it as stored. Every preference is required
+and nothing else is accepted. `unitSystem` is `"metric"`, `"imperial"` or null.
+`portions` is a whole number from 1 to 100, or null. The owner comes from the
+session. The full list is `PREFERENCES` in `shared/utils/preferences.ts`.
+
+| Status | Meaning |
+|---|---|
+| 400 | A preference is missing, holds something it may not, or does not exist |
+| 415 | Content type is not JSON |
+
 ### `GET /api/recipes/{id}/collections`
 
 Answers `{ "collections": ["…", …] }`: the ids of every collection this

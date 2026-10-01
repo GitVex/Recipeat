@@ -1,4 +1,12 @@
 <script setup lang="ts">
+import {
+  isPreferenceValue,
+  PREFERENCE_KEYS,
+  PREFERENCES,
+  type PreferenceKey,
+  type Preferences,
+} from "#shared/utils/preferences";
+
 // The signed-in person (#11): who they are to Recipeat, as GET /api/me
 // answers it, and what they have kept — the same listing the collection reads,
 // from the database rather than this browser. Signing out is here too.
@@ -32,6 +40,43 @@ const PROVIDERS: Record<string, string> = { zitadel: "Zitadel" };
 const provider = computed(() =>
   me.data.value ? (PROVIDERS[me.data.value.provider] ?? me.data.value.provider) : null,
 );
+
+// ── Preferences (#62) ──────────────────────────────────────────────────────
+
+// One row per entry in PREFERENCES, saved as they change: the whole set
+// each time, from what is on the form. The form holds text, "" for unset.
+const { preferences, request: preferencesRequest } = usePreferences();
+const stored = preferencesRequest.data;
+const form = reactive({} as Record<PreferenceKey, string>);
+// What is saved, which a failed save goes back to.
+function showSaved() {
+  for (const key of PREFERENCE_KEYS) form[key] = String(preferences.value?.[key] ?? "");
+}
+watch(preferences, showSaved, { immediate: true });
+const saving = ref<"saving" | "saved" | "failed" | null>(null);
+async function savePreferences() {
+  // Anything a preference may not hold — an empty or out-of-range number —
+  // is unset, as each row's description says.
+  const body = Object.fromEntries(
+    PREFERENCE_KEYS.map((key) => {
+      const text = String(form[key] ?? "").trim();
+      const value = !text ? null : PREFERENCES[key].kind === "number" ? Number(text) : text;
+      return [key, isPreferenceValue(PREFERENCES[key], value) ? value : null];
+    }),
+  ) as Preferences;
+  saving.value = "saving";
+  try {
+    stored.value = await $fetch<{ preferences: Preferences }>("/api/preferences", {
+      method: "PUT",
+      body,
+      retry: 0,
+    });
+    saving.value = "saved";
+  } catch {
+    saving.value = "failed";
+  }
+  showSaved();
+}
 
 // The page says "signed out" to a person, and the response says it to
 // everything else.
@@ -88,6 +133,68 @@ useHead(() => ({
           Sign out
         </button>
       </div>
+
+      <section class="profile-preferences" aria-labelledby="profile-preferences-heading">
+        <h2 id="profile-preferences-heading">Preferences</h2>
+        <form @submit.prevent>
+          <fieldset class="preference-list" :disabled="!preferences">
+            <div v-for="(spec, key) in PREFERENCES" :key="key" class="preference-row">
+              <div class="preference-key">
+                <label
+                  :id="`preference-${key}-label`"
+                  :for="spec.kind === 'number' ? `preference-${key}` : undefined"
+                  class="preference-name"
+                  >{{ spec.label }}</label
+                >
+                <span :id="`preference-${key}-hint`" class="preference-hint">{{
+                  spec.description
+                }}</span>
+              </div>
+              <div
+                v-if="spec.kind === 'choice'"
+                class="preference-value preference-options"
+                role="radiogroup"
+                :aria-labelledby="`preference-${key}-label`"
+                :aria-describedby="`preference-${key}-hint`"
+              >
+                <label
+                  v-for="option in [{ value: '', label: spec.unset }, ...spec.options]"
+                  :key="option.value"
+                  class="preference-option"
+                >
+                  <input
+                    v-model="form[key]"
+                    type="radio"
+                    :name="key"
+                    :value="option.value"
+                    @change="savePreferences"
+                  />
+                  {{ option.label }}
+                </label>
+              </div>
+              <div v-else class="preference-value">
+                <input
+                  :id="`preference-${key}`"
+                  v-model="form[key]"
+                  type="number"
+                  :min="spec.min"
+                  :max="spec.max"
+                  step="1"
+                  :placeholder="spec.unset"
+                  :aria-describedby="`preference-${key}-hint`"
+                  @change="savePreferences"
+                />
+              </div>
+            </div>
+          </fieldset>
+          <p class="preference-status" role="status">
+            <template v-if="preferencesRequest.error.value">Preferences aren’t available on this server.</template>
+            <template v-else-if="saving === 'saving'">Saving…</template>
+            <template v-else-if="saving === 'saved'">Saved to your account.</template>
+            <template v-else-if="saving === 'failed'">That didn’t save. Try again.</template>
+          </p>
+        </form>
+      </section>
 
       <section class="profile-recipes" aria-labelledby="profile-recipes-heading">
         <div class="profile-recipes-heading">

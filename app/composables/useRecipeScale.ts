@@ -8,7 +8,18 @@ type Stored = Scale & { id: string; system: UnitSystem };
 // a change to it: it survives a reload of the same recipe and is dropped on
 // opening another. A session cookie rather than sessionStorage, so the server
 // renders the same amounts the browser will.
+//
+// Signed in with default servings (#62), a recipe that says how many it
+// serves opens scaled to them; scaling it by hand still wins, for this recipe.
 export function useRecipeScale(recipe: Ref<SavedRecipe>, system: Ref<UnitSystem>) {
+  const { preferences: account } = usePreferences();
+  const preferred = computed<Scale>(() => {
+    const portions = account.value?.portions;
+    return portions && recipe.value.portions
+      ? { factor: portions / recipe.value.portions, anchor: "portions", value: null }
+      : UNSCALED;
+  });
+
   const stored = useCookie<Stored | null>("recipeat-scale", {
     default: () => null,
     sameSite: "lax",
@@ -16,7 +27,7 @@ export function useRecipeScale(recipe: Ref<SavedRecipe>, system: Ref<UnitSystem>
 
   const scale = computed<Scale>(() => {
     const value = stored.value;
-    if (!value || value.id !== recipe.value.id) return UNSCALED;
+    if (!value || value.id !== recipe.value.id) return preferred.value;
     if (typeof value.factor !== "number" || !(value.factor > 0) || !Number.isFinite(value.factor))
       return UNSCALED;
     // An amount typed in one system is not that number in the other; the
@@ -29,9 +40,13 @@ export function useRecipeScale(recipe: Ref<SavedRecipe>, system: Ref<UnitSystem>
     if (stored.value && stored.value.id !== recipe.value.id) stored.value = null;
   });
 
+  // Back where it opens is nothing to keep. Anywhere else is kept, as written
+  // included when that is not where it opens.
   function set(next: Scale) {
     stored.value =
-      Math.abs(next.factor - 1) < 1e-9 ? null : { ...next, id: recipe.value.id, system: system.value };
+      Math.abs(next.factor - preferred.value.factor) < 1e-9
+        ? null
+        : { ...next, id: recipe.value.id, system: system.value };
   }
 
   return {
@@ -47,6 +62,7 @@ export function useRecipeScale(recipe: Ref<SavedRecipe>, system: Ref<UnitSystem>
     setAnchor(ingredientId: string, value: number, base: number) {
       if (value > 0 && base > 0) set({ factor: value / base, anchor: ingredientId, value });
     },
-    reset: () => (stored.value = null),
+    /** As written, whatever it opened at. */
+    reset: () => set(UNSCALED),
   };
 }
