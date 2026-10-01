@@ -340,6 +340,29 @@ The line the version in the path belongs to, from any version in it. Answers
 | 400 | The id is not a UUID |
 | 404 | No such version, or not yours |
 
+### `GET /api/recipes/{id}/similar`
+
+```
+GET {{app}}/api/recipes/6f1e9b3c-…/similar
+Cookie: nuxt-oidc-auth=<value>
+```
+
+Up to three web pages with recipes like this one (#59), from the SearXNG
+instance in `docker/compose.search.yaml`. Answers
+`{ "results": [ { "title", "url", "site", "snippet" } ] }`. The query is the
+recipe's title plus "recipe" in its `source_lang`. The recipe's own source
+page is left out, and an untitled recipe gets `[]` without a search. Searches
+are cached in memory per title and language for a day, and each user gets 30
+calls an hour.
+
+| Status | Meaning |
+|---|---|
+| 400 | The id is not a UUID |
+| 404 | No such recipe, or not yours |
+| 429 | Over 30 searches in the hour |
+| 502 | SearXNG didn't answer, or answered with something unusable |
+| 503 | `NUXT_SEARXNG_BASE_URL` is empty |
+
 ### `PUT /api/recipes/{id}/pin`
 
 ```

@@ -1,0 +1,46 @@
+# SearXNG, the web search behind "Similar recipes elsewhere" (#59). Its own
+# Compose project like the others: it opens connections to search engines and
+# nothing else, and on its own network it has no route to the database.
+#
+# It scrapes the engines behind it rather than calling an API, so an engine can
+# be throttled or break. The fix is usually a newer image: `docker compose pull`.
+name: recipeat-search
+
+services:
+  recipeat-searxng:
+    image: searxng/searxng:latest
+    container_name: recipeat-searxng
+    restart: unless-stopped
+    # Loopback only, for checking it from the host. The app reaches it over
+    # recipeat-search-net.
+    ports:
+      - "127.0.0.1:8104:8080"
+    environment:
+      # SearXNG refuses to start on the default. Nothing here is signed that
+      # matters (no public UI, no limiter), but it has to be set:
+      #   openssl rand -hex 32
+      SEARXNG_SECRET: ${SEARXNG_SECRET:?required}
+    volumes:
+      - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
+    cpus: 0.5
+    mem_limit: 256m
+    memswap_limit: 256m
+    networks:
+      default: {}
+      search:
+        aliases:
+          - recipeat-searxng
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  #   docker network create recipeat-search-net
+  #
+  # External for the same reason as the others: Coolify overrides the project
+  # name, so a generated network's name is not knowable from here.
+  search:
+    external: true
+    name: recipeat-search-net
