@@ -3,12 +3,16 @@
 # nothing else, and on its own network it has no route to the database.
 #
 # It scrapes the engines behind it rather than calling an API, so an engine can
-# be throttled or break. The fix is usually a newer image: `docker compose pull`.
+# be throttled or break. The fix is usually a newer image:
+#   docker compose -f docker/compose.search.yaml build --pull
 name: recipeat-search
 
 services:
   recipeat-searxng:
-    image: searxng/searxng:latest
+    # searxng/searxng with docker/searxng/settings.yml copied in; see the
+    # Dockerfile for why it isn't mounted.
+    build: ./searxng
+    image: recipeat-searxng:latest
     container_name: recipeat-searxng
     restart: unless-stopped
     # Loopback only, for checking it from the host. The app reaches it over
@@ -20,8 +24,6 @@ services:
       # matters (no public UI, no limiter), but it has to be set:
       #   openssl rand -hex 32
       SEARXNG_SECRET: ${SEARXNG_SECRET:?required}
-    volumes:
-      - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
     cpus: 0.5
     mem_limit: 256m
     memswap_limit: 256m
