@@ -31,7 +31,7 @@ Work is scheduled in Waves, one GitHub milestone each (`Wave N`). The
 **current Wave** is the lowest-numbered open one.
 
 - **Features.** A Wave holds at most **4 top-level features**: issues that are
-  not bugs and have no parent issue. Sub-issues of those features don't count
+  not bugs, not chores and have no parent issue. Sub-issues of those features don't count
   and belong in the same Wave.
 - **Migrations.** At most **one** issue in a Wave, bugs included, may add a
   database migration. Issues that will are labelled `needs:migration` when
@@ -50,6 +50,13 @@ Work is scheduled in Waves, one GitHub milestone each (`Wave N`). The
   move to the next Wave.
 - **Full Waves.** When a feature doesn't fit, it goes into the next Wave that
   has room, opening a new one if none does.
+
+### Issue Types
+
+- **Plan:** A plan is a one-line summary of a feature or task. It is a title only or a quick description.
+- **Bug:** A bug is a problem or issue that needs to be fixed.
+- **Chore:** A chore is a task that needs to be done but is not a feature.
+- **Feature:** A feature is a new or existing functionality that needs to be implemented.
 
 ## Next: storage
 
