@@ -126,3 +126,46 @@ test('opening another recipe drops the scale', async ({ page }) => {
   await expect(page.getByRole('group', { name: 'Servings' })).toContainText('Serves 2')
   await expect(lines(page).nth(0)).toContainText('500 g flour')
 })
+
+// Signed in with preferences saved to the account (#62).
+const preferring = (page: Page, preferences: { unitSystem: string | null, portions: number | null }) => {
+  const writes: unknown[] = []
+  return page.route('**/api/preferences', (route) => {
+    if (route.request().method() !== 'GET') writes.push(route.request().postDataJSON())
+    return route.fulfill({ json: { preferences } })
+  }).then(() => writes)
+}
+
+test('default servings open a recipe scaled to them, and by hand still wins', async ({ page }) => {
+  await preferring(page, { unitSystem: null, portions: 4 })
+  await open(page)
+  await expect(page.getByRole('group', { name: 'Servings' })).toContainText('Serves 4')
+  await expect(lines(page).nth(1)).toContainText('2 tsp salt')
+  await page.getByRole('button', { name: 'Fewer servings' }).click()
+  await expect(page.getByRole('group', { name: 'Servings' })).toContainText('Serves 3')
+  // Reset is the recipe as written, not where it opened.
+  await page.getByRole('button', { name: 'Reset' }).click()
+  await expect(page.getByRole('group', { name: 'Servings' })).toContainText('Serves 2')
+  await expect(lines(page).nth(1)).toContainText('1 tsp salt')
+  await expect(page.getByRole('button', { name: 'Reset' })).toHaveCount(0)
+})
+
+test('a recipe that does not say how many it serves opens unscaled', async ({ page }) => {
+  await preferring(page, { unitSystem: null, portions: 4 })
+  await open(page, null)
+  await expect(page.locator('.scale-factor')).toHaveCount(0)
+  await expect(lines(page).nth(0)).toContainText('500 g flour')
+})
+
+test("the account's units show, and the toggle changes only this view", async ({ page }) => {
+  const writes = await preferring(page, { unitSystem: 'imperial', portions: null })
+  await open(page)
+  const toggle = page.getByRole('switch', { name: 'Metric units' })
+  await expect(toggle).toHaveAttribute('aria-checked', 'false')
+  await expect(lines(page).nth(0)).not.toContainText('500 g')
+  await toggle.click()
+  await expect(toggle).toHaveAttribute('aria-checked', 'true')
+  await expect(lines(page).nth(0)).toContainText('500 g flour')
+  expect(writes).toEqual([])
+  expect((await page.context().cookies()).some(cookie => cookie.name === 'recipeat-units')).toBe(false)
+})

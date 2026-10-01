@@ -12,6 +12,7 @@ app startup. Nothing else talks to it.
 | `001_recipes.sql` | The `recipes` table, its lineage columns and its triggers |
 | `002_collections.sql` | `collections`, and `collection_recipes`: which lines are in each, in what order |
 | `003_tags.sql` | `tags`, and `recipe_tags`: which lines wear each |
+| `004_preferences.sql` | `preferences`: one settings document per person |
 | `server/database/migrate.ts` | The runner: a ledger, an advisory lock, one transaction per file |
 | `server/plugins/database.ts` | Runs the above at startup and holds requests until it is done |
 | `server/utils/database.ts` | The shared connection pool |
@@ -74,6 +75,28 @@ whitespace, and at most 40 characters.
 A tag that no line wears any more keeps its row. Deleting it would race a
 write that has just found it to reuse. `GET /api/tags` lists only tags in use,
 so a leftover row costs nothing, and typing the name again reuses it.
+
+## Preferences
+
+One row per person, keyed by `owner_sub`, made on their first save. No row
+reads as nothing set. The preferences themselves are one `jsonb` document,
+`settings`, and the table only checks that it is an object. Which preferences
+exist, and what each may hold, is `PREFERENCES` in
+`shared/utils/preferences.ts`. The route checks every save against it.
+
+Adding a preference is an entry there, with no migration. The `Preferences`
+type, the route's check and the profile's form all follow from it. Read it
+anywhere in the app with `usePreferences()`, which is null when nobody is
+signed in. A form for a new `kind` of preference is a branch in
+`app/pages/profile.vue`.
+
+Reading follows the config as it is now. A key it no longer has is left out,
+and a stored value it would not take reads as unset. The next save drops both.
+Renaming a key loses what was saved under the old name, unless something copies
+it over.
+
+Signed out, the `recipeat-units` cookie still holds the unit system. Signed
+in, the account's settings win and the cookie is ignored.
 
 ## A fresh database
 

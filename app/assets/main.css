@@ -3504,6 +3504,87 @@ a.history-title:hover {
 .profile-entries {
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
 }
+/* Preferences (#62), beside the account card: one row per preference, what
+   it is on the left and its choices on the right, a rule between rows. */
+.profile-recipes {
+    grid-column: 1 / -1;
+}
+.profile-preferences {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-l);
+    padding: 26px 28px;
+}
+.profile-preferences h2 {
+    font-size: var(--title-m);
+    margin: 0 0 8px;
+}
+.preference-list {
+    border: 0;
+    margin: 0;
+    padding: 0;
+    min-width: 0;
+}
+.preference-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px 32px;
+    align-items: center;
+    padding: 18px 0;
+}
+.preference-row + .preference-row {
+    border-top: 1px solid var(--line);
+}
+.preference-key {
+    display: grid;
+    gap: 3px;
+}
+.preference-name {
+    font-size: var(--text-body);
+}
+.preference-hint,
+.preference-status {
+    font-size: var(--text-meta);
+    line-height: 1.6;
+    color: var(--muted);
+}
+.preference-status {
+    margin: 4px 0 0;
+}
+.preference-value {
+    justify-self: end;
+}
+.preference-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 24px;
+}
+.preference-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--text-body);
+}
+.preference-option input {
+    accent-color: var(--olive);
+}
+.preference-value input[type="number"] {
+    width: 140px;
+    padding: 11px 13px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-s);
+    background: var(--paper);
+    color: var(--ink);
+    font-size: var(--text-small);
+}
+@media (max-width: 600px) {
+    .preference-row {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .preference-value {
+        justify-self: start;
+    }
+}
 @media (max-width: 800px) {
     .profile {
         grid-template-columns: minmax(0, 1fr);

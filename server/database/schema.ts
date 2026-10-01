@@ -65,12 +65,21 @@ export type RecipeTagsTable = {
   added_at: Generated<Date>
 }
 
+// One row per person who has saved a preference — see 004_preferences.sql.
+// What `settings` may hold is the config's to say, not the table's.
+export type PreferencesTable = {
+  owner_sub: string
+  settings: ColumnType<Record<string, unknown>, string, string>
+  updated_at: Generated<Date>
+}
+
 export type Database = {
   recipes: RecipesTable
   collections: CollectionsTable
   collection_recipes: CollectionRecipesTable
   tags: TagsTable
   recipe_tags: RecipeTagsTable
+  preferences: PreferencesTable
 }
 
 export type RecipeRow = Selectable<RecipesTable>

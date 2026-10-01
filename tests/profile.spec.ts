@@ -65,3 +65,41 @@ test('signed out, the page says so rather than rendering empty', async ({ page }
   await expect(page.locator('.collection-state').getByRole('button', { name: 'Sign in' })).toBeVisible()
   await expect(page.locator('.profile-card')).toHaveCount(0)
 })
+
+test('preferences are saved to the account as they change', async ({ page }) => {
+  const writes: unknown[] = []
+  await page.route('**/api/me', route => route.fulfill({ json: me }))
+  await page.route('**/api/recipes', route => route.fulfill({ json: { recipes: [] } }))
+  await page.route('**/api/preferences', (route) => {
+    if (route.request().method() === 'GET') return route.fulfill({ json: { preferences: { unitSystem: null, portions: null } } })
+    const body = route.request().postDataJSON()
+    writes.push(body)
+    return route.fulfill({ json: { preferences: body } })
+  })
+  await visit(page)
+  const preferences = page.getByRole('region', { name: 'Preferences' })
+  await expect(preferences.getByRole('radio', { name: 'As written' })).toBeChecked()
+
+  await preferences.getByRole('radio', { name: 'Imperial' }).check()
+  await expect(preferences.getByRole('status')).toHaveText('Saved to your account.')
+  await preferences.getByRole('spinbutton', { name: 'Servings' }).fill('4')
+  await preferences.getByRole('spinbutton', { name: 'Servings' }).press('Enter')
+  await expect.poll(() => writes.length).toBe(2)
+  expect(writes).toEqual([{ unitSystem: 'imperial', portions: null }, { unitSystem: 'imperial', portions: 4 }])
+  await page.screenshot({ path: 'test-results/profile-preferences.png', fullPage: true })
+})
+
+test('a preference that does not save says so, and shows what is saved', async ({ page }) => {
+  await page.route('**/api/me', route => route.fulfill({ json: me }))
+  await page.route('**/api/recipes', route => route.fulfill({ json: { recipes: [] } }))
+  await page.route('**/api/preferences', route => route.request().method() === 'GET'
+    ? route.fulfill({ json: { preferences: { unitSystem: 'metric', portions: 2 } } })
+    : route.fulfill({ status: 500, json: {} }))
+  await visit(page)
+  const preferences = page.getByRole('region', { name: 'Preferences' })
+  // A click, not check(): the form is back on Metric before check() could see Imperial.
+  await preferences.getByRole('radio', { name: 'Imperial' }).click()
+  await expect(preferences.getByRole('status')).toHaveText('That didn’t save. Try again.')
+  await expect(preferences.getByRole('radio', { name: 'Metric' })).toBeChecked()
+  await expect(preferences.getByRole('spinbutton', { name: 'Servings' })).toHaveValue('2')
+})
