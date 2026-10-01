@@ -3238,6 +3238,54 @@ input.editable-input {
 .history-panel {
     padding-top: 14px;
 }
+/* Similar recipes elsewhere (#59): the history's fold, three quiet link cards. */
+.similar-recipes {
+    margin: 0 38px 32px;
+    border-top: 1px solid var(--line);
+    padding-top: 18px;
+}
+.similar-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+.similar-card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    height: 100%;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-m);
+    font-size: var(--text-small);
+    line-height: 1.5;
+}
+.similar-card:hover {
+    border-color: var(--line-strong);
+}
+.similar-card:hover .similar-title {
+    color: var(--orange-text);
+}
+.similar-title {
+    font-weight: 500;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.similar-site {
+    color: var(--muted);
+}
+.similar-snippet {
+    color: var(--muted);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
 .history-note,
 .history-origin {
     font-size: var(--text-small);
@@ -3396,8 +3444,12 @@ a.history-title:hover {
     gap: 8px;
 }
 @media (max-width: 800px) {
-    .recipe-history {
+    .recipe-history,
+    .similar-recipes {
         margin: 0 20px 24px;
+    }
+    .similar-list {
+        grid-template-columns: 1fr;
     }
     .history-row {
         flex-direction: column;

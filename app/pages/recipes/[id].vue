@@ -223,6 +223,7 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", warnBeforeUnloa
         @pin="lineage.pin"
         @delete="writes.askDelete"
       />
+      <SimilarRecipes :recipe-id="id" />
     </template>
     <p v-else-if="status === 'pending'" class="collection-state" role="status">
       Opening your recipe…

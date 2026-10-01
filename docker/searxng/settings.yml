@@ -1,0 +1,15 @@
+# Only what differs from SearXNG's defaults.
+use_default_settings: true
+
+server:
+  # Only the app calls this, a few times a day per user. The bot limiter would
+  # need Valkey and has nothing to protect.
+  limiter: false
+  image_proxy: false
+
+search:
+  # json is off by default, and it's the only format the app reads.
+  formats:
+    - html
+    - json
+  safe_search: 1

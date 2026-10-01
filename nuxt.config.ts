@@ -16,6 +16,9 @@ export default defineNuxtConfig({
     // project has, and the only runtime value that must not be in the repo.
     geminiApiKey: '',
     geminiModel: 'gemini-3.8-flash',
+    // SearXNG, for "Similar recipes elsewhere" (#59). No key: it's ours, on
+    // recipeat-search-net. Empty turns the section into a quiet "not set up".
+    searxngBaseUrl: 'http://127.0.0.1:8104',
   },
   modules: ['nuxt-oidc-auth'],
   oidc: {

@@ -168,3 +168,6 @@ export type RecipeHistory = {
   variants: RecipeBranch[]
   origin: Pick<SavedRecipe, 'id' | 'title'> | null
 }
+
+// A web search result shown under a recipe (#59): a link out, never a recipe.
+export type SimilarRecipe = { title: string, url: string, site: string, snippet: string }

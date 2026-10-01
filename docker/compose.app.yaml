@@ -38,6 +38,9 @@ services:
       # declares on recipeat-fetch-net — so Coolify renaming containers does
       # not break it.
       NUXT_FETCHER_BASE_URL: "http://recipeat-fetcher:8103"
+      # SearXNG, by the alias compose.search.yaml declares on
+      # recipeat-search-net.
+      NUXT_SEARXNG_BASE_URL: "http://recipeat-searxng:8080"
       # Extraction for both the text and photo routes. Billing must be enabled
       # on the Google project: the free tier is not licensed for an API client
       # serving users in the EEA, and its quota would not carry this anyway.
@@ -72,6 +75,7 @@ services:
       - default
       - fetch
       - db
+      - search
     logging:
       driver: json-file
       options:
@@ -100,6 +104,13 @@ networks:
   db:
     external: true
     name: recipeat-db-net
+
+  # And the search's, for "Similar recipes elsewhere":
+  #
+  #   docker network create recipeat-search-net
+  search:
+    external: true
+    name: recipeat-search-net
 
 volumes:
   app-data:
