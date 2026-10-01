@@ -24,6 +24,15 @@ services:
       # matters (no public UI, no limiter), but it has to be set:
       #   openssl rand -hex 32
       SEARXNG_SECRET: ${SEARXNG_SECRET:?required}
+    # SearXNG's own liveness endpoint, not a search: a real query every
+    # interval would spend the engines' patience on nothing. So healthy means
+    # it's serving, not that every engine behind it answers.
+    healthcheck:
+      test: ["CMD", "wget", "-qO", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     cpus: 0.5
     mem_limit: 256m
     memswap_limit: 256m
