@@ -10,6 +10,7 @@ import { normalizeRecipe, parseExtraction } from '../server/utils/extraction.ts'
 import { deleteRecipe, findRecipe, insertProgression, insertRecipe, insertVariant, listing, listRecipes, pinRecipe, readHistory, updateRecipe } from '../server/recipes/store.ts'
 import { addToCollection, collectionsContaining, createCollection, deleteCollection, listCollections, readCollection, removeFromCollection, renameCollection, reorderCollection } from '../server/collections/store.ts'
 import { listTags, setTags } from '../server/tags/store.ts'
+import { addPhoto, arrangePhotos, deleteImage, listPhotos, readImage, setSourcePhoto } from '../server/images/store.ts'
 import { readPreferences, writePreferences } from '../server/utils/preferences.ts'
 import { readFilters } from '../shared/utils/recipeFilters.ts'
 
@@ -30,7 +31,7 @@ const migrations = (...versions: string[]) => versions.map(version => ({
   sql: readFileSync(new URL(`../server/database/migrations/${version}`, import.meta.url), 'utf8'),
 }))
 // What the stores need under them.
-const STORE = ['001_recipes.sql', '002_collections.sql', '003_tags.sql', '004_preferences.sql']
+const STORE = ['001_recipes.sql', '002_collections.sql', '003_tags.sql', '004_preferences.sql', '005_images.sql']
 
 describe('migration runner', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () => {
   let admin: Sql
@@ -442,7 +443,7 @@ describe('recipes lineage writes', { skip: url ? false : 'NUXT_DATABASE_URL is n
     const root = await insertRecipe(db, 'user_a', recipe('Ragu'))
     const second = await insertProgression(db, 'user_a', root.id, recipe('Ragu, longer'))
     const deletion = await deleteRecipe(sql, 'user_a', second!.id)
-    assert.deepEqual(deletion, { count: 1, ids: [second!.id], pinned: root.id })
+    assert.deepEqual(deletion, { count: 1, ids: [second!.id], pinned: root.id, photos: 0 })
     assert.deepEqual((await pinnedIn(root.lineId)).map(row => row.id), [root.id])
   })
 
@@ -472,7 +473,7 @@ describe('recipes lineage writes', { skip: url ? false : 'NUXT_DATABASE_URL is n
     const abandoned = await insertProgression(db, 'user_a', root.id, recipe('Soup, thin'))
     const kept = await insertProgression(db, 'user_a', root.id, recipe('Soup, thick'))
     const deletion = await deleteRecipe(sql, 'user_a', abandoned!.id)
-    assert.deepEqual(deletion, { count: 1, ids: [abandoned!.id], pinned: kept!.id })
+    assert.deepEqual(deletion, { count: 1, ids: [abandoned!.id], pinned: kept!.id, photos: 0 })
     assert.deepEqual((await pinnedIn(root.lineId)).map(row => row.id), [kept!.id])
   })
 
@@ -488,7 +489,7 @@ describe('recipes lineage writes', { skip: url ? false : 'NUXT_DATABASE_URL is n
     assert.equal((await findRecipe(sql, 'user_a', variant!.id))!.variantOf, null)
 
     const alone = await insertRecipe(db, 'user_a', recipe('Toast'))
-    assert.deepEqual(await deleteRecipe(sql, 'user_a', alone.id), { count: 1, ids: [alone.id], pinned: null })
+    assert.deepEqual(await deleteRecipe(sql, 'user_a', alone.id), { count: 1, ids: [alone.id], pinned: null, photos: 0 })
   })
 
   test('a dry run counts what a deletion would take, and takes nothing', async () => {
@@ -1191,7 +1192,7 @@ describe('recipe filters', { skip: url ? false : 'NUXT_DATABASE_URL is not set' 
       }, source === 'website'
         ? { type: 'website', url: 'https://example.com/r', author: null, siteName: null, retrievedAt: '2026-09-01T00:00:00.000Z' }
         : source === 'photo'
-          ? { type: 'photo', objectKey: null, originalFilename: null }
+          ? { type: 'photo', originalFilename: null }
           : { type: 'text', originalText: title })))
       if (tags.length) await setTags(db, owner, saved.id, tags)
       return saved
@@ -1314,5 +1315,146 @@ describe('preferences', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, 
     await writePreferences(db, 'user_d', { unitSystem: 'metric', portions: 4 })
     const [{ settings }] = await sql<{ settings: unknown }[]>`SELECT settings FROM preferences WHERE owner_sub = 'user_d'`
     assert.deepEqual(settings, { unitSystem: 'metric', portions: 4 })
+  })
+})
+
+describe('images', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () => {
+  const SCHEMA = 'images_check'
+  let admin: Sql
+  let sql: Sql
+  let db: Kysely<Database>
+
+  before(async () => {
+    admin = postgres(url!, { max: 1, onnotice: () => {} })
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin`CREATE SCHEMA ${admin(SCHEMA)}`
+    sql = postgres(url!, { max: 10, onnotice: () => {}, connection: { search_path: SCHEMA } })
+    db = new Kysely<Database>({ dialect: new PostgresJSDialect({ postgres: sql }) })
+    await applyMigrations(sql, migrations(...STORE))
+  })
+
+  after(async () => {
+    await sql?.end()
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin?.end()
+  })
+
+  const recipe = (title: string) => normalizeRecipe(parseExtraction({
+    title,
+    source_lang: 'en',
+    portions: 2,
+    totalTime: 25,
+    ingredients: [{ originalText: '200 g flour', quantity: '200 g', name: 'flour' }],
+    steps: ['Mix the 200 g flour in.'],
+  }, { type: 'photo', originalFilename: 'page.jpg' }))
+
+  // A JPEG as far as anything here looks: the magic bytes and a marker.
+  const jpeg = (marker: number) => Buffer.from([0xFF, 0xD8, 0xFF, 0xE0, marker])
+  const upload = (marker = 1) => ({ mediaType: 'image/jpeg' as const, data: jpeg(marker), thumb: jpeg(marker + 100) })
+  const ids = (photos: { photos: { id: string }[] } | null) => photos!.photos.map(photo => photo.id)
+  const status = (code: number) => (error: { statusCode?: number }) => error.statusCode === code
+
+  test('ten photos a version, the first its cover, and the eleventh refused', async () => {
+    const bread = await insertRecipe(db, 'user_a', recipe('Bread'))
+    let photos = await addPhoto(db, 'user_a', bread.id, upload())
+    assert.deepEqual(photos!.photos.map(photo => photo.cover), [true])
+    for (let n = 2; n <= 10; n++) photos = await addPhoto(db, 'user_a', bread.id, upload(n))
+    assert.equal(photos!.photos.length, 10)
+    assert.equal(photos!.photos.filter(photo => photo.cover).length, 1)
+    await assert.rejects(() => addPhoto(db, 'user_a', bread.id, upload(11)), status(409))
+    // The table holds the limit too, for a write that skipped the count.
+    await assert.rejects(() => sql`
+      INSERT INTO images (recipe_id, owner_sub, kind, position, media_type, data, thumb)
+      VALUES (${bread.id}, 'user_a', 'dish', 10, 'image/jpeg', ${jpeg(1)}, ${jpeg(2)})
+    `, /check/i)
+  })
+
+  test('the bytes read back in either size, for their owner only', async () => {
+    const soup = await insertRecipe(db, 'user_a', recipe('Soup'))
+    const [id] = ids(await addPhoto(db, 'user_a', soup.id, upload(7)))
+    const full = await readImage(db, 'user_a', id!, 'full')
+    assert.equal(full!.media_type, 'image/jpeg')
+    assert.deepEqual(Buffer.from(full!.bytes), jpeg(7))
+    assert.deepEqual(Buffer.from((await readImage(db, 'user_a', id!, 'thumb'))!.bytes), jpeg(107))
+    assert.equal(await readImage(db, 'user_b', id!, 'full'), undefined)
+    assert.equal(await listPhotos(db, 'user_b', soup.id), null)
+    assert.equal(await addPhoto(db, 'user_b', soup.id, upload()), null)
+    assert.equal(await deleteImage(db, 'user_b', id!), false)
+  })
+
+  test('arranging reorders and moves the cover, and a stale order is refused', async () => {
+    const pie = await insertRecipe(db, 'user_a', recipe('Pie'))
+    for (const n of [1, 2, 3]) await addPhoto(db, 'user_a', pie.id, upload(n))
+    const [a, b, c] = ids(await listPhotos(db, 'user_a', pie.id))
+    const arranged = await arrangePhotos(db, 'user_a', pie.id, [c!, a!, b!], b!)
+    assert.deepEqual(arranged!.photos, [{ id: c, cover: false }, { id: a, cover: false }, { id: b, cover: true }])
+    assert.deepEqual((await arrangePhotos(db, 'user_a', pie.id, [a!, b!, c!], null))!.photos.map(photo => photo.cover), [false, false, false])
+    await assert.rejects(() => arrangePhotos(db, 'user_a', pie.id, [a!, b!], null), status(409))
+    await assert.rejects(() => arrangePhotos(db, 'user_a', pie.id, [a!, b!, c!], crypto.randomUUID()), status(409))
+  })
+
+  test('removing a photo closes the gap, and a removed cover hands over to the first', async () => {
+    const tart = await insertRecipe(db, 'user_a', recipe('Tart'))
+    for (const n of [1, 2, 3]) await addPhoto(db, 'user_a', tart.id, upload(n))
+    const [a, b, c] = ids(await listPhotos(db, 'user_a', tart.id))
+    assert.equal(await deleteImage(db, 'user_a', a!), true)
+    assert.deepEqual((await listPhotos(db, 'user_a', tart.id))!.photos, [{ id: b, cover: true }, { id: c, cover: false }])
+    const positions = await sql<{ position: number }[]>`SELECT position FROM images WHERE recipe_id = ${tart.id} ORDER BY position`
+    assert.deepEqual(positions.map(row => row.position), [0, 1])
+    assert.equal((await addPhoto(db, 'user_a', tart.id, upload(4)))!.photos.length, 3)
+  })
+
+  test("each version keeps its own photos, and a card shows the pin's cover, else the line's newest", async () => {
+    const stew = await insertRecipe(db, 'user_a', recipe('Stew'))
+    const [first] = ids(await addPhoto(db, 'user_a', stew.id, upload()))
+    const again = await insertProgression(db, 'user_a', stew.id, recipe('Stew, again'))
+    assert.deepEqual(await listPhotos(db, 'user_a', again!.id), { photos: [], source: null })
+    assert.deepEqual(ids(await listPhotos(db, 'user_a', stew.id)), [first])
+    const card = async () => (await listRecipes(sql, 'user_a')).find(entry => entry.lineId === stew.id)!.image
+    // The pin has none yet, so the line's is shown rather than nothing.
+    assert.equal(await card(), `/api/images/${first}?size=thumb`)
+    const [own] = ids(await addPhoto(db, 'user_a', again!.id, upload(2)))
+    assert.equal(await card(), `/api/images/${own}?size=thumb`)
+  })
+
+  test("the source photo is the line's, and a variant takes a copy of it and none of the dish photos", async () => {
+    const card = await insertRecipe(db, 'user_a', recipe('Card'))
+    const later = await insertProgression(db, 'user_a', card.id, recipe('Card, later'))
+    const kept = await setSourcePhoto(db, 'user_a', later!.id, upload(5))
+    assert.ok(kept!.source)
+    // Set through a later version; it hangs on the root, so every version sees it.
+    assert.equal((await listPhotos(db, 'user_a', card.id))!.source, kept!.source)
+    // A second replaces the first under a new id.
+    const replaced = await setSourcePhoto(db, 'user_a', card.id, upload(6))
+    assert.notEqual(replaced!.source, kept!.source)
+    assert.equal(await readImage(db, 'user_a', kept!.source!, 'full'), undefined)
+
+    await addPhoto(db, 'user_a', later!.id, upload(8))
+    const variant = await insertVariant(db, 'user_a', later!.id, recipe('Card, otherwise'))
+    const theirs = await listPhotos(db, 'user_a', variant!.id)
+    assert.deepEqual(theirs!.photos, [])
+    assert.ok(theirs!.source && theirs!.source !== replaced!.source)
+    assert.deepEqual(Buffer.from((await readImage(db, 'user_a', theirs!.source!, 'full'))!.bytes), jpeg(6))
+  })
+
+  test('deleting a version takes its photos and those of its descendants, and says how many first', async () => {
+    const cake = await insertRecipe(db, 'user_a', recipe('Cake'))
+    await setSourcePhoto(db, 'user_a', cake.id, upload(1))
+    await addPhoto(db, 'user_a', cake.id, upload(2))
+    const second = await insertProgression(db, 'user_a', cake.id, recipe('Cake 2'))
+    await addPhoto(db, 'user_a', second!.id, upload(3))
+    const third = await insertProgression(db, 'user_a', second!.id, recipe('Cake 3'))
+    await addPhoto(db, 'user_a', third!.id, upload(4))
+    await addPhoto(db, 'user_a', third!.id, upload(5))
+
+    assert.equal((await deleteRecipe(sql, 'user_a', second!.id, { dryRun: true }))!.photos, 3)
+    assert.equal((await deleteRecipe(sql, 'user_a', second!.id))!.photos, 3)
+    // The root's own photo and the line's source photo stay.
+    const left = await listPhotos(db, 'user_a', cake.id)
+    assert.equal(left!.photos.length, 1)
+    assert.ok(left!.source)
+    assert.equal((await deleteRecipe(sql, 'user_a', cake.id))!.photos, 2)
+    const [{ n }] = await sql<{ n: number }[]>`SELECT count(*)::int AS n FROM images WHERE owner_sub = 'user_a' AND recipe_id = ${cake.id}`
+    assert.equal(n, 0)
   })
 })

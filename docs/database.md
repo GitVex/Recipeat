@@ -13,6 +13,7 @@ app startup. Nothing else talks to it.
 | `002_collections.sql` | `collections`, and `collection_recipes`: which lines are in each, in what order |
 | `003_tags.sql` | `tags`, and `recipe_tags`: which lines wear each |
 | `004_preferences.sql` | `preferences`: one settings document per person |
+| `005_images.sql` | `images`: dish photos per version, and a line's source photo, as bytes |
 | `server/database/migrate.ts` | The runner: a ledger, an advisory lock, one transaction per file |
 | `server/plugins/database.ts` | Runs the above at startup and holds requests until it is done |
 | `server/utils/database.ts` | The shared connection pool |
@@ -97,6 +98,29 @@ it over.
 
 Signed out, the `recipeat-units` cookie still holds the unit system. Signed
 in, the account's settings win and the cookie is ignored.
+
+## Images
+
+Bytes in the table rather than an object store; why is in
+[planning.md](planning.md#decided-images-live-in-postgres-45). Each row is
+one picture in two sizes, `data` (about 1600 px) and `thumb` (about 400 px),
+both made by the browser. `media_type` is what the bytes were found to be on
+upload. Both columns are `STORAGE EXTERNAL`: JPEG does not compress, so TOAST
+is told not to try.
+
+`recipe_id` is a version for a dish photo and the line's root for the source
+photo, matched on `owner_sub` like every other reference. Positions run 0 to 9
+without gaps and are unique per version, deferred to commit as collection
+positions are, so the limit of ten is the schema's. One cover per version and
+one source photo per line are partial unique indexes.
+
+Nothing but `readImage` selects `data` or `thumb`. Every other query names its
+columns, and has to keep doing so: a `selectAll()` on `images` would carry
+megabytes per row through the pool. The card's cover is a subquery that
+returns an id, and the URL is built from it.
+
+An image's bytes never change: replacing the source photo deletes the row and
+writes a new one. That is what lets `/api/images/{id}` be cached as immutable.
 
 ## A fresh database
 
@@ -214,3 +238,7 @@ docker exec recipeat-postgres pg_dump -U recipeat recipeat | gzip > recipeat-$(d
 Coolify's scheduled backups only cover databases created as Coolify database
 resources, which this is not — that was the trade for keeping the
 configuration in the repo rather than in a web UI.
+
+Photos are in the dump since #45, and will soon be most of it: at roughly
+400 KB a photo, a thousand versions with ten each is about 4 GB. They do not
+compress further, so the `gzip` above saves nothing on them.

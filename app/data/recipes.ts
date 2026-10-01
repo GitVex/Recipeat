@@ -77,7 +77,7 @@ export const recipes: ShelfRecipe[] = [
       "Add sliced avocado and roasted vegetables.",
       "Mix tahini with lemon and a little water. Drizzle over the bowl and serve.",
     ]),
-    source: { type: "photo", objectKey: null, originalFilename: null },
+    source: { type: "photo", originalFilename: null },
   },
   {
     id: "sample-pancakes",

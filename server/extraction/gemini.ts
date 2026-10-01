@@ -239,9 +239,8 @@ export async function extractPhoto(
   return {
     recipe: parseExtraction(draft, {
       type: 'photo',
-      // Nothing stores the image yet, so there is no key to record. See
-      // docs/planning.md: object storage is what fills this in.
-      objectKey: null,
+      // Keeping the photo is the import dialog's to ask, after the recipe is
+      // saved; it becomes the line's source image (#45), not a field here.
       originalFilename: photo.filename,
     }),
   }

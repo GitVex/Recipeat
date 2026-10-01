@@ -23,6 +23,8 @@ const { pending, slow, failure, extract, cancel } = useExtraction();
 const mode = ref<ExtractionSource>("website");
 const input = ref("");
 const file = ref<File | null>(null);
+// Off unless asked for: not keeping the photo is how it has always been.
+const keepPhoto = ref(false);
 const error = ref("");
 
 // The hosts with a scraper of their own, asked for the first time the Website
@@ -160,7 +162,10 @@ async function submit() {
   if (!next) return;
   sentSupport.value = support.value;
   const recipe = await extract(next);
-  if (recipe) emit("extracted", recipe);
+  if (!recipe) return;
+  // Uploaded once the recipe is saved: extraction itself stores nothing.
+  if (next.source === "photo" && keepPhoto.value) keepSourcePhoto(recipe, next.file);
+  emit("extracted", recipe);
 }
 
 const TABS = [
@@ -226,6 +231,10 @@ const WAIT: Record<ExtractionSource, string> = {
           ><span>JPG, PNG, or another image format</span
           ><input type="file" accept="image/*" @change="chooseFile"
         /></label>
+        <label v-if="mode === 'photo'" class="keep-photo"
+          ><input v-model="keepPhoto" type="checkbox" />Keep this photo with
+          the recipe</label
+        >
         <p
           v-if="mode === 'website'"
           id="site-hint"

@@ -104,10 +104,10 @@ test('the source is checked variant by variant, not trusted', () => {
   // Not a source type of its own any more.
   assert.throws(() => withSource({ type: 'instagram', url: 'https://www.instagram.com/p/abc/', retrievedAt: '2026-09-30T10:00:00.000Z' }), status(400))
 
-  // objectKey is storage's to assign, and there is no storage yet. A client
-  // naming one is not believed.
+  // The kept photo is an image row, not a field. A client naming an object
+  // key, as older ones did, has it dropped rather than stored.
   const photo = withSource({ type: 'photo', objectKey: 'someone-elses/photo.jpg', originalFilename: 'card.jpg' })
-  assert.deepEqual(photo.source, { type: 'photo', objectKey: null, originalFilename: 'card.jpg' })
+  assert.deepEqual(photo.source, { type: 'photo', originalFilename: 'card.jpg' })
 })
 
 test('a missing source_lang becomes und rather than a guess', () => {

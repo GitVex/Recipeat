@@ -4,6 +4,7 @@ import { jsonArrayFrom } from 'kysely/helpers/postgres'
 import type { Database } from '../database/schema.ts'
 import { fail } from '../extraction/errors.ts'
 import { asSummary, type SummaryRow } from '../recipes/store.ts'
+import { cardCover, imageUrl } from '../images/store.ts'
 import { lineTags } from '../tags/store.ts'
 import type { Collection, CollectionDetail, CollectionEntry, CollectionSummary, CollectionThumbnail } from '../../shared/types/collection.ts'
 
@@ -55,7 +56,7 @@ export async function listCollections(db: Kysely<Database>, ownerSub: string): P
           .whereRef('m.collection_id', '=', 'c.id')
           .orderBy('m.position')
           .limit(4)
-          .select(['r.id', 'r.title', 'r.image']),
+          .select(['r.id', 'r.title', 'r.image', cardCover('r').as('cover_id')]),
       ).as('thumbnails'),
     ])
     .orderBy('c.created_at', 'desc')
@@ -65,7 +66,9 @@ export async function listCollections(db: Kysely<Database>, ownerSub: string): P
     // A scalar subquery Kysely cannot see is never null here: count(*) of
     // nothing is 0.
     count: row.count ?? 0,
-    thumbnails: row.thumbnails as CollectionThumbnail[],
+    // A card's picture, as the listing chooses it.
+    thumbnails: (row.thumbnails as (CollectionThumbnail & { cover_id: string | null })[])
+      .map(({ cover_id, ...thumbnail }) => ({ ...thumbnail, image: cover_id ? imageUrl(cover_id, 'thumb') : thumbnail.image })),
   }))
 }
 
@@ -129,6 +132,7 @@ const entries = async (db: Kysely<Database> | Transaction<Database>, ownerSub: s
            jsonb_array_length(r.ingredients) AS ingredient_count,
            jsonb_array_length(r.steps) AS step_count,
            ${lineTags('r')} AS tags,
+           ${cardCover('r')} AS cover_id,
            r.pinned, p.id AS pinned_id
     FROM collection_recipes m
     JOIN recipes r ON r.id = m.recipe_id AND r.owner_sub = m.owner_sub

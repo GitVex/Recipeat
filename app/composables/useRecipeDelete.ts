@@ -43,7 +43,7 @@ export function useRecipeDelete(
 
   // Asked about: which version, and how many would go with it, read before
   // anything goes.
-  const deleting = ref<{ id: string; count: number } | null>(null);
+  const deleting = ref<{ id: string; count: number; photos?: number } | null>(null);
   const deletePending = ref(false);
   const deleteError = ref<string | null>(null);
 
@@ -72,7 +72,7 @@ export function useRecipeDelete(
         query: { dryRun: "true" },
         retry: 0,
       });
-      deleting.value = { id: target, count: deletion.count };
+      deleting.value = { id: target, count: deletion.count, photos: deletion.photos };
     } catch (error) {
       if (isGone(error)) {
         notify(target === id ? "That recipe was already deleted" : "That version was already deleted");

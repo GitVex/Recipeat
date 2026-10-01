@@ -212,6 +212,7 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", warnBeforeUnloa
           </button>
         </div>
       </Transition>
+      <RecipePhotos :recipe-id="id" />
       <RecipeHistory
         v-if="history && tree && hasHistory(history)"
         :history="history"

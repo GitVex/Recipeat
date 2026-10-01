@@ -162,9 +162,9 @@ a caption is neither an ingredient nor a step. Quantities are called out
 specifically — a misread amount becomes a wrong recipe, where a misread word
 stays a typo.
 
-Nothing stores the image, so `source.objectKey` is null and only the filename
-the browser sent is recorded. Object storage is what fills it in; see
-[planning](./planning.md).
+Extraction stores nothing, so only the filename the browser sent is recorded.
+Keeping the picture is the import dialog's choice, made once the recipe is
+saved: it becomes the line's source image (#45), not a field on the source.
 
 ## Instagram
 
@@ -323,7 +323,7 @@ type RecipeSource =
   | { type: 'text', originalText: string }
   | { type: 'website', url: string, author: string | null, siteName: string | null, retrievedAt: string,
       post?: { url: string, author: string | null } }  // through an Instagram post
-  | { type: 'photo', objectKey: string | null, originalFilename: string | null }
+  | { type: 'photo', originalFilename: string | null }
 
 type Ingredient = {
   id: string                    // "ingredient_1", dense and stable

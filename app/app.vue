@@ -37,7 +37,19 @@ async function addToCollection(recipe: ExtractedRecipe, body: RecipeBody) {
   // the row is written either way, so the user hears about it either way.
   if (selected.value === recipe) selected.value = stored;
   list.add(stored);
-  notify("A little deliciousness, added to your recipes");
+  const photo = keptSourcePhoto(recipe);
+  if (!photo) return notify("A little deliciousness, added to your recipes");
+  // The recipe is saved whatever happens to its photo, and says so.
+  try {
+    await $fetch(`/api/recipes/${stored.id}/source-photo`, {
+      method: "PUT",
+      body: await imageForm(photo),
+      retry: 0,
+    });
+    notify("Added to your recipes, with its photo");
+  } catch (error) {
+    notify(`Added to your recipes, but not its photo. ${uploadMessage(error)}`);
+  }
 }
 
 function signInToAdd(recipe: ExtractedRecipe) {

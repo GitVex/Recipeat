@@ -476,7 +476,7 @@ test('photo extraction sends the image itself and calls nothing else', async () 
 
   // One call, to Gemini. No OCR service exists on this path.
   assert.deepEqual(calls, ['https://generativelanguage.googleapis.com/v1beta/interactions'])
-  assert.deepEqual(result.source, { type: 'photo', objectKey: null, originalFilename: 'page.jpg' })
+  assert.deepEqual(result.source, { type: 'photo', originalFilename: 'page.jpg' })
 })
 
 test('a photo with no declared type is still sent with a mime type', async () => {
