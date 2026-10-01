@@ -73,6 +73,23 @@ export type PreferencesTable = {
   updated_at: Generated<Date>
 }
 
+// Photos of a dish, and the page a recipe was imported from — see
+// 005_images.sql. BYTEA reads back as a Buffer and is written from one.
+export type ImagesTable = {
+  id: Generated<string>
+  recipe_id: string
+  owner_sub: string
+  kind: 'dish' | 'source'
+  position: number | null
+  cover: Generated<boolean>
+  media_type: ImageType
+  data: Uint8Array
+  thumb: Uint8Array
+  created_at: Generated<Date>
+}
+
+export type ImageType = 'image/jpeg' | 'image/webp'
+
 export type Database = {
   recipes: RecipesTable
   collections: CollectionsTable
@@ -80,6 +97,7 @@ export type Database = {
   tags: TagsTable
   recipe_tags: RecipeTagsTable
   preferences: PreferencesTable
+  images: ImagesTable
 }
 
 export type RecipeRow = Selectable<RecipesTable>

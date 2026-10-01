@@ -104,8 +104,10 @@ export function useRecipeListCache() {
     if (filtered().length) void refreshNuxtData(filtered());
     if (!data.value) return;
     data.value = {
+      // The card's picture stays: a save does not touch photos, and the
+      // listing's choice of cover is not in the recipe.
       recipes: data.value.recipes.map((entry) =>
-        entry.id === recipe.id ? summaryOf(recipe) : entry,
+        entry.id === recipe.id ? { ...summaryOf(recipe), image: entry.image } : entry,
       ),
     };
   }

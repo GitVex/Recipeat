@@ -127,9 +127,6 @@ const sourceOf = (value: unknown): RecipeSource => {
     case 'photo':
       return {
         type: 'photo',
-        // Null until object storage lands. A client cannot name a key that
-        // does not exist yet, so one it sends is not believed.
-        objectKey: null,
         originalFilename: optional(source.originalFilename, () => string(source.originalFilename, LIMITS.title, 'the filename')),
       }
     default:

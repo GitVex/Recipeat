@@ -4,7 +4,7 @@
 // many later versions go with it, from the dry run. What branched off as a
 // separate recipe is not in the count, and nothing here suggests it is.
 const props = defineProps<{
-  deleting: { id: string; count: number } | null;
+  deleting: { id: string; count: number; photos?: number } | null;
   what: string;
   pending: boolean;
   error: string | null;
@@ -17,11 +17,16 @@ const title = computed(() => {
     ? `Delete ${props.what} and ${count - 1} later version${count > 2 ? "s" : ""}?`
     : `Delete ${props.what}?`;
 });
-const detail = computed(() =>
-  (props.deleting?.count ?? 1) > 1
-    ? "This version goes, and every version that came after it. There is no undo."
-    : "It will be gone for good. There is no undo.",
-);
+const detail = computed(() => {
+  const photos = props.deleting?.photos ?? 0;
+  const many = (props.deleting?.count ?? 1) > 1;
+  const taking = photos
+    ? ` ${photos === 1 ? "One photo goes" : `${photos} photos go`} with ${many ? "them" : "it"}.`
+    : "";
+  return many
+    ? `This version goes, and every version that came after it.${taking} There is no undo.`
+    : `It will be gone for good.${taking} There is no undo.`;
+});
 
 const actions = ref<HTMLElement | null>(null);
 watch(

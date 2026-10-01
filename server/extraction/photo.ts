@@ -28,28 +28,36 @@ function filenameOf(value: string | undefined): string | null {
   return base ? base.slice(0, MAX_FILENAME_LENGTH) : null
 }
 
-export async function readExtractionPhoto(event: H3Event): Promise<Photo> {
+/**
+ * A multipart body, read whole, after the checks that can be made before
+ * buffering it. `maxBytes` is the largest the files in it may be together;
+ * each part is still counted by whoever takes it, since Content-Length is
+ * only the sender's claim. Shared with image uploads (`server/images/`).
+ */
+export async function readMultipart(event: H3Event, maxBytes: number) {
   const type = (getHeader(event, 'content-type') ?? '').split(';')[0]!.trim().toLowerCase()
   if (type !== 'multipart/form-data') {
-    throw fail(415, 'Expected a multipart/form-data request body with a "file" part.')
+    throw fail(415, 'Expected a multipart/form-data request body.')
   }
 
-  // A pre-filter only. Content-Length is the sender's claim, so the bytes are
-  // counted below as well; this just stops an obvious flood being buffered
-  // first. The envelope adds a boundary and headers to the file's own size.
+  // A pre-filter only: this just stops an obvious flood being buffered first.
+  // The envelope adds a boundary and headers to the files' own size.
   const claimed = Number(getHeader(event, 'content-length'))
-  if (Number.isFinite(claimed) && claimed > MAX_PHOTO_BYTES + 4096) {
-    throw fail(413, `Photos are limited to ${MAX_PHOTO_BYTES} bytes.`)
+  if (Number.isFinite(claimed) && claimed > maxBytes + 4096) {
+    throw fail(413, `Uploads are limited to ${maxBytes} bytes.`)
   }
 
-  let parts: Awaited<ReturnType<typeof readMultipartFormData>>
   try {
-    parts = await readMultipartFormData(event)
+    return (await readMultipartFormData(event)) ?? []
   } catch (error) {
     throw fail(400, 'Request body is not valid multipart/form-data.', error)
   }
+}
 
-  const part = parts?.find(item => item.name === FIELD)
+export async function readExtractionPhoto(event: H3Event): Promise<Photo> {
+  const parts = await readMultipart(event, MAX_PHOTO_BYTES)
+
+  const part = parts.find(item => item.name === FIELD)
   if (!part) throw fail(400, 'Expected a "file" part carrying the photo.')
   if (part.data.length > MAX_PHOTO_BYTES) throw fail(413, `Photos are limited to ${MAX_PHOTO_BYTES} bytes.`)
   if (!part.data.length) throw fail(400, 'That photo was empty.')

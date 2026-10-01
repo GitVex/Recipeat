@@ -22,7 +22,8 @@ url ──────▶ fetcher ─┘
 | Storage | Done; Postgres, the `recipes` table, a migration runner, and every route the collection needs. Nothing in the browser calls them yet |
 | Import UI wired to the API | Done for the shared part (#36): all three tabs call their route and open what comes back. Per-source polish is #37–#39. An import can be added to the collection (#41) |
 | Website import | Done; returns a recipe, stores nothing. The fetcher only reaches public addresses (#117) |
-| Photo import | Done; the model reads the photo directly, returns a recipe, stores nothing. The image itself is discarded |
+| Photo import | Done; the model reads the photo directly, returns a recipe, stores nothing. The picture can be kept with the recipe once it is saved (#45) |
+| Images | Done (#45): dish photos per version and a line's source photo, as `BYTEA` in Postgres, served only through `/api/images/{id}` |
 | Instagram import | Done for one public post (#22), as a kind of website import (#120): pasted in the Website tab, read logged out by the fetcher, caption links tried first (#122), then caption and images to the model together. The creator's site is #123, reel audio #124, profile scanning #116 |
 
 ## Waves
@@ -132,14 +133,44 @@ amount from the ingredient it points at, so #44 has one number to rescale.
 An amount whose unit the parser did not know ("4 TL", "2 Zehen") prints as
 written rather than as a bare number.
 
-**Photo import: the image itself.** Extraction works, but nothing keeps the
-photo. `source.objectKey` is null because there is nowhere to put it, and a
-recipe imported from a photo therefore cannot show the photo. That needs object
-storage and a downsampled derivative. Nothing downsamples today: the upload is
-forwarded to the model as it arrived.
+**Photo import: the image itself.** The argument for a job and a poll is
+gone — a photo is read in five to nine seconds, which is the whole request.
+What the model is sent is still the upload as it arrived; whether to shrink
+that too is what is left of #40, and turns on how small print survives.
 
-The argument for a job and a poll is gone either way — a photo is read in five
-to nine seconds, which is the whole request.
+### Decided: images live in Postgres (#45)
+
+No object store. Images are rows in `images`, bytes in `BYTEA`, in the same
+Postgres as the recipes. There is no second service to run, back up or keep
+in step, an image goes with what it belongs to by the same foreign keys as
+everything else, and only the app can reach it. The cost is a database, and
+a `pg_dump`, that grow with photos; it is affordable because what is stored
+is a small derivative, never the original.
+
+The way out is kept open rather than built: every image is read from
+`GET /api/images/{id}` and never from a storage URL, so moving the bytes to
+an S3 bucket later changes what that route reads and nothing that links to
+it. The signal to move is backups becoming painful, not a size.
+
+- **Dish photos belong to a version**, not the line: each version is another
+  go at the dish. Ten at most, in an order, one the cover. A new progression
+  starts with none, and so does a variant. Deleting a version deletes its
+  photos, and those of the progressions the deletion takes with it; the
+  question before a delete counts them.
+- **A card shows the pinned version's cover**, else the newest cover anywhere
+  in the line, else the page's `image`, so making a new version does not
+  blank the card until it is photographed.
+- **The source photo belongs to the line**: kept on its root, which lives as
+  long as the line does, and read by every version through `line_id`. A
+  variant takes a copy. `source.objectKey` is retired rather than filled: a
+  source is copied into every version through a validator that cannot trust
+  a client's key, so it would have been lost on the first new version.
+- **The browser makes the derivatives**: about 1600 px and 400 px on the long
+  edge, JPEG, orientation applied, EXIF (location included) dropped by the
+  canvas. The server decodes nothing; it checks the sizes and the magic
+  bytes, and serves what it found rather than what was claimed. A HEIC file
+  a browser cannot draw is refused with a reason rather than decoded with a
+  library; Safari, which most HEIC comes from, draws it.
 
 **Translation.** `source_lang` is recorded but there is nowhere to put a
 translation. Either a `translations JSONB` keyed by language tag, or a

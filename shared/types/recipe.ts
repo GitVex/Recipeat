@@ -54,9 +54,9 @@ export type RecipeSource =
   // from the post itself, or from a page its caption linked to, and either way
   // the post is credited alongside the page.
   | { type: 'website', url: string, author: string | null, siteName: string | null, retrievedAt: string, post?: InstagramPostRef }
-  // objectKey is null until object storage lands: the photo is read and
-  // thrown away, so there is nothing yet to point at. See docs/planning.md.
-  | { type: 'photo', objectKey: string | null, originalFilename: string | null }
+  // The photo itself, when it was kept, is the line's source image (#45), not
+  // a field here: a source is copied into every version, and an image is not.
+  | { type: 'photo', originalFilename: string | null }
 
 export type InstagramPostRef = { url: string, author: string | null }
 
@@ -90,7 +90,8 @@ export type SavedRecipe = ExtractedRecipe & {
   updatedAt: string
 }
 
-// What a collection card needs and no more. The rows carry whole recipes in
+// What a collection card needs and no more. `image` is what the card shows:
+// a cover photo of the line's when there is one, else the page's own picture. The rows carry whole recipes in
 // JSONB, and a listing that returns fifty of them to render fifty titles is
 // paying for the detail route twice.
 export type RecipeSummary = Pick<SavedRecipe, 'id' | 'lineId' | 'title' | 'image' | 'totalTime' | 'portions' | 'tags' | 'createdAt' | 'updatedAt'> & {
@@ -106,6 +107,16 @@ export type RecipeDeletion = {
   count: number
   ids: string[]
   pinned: string | null
+  // Images that go with them: the versions' own photos, and the line's source
+  // photo when the line ends.
+  photos: number
+}
+
+// A version's photos of the dish, in the order shown, and the picture its
+// line was imported from. Ids only: each image is read from /api/images/{id}.
+export type RecipePhotos = {
+  photos: { id: string, cover: boolean }[]
+  source: string | null
 }
 
 // A few words either side of what changed in a line of text. `removed` and

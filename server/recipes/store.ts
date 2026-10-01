@@ -3,6 +3,7 @@ import type { Sql } from 'postgres'
 import { boolean, integer, json, numeric, text, uuid, type Database, type RecipeRow } from '../database/schema.ts'
 import { fail } from '../extraction/errors.ts'
 import { lineTags } from '../tags/store.ts'
+import { copySourcePhoto, imageUrl } from '../images/store.ts'
 import { recipeChanges } from '../../shared/utils/recipeDiff.ts'
 import { NO_FILTERS, type RecipeFilters } from '../../shared/utils/recipeFilters.ts'
 import type { ExtractedRecipe, RecipeBranch, RecipeDeletion, RecipeHistory, RecipeSummary, RecipeVersion, SavedRecipe } from '../../shared/types/recipe.ts'
@@ -76,6 +77,15 @@ const tagsOf = (sql: Sql, table: string) => sql`(
   SELECT coalesce(array_agg(t.name ORDER BY lower(t.name), t.name), '{}')
   FROM recipe_tags rt JOIN tags t ON t.id = rt.tag_id
   WHERE rt.line_id = ${sql(table)}.line_id AND rt.owner_sub = ${sql(table)}.owner_sub
+)`
+
+// cardCover in server/images/store.ts, for postgres.js: the version's own
+// cover, else the newest one in its line.
+const coverOf = (sql: Sql, table: string) => sql`(
+  SELECT i.id FROM images i JOIN recipes v ON v.id = i.recipe_id AND v.owner_sub = i.owner_sub
+  WHERE i.cover AND v.line_id = ${sql(table)}.line_id AND v.owner_sub = ${sql(table)}.owner_sub
+  ORDER BY v.id = ${sql(table)}.id DESC, i.created_at DESC
+  LIMIT 1
 )`
 
 /**
@@ -199,6 +209,7 @@ export async function insertVariant(db: Kysely<Database>, ownerSub: string, pare
   return db.transaction().execute(async (tx) => {
     const row = await insertBranch(tx, ownerSub, parentId, recipe)
     if (!row) return null
+    await copySourcePhoto(tx, ownerSub, parentId, row.id)
     await tx
       .insertInto('recipe_tags')
       .columns(['line_id', 'tag_id', 'owner_sub'])
@@ -283,13 +294,18 @@ export async function deleteRecipe(sql: Sql, ownerSub: string, id: string, { dry
       // descends from it: the line ends.
       const pinned = pin && !taken.has(pin.id) ? pin.id : target.progression_of
 
-      if (dryRun) return { count: ids.length, ids, pinned }
+      // The images the foreign key will take: theirs, and the source photo on
+      // the root when the root is among them.
+      const [{ photos }] = await tx<{ photos: number }[]>`
+        SELECT count(*)::int AS photos FROM images WHERE recipe_id = ANY(${ids}) AND owner_sub = ${ownerSub}
+      `
+      if (dryRun) return { count: ids.length, ids, pinned, photos }
 
       const deleted = await tx<{ id: string }[]>`
         DELETE FROM recipes WHERE id = ANY(${ids}) AND owner_sub = ${ownerSub} RETURNING id
       `
       if (pinned && pinned !== pin?.id) await tx`UPDATE recipes SET pinned = true WHERE id = ${pinned}`
-      return { count: deleted.length, ids: deleted.map(row => row.id), pinned }
+      return { count: deleted.length, ids: deleted.map(row => row.id), pinned, photos }
     })
   } catch (error) {
     // The line is locked, so this should not happen; if a write that skipped
@@ -304,13 +320,13 @@ export async function deleteRecipe(sql: Sql, ownerSub: string, id: string, { dry
 
 // What a card is read from, wherever the card appears: the listing here, and a
 // collection's entries in server/collections/store.ts.
-export type SummaryRow = Pick<Row, 'id' | 'line_id' | 'title' | 'image' | 'total_time' | 'portions' | 'created_at' | 'updated_at'> & { ingredient_count: number, step_count: number, tags: string[] }
+export type SummaryRow = Pick<Row, 'id' | 'line_id' | 'title' | 'image' | 'total_time' | 'portions' | 'created_at' | 'updated_at'> & { ingredient_count: number, step_count: number, tags: string[], cover_id: string | null }
 
 export const asSummary = (row: SummaryRow): RecipeSummary => ({
   id: row.id,
   lineId: row.line_id,
   title: row.title,
-  image: row.image,
+  image: row.cover_id ? imageUrl(row.cover_id, 'thumb') : row.image,
   totalTime: row.total_time,
   portions: row.portions === null ? null : Number(row.portions),
   tags: row.tags,
@@ -363,7 +379,8 @@ export function listing(sql: Sql, ownerSub: string, filters: RecipeFilters, limi
     SELECT id, line_id, title, image, total_time, portions, created_at, updated_at,
            jsonb_array_length(ingredients) AS ingredient_count,
            jsonb_array_length(steps) AS step_count,
-           ${tagsOf(sql, 'recipes')} AS tags
+           ${tagsOf(sql, 'recipes')} AS tags,
+           ${coverOf(sql, 'recipes')} AS cover_id
     FROM recipes
     WHERE owner_sub = ${ownerSub} AND pinned
     ${where.reduce((all, condition) => sql`${all} ${condition}`)}

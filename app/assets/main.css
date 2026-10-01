@@ -3238,6 +3238,95 @@ input.editable-input {
 .history-panel {
     padding-top: 14px;
 }
+/* Photos of a version (#45), and the page its line was imported from. */
+.recipe-photos {
+    margin: 0 38px 32px;
+    border-top: 1px solid var(--line);
+    padding-top: 18px;
+}
+.photos-heading {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: var(--text-body);
+    font-weight: 500;
+    margin-bottom: 12px;
+}
+.photo-strip {
+    list-style: none;
+    margin: 0 0 12px;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+}
+.photo-item {
+    position: relative;
+}
+.photo-open img,
+.source-photo img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    border-radius: var(--radius-s);
+    background: var(--cream-deep);
+}
+.photo-cover {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: var(--radius-s);
+    padding: 2px 7px;
+    font-size: var(--text-meta);
+}
+.photo-controls {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    font-size: var(--text-meta);
+}
+.photo-controls .text-button {
+    margin-right: auto;
+}
+.photo-add {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    cursor: pointer;
+}
+.photo-add.disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+.photo-add input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+}
+.photo-add:focus-within {
+    outline: 2px solid var(--olive);
+    outline-offset: 2px;
+}
+.source-photo {
+    margin: 18px 0 0;
+    max-width: 220px;
+}
+.source-photo figcaption {
+    margin-top: 6px;
+    font-size: var(--text-small);
+    color: var(--muted);
+}
+.keep-photo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: -8px 0 20px;
+    font-size: var(--text-small);
+}
 /* Similar recipes elsewhere (#59): the history's fold, three quiet link cards. */
 .similar-recipes {
     margin: 0 38px 32px;
@@ -3445,6 +3534,7 @@ a.history-title:hover {
 }
 @media (max-width: 800px) {
     .recipe-history,
+    .recipe-photos,
     .similar-recipes {
         margin: 0 20px 24px;
     }

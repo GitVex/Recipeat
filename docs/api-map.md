@@ -305,9 +305,10 @@ can differ only if the line changed in between. Any other query parameter is
 refused rather than ignored, because a misspelled dry run must not delete.
 
 Both answer 200 and
-`{ "deletion": { "count": 3, "ids": [ … ], "pinned": "<id>" | null } }`:
-how many versions went (or would go), which ones, and the version the line is
-entered by afterwards — `null` when the line ended.
+`{ "deletion": { "count": 3, "ids": [ … ], "pinned": "<id>" | null, "photos": 4 } }`:
+how many versions went (or would go), which ones, the version the line is
+entered by afterwards — `null` when the line ended — and how many images went
+with them.
 
 | Status | Meaning |
 |---|---|
@@ -392,7 +393,8 @@ Answers `{ "recipes": [ … ] }`, newest first, at most 200. One entry per line:
 the pinned version, with `id`, `lineId`, `title`, `image`, `totalTime`,
 `portions`, `tags`, `ingredientCount`, `stepCount` and the timestamps — what a
 card needs, not the whole recipe. Earlier versions of a line are not here; they are reachable by
-id.
+id. `image` is the card's picture: the pinned version's cover photo, else the
+newest cover in the line, as `/api/images/{id}?size=thumb`, else the page's own.
 
 Filters narrow the list (#14). Each one narrows what the others left, and a
 key given twice means both. The collection page's address uses the same query
@@ -567,6 +569,79 @@ are its own.
 | 404 | No such recipe, or not yours |
 | 413 | A name over 40 characters, or more than 20 tags |
 | 415 | Content type is not JSON |
+
+### `GET /api/images/{id}`
+
+```
+GET {{app}}/api/images/9a0c…?size=thumb
+Cookie: nuxt-oidc-auth=<value>
+```
+
+An image's bytes (#45), for its owner only, as the JPEG or WebP they were
+found to be on upload, with `X-Content-Type-Options: nosniff`. Without `size`
+it is the large copy (about 1600 px); `?size=thumb` is about 400 px. An id's
+bytes never change, so the answer is `Cache-Control: private, max-age=31536000,
+immutable`.
+
+| Status | Meaning |
+|---|---|
+| 400 | The id is not a UUID, or `size` is something other than `thumb` |
+| 404 | No such image, or not yours |
+
+### `DELETE /api/images/{id}`
+
+Removes one image, a dish photo or a kept source photo, and answers 204. The
+photos after a dish photo move up; a removed cover passes to the first one
+left. 400 and 404 as above.
+
+### `GET /api/recipes/{id}/photos`
+
+Answers `{ "photos": [ { "id", "cover" } ], "source": "<id>" | null }`: this
+version's dish photos in order, and the line's source photo. Ids only; each
+image is read from `/api/images/{id}`. A new progression starts with none.
+
+### `POST /api/recipes/{id}/photos`
+
+```
+POST {{app}}/api/recipes/6f1e9b3c-…/photos
+Content-Type: multipart/form-data
+Cookie: nuxt-oidc-auth=<value>
+
+image=<JPEG or WebP, at most 1 500 000 bytes>
+thumb=<the same kind, at most 150 000 bytes>
+```
+
+Adds a dish photo after this version's others and answers 201 with the set as
+above. The first photo becomes the cover. The browser makes both sizes; the
+server decodes nothing and only checks the sizes and the leading bytes.
+
+| Status | Meaning |
+|---|---|
+| 400 | The id is not a UUID; a part is missing or empty; the body is not valid multipart |
+| 404 | No such recipe, or not yours |
+| 409 | The version already has 10 photos |
+| 413 | A part over its limit |
+| 415 | Not multipart, or a part is neither JPEG nor WebP, or the two differ |
+
+### `PUT /api/recipes/{id}/photos`
+
+```
+PUT {{app}}/api/recipes/6f1e9b3c-…/photos
+Content-Type: application/json
+Cookie: nuxt-oidc-auth=<value>
+
+{ "order": ["<id>", "<id>"], "cover": "<id>" | null }
+```
+
+The whole arrangement: `order` is every photo of this version, `cover` one of
+them or none. Answers the set as above. 409 when `order` is not exactly the
+current photos, which means the page is out of date.
+
+### `PUT /api/recipes/{id}/source-photo`
+
+The same multipart body as adding a photo. Keeps it as the source photo of the
+line this version belongs to, replacing any before it under a new id, and
+answers the set as above. A new variant starts with a copy of it.
 
 ### `GET /api/preferences`
 
