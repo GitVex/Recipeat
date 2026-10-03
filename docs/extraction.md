@@ -249,7 +249,8 @@ source; everything below that is shared.
 4. **`normalizeRecipe`** — reads quantities into numbers and units, finds
    measurements in step prose, and links steps back to ingredients. A source
    that read an amount itself keeps its reading; everything else is read out of
-   the segmented text here.
+   the segmented text here. Each ingredient is also matched against the
+   ingredient table (below) and given its amount in grams or millilitres.
 
 ### What the model is asked for, and what it is not
 
@@ -332,6 +333,8 @@ type Ingredient = {
   quantityText: string | null   // the amount alone, as the source split it
   quantity: Quantity | null     // parsed; null when the line states no amount
   extra: string | null          // "finely diced", "for the sauce"
+  food?: { key: string, gramsPerMl: number | null } | null  // its ingredient table entry
+  canonical?: Quantity | null   // grams for a solid, ml for a liquid
 }
 
 type Step = {
@@ -372,6 +375,56 @@ amount, so the two rescale together. The amount must match exactly and the
 ingredient must be named in the step: `"1 cup of the milk"` drawn from
 `"2 cups milk"` is a portion of it, not a restatement, and stays a plain
 measurement.
+
+## The ingredient table
+
+`server/extraction/ingredients.json` lists about 420 common ingredients (#132).
+Each has a key, English and German names, whether it's a solid or a liquid,
+and how many grams a millilitre of it weighs. Normalization matches an
+ingredient's `name` against it and stores two things beside the quantity: the
+matched `food`, and the amount as `canonical`, in grams for a solid and
+millilitres for a liquid. "1 cup flour" and "125 g flour" then add up, which
+is what a shopping list (#84) and substitutions (#43) need.
+
+The quantity as written is still the truth. `canonical` is derived, rebuilt on
+every save like the step parts, and never accepted from a client. A recipe
+stored before the table existed has neither field until it's saved again, or
+until #53 re-normalizes stored recipes.
+
+**Matching** is by name: the recipe's language first, then the other one,
+since English names turn up in German recipes. Accents, case and anything in
+parentheses don't matter. Each part between commas is tried in turn, since the
+food usually comes first ("butter, softened") but not always ("bone-in,
+skin-on chicken thighs"). Leading words that only describe the ingredient are dropped one at a time
+("2 large eggs", "frischer Ingwer"). Words that make it a different food
+("dried", "ground", "canned", "cooked") are not, so "cooked rice" and "almond
+milk" match nothing rather than "rice" and "milk". English plurals match their
+singular; German plurals are listed, since no rule covers Ei/Eier and
+Zwiebel/Zwiebeln alike.
+
+**Densities** come from [USDA FoodData Central](https://fdc.nal.usda.gov/),
+SR Legacy: the household portions it lists for each food ("1 cup = 125 g"),
+which were weighed rather than estimated. A cup is preferred to a spoon, being
+measured more precisely, and where the first cup listed is the wrong one
+("1 cup, whipped" for cream) the entry names the right one in `pick`. Foods
+bought by the piece, most meat and fish, have no density: their weights
+convert, and a volume of them doesn't. FoodData Central is public domain
+(CC0); USDA asks to be named as the source.
+
+A few common foods aren't in FoodData Central at all: Quark, crème fraîche,
+Vanillezucker, paneer, harissa, garam masala, the ginger and garlic pastes.
+They have `fdcId: null`, a key and names, and no density. They still match and
+merge by key, and a weight of them converts like any other.
+
+The keys, FDC ids and names are written by hand. The FDC description, the
+portion and the density are filled in by a script, so a new FDC release is one
+rerun. It also refuses a key used twice, or one name given to two foods in the
+same language:
+
+```sh
+# SR Legacy as CSV, from https://fdc.nal.usda.gov/download-datasets
+node --experimental-strip-types scripts/ingredients.ts <unzipped folder>
+```
 
 ## Testing
 
