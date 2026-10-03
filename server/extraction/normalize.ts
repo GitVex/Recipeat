@@ -1,3 +1,4 @@
+import { canonicalAmount, foodOf, matchFood } from './ingredients.ts'
 import { kindOf, measurementPattern, parseQuantity } from './quantity.ts'
 import type { ExtractedRecipe, Ingredient, Quantity, QuantityKind, Step, StepPart, StepQuantity } from './recipe.ts'
 
@@ -111,12 +112,18 @@ function normalizeStep(step: Step, ingredients: Ingredient[]): Step {
  * this runs here rather than being asked of the model.
  */
 export function normalizeRecipe(recipe: ExtractedRecipe): ExtractedRecipe {
-  const ingredients = recipe.ingredients.map(ingredient => ({
-    ...ingredient,
+  const ingredients = recipe.ingredients.map(ingredient => {
     // A source that read the amount itself keeps its reading; everything else
     // is read out of the segmented text here.
-    quantity: ingredient.quantity ?? parseQuantity(ingredient.quantityText),
-  }))
+    const quantity = ingredient.quantity ?? parseQuantity(ingredient.quantityText)
+    const food = matchFood(ingredient.name, recipe.source_lang)
+    return {
+      ...ingredient,
+      quantity,
+      food: food && foodOf(food),
+      canonical: food && canonicalAmount(quantity, food, recipe.source_lang),
+    }
+  })
   return {
     ...recipe,
     ingredients,
