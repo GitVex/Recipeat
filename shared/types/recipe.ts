@@ -108,6 +108,9 @@ export type SavedRecipe = ExtractedRecipe & {
 export type RecipeSummary = Pick<SavedRecipe, 'id' | 'lineId' | 'title' | 'image' | 'totalTime' | 'portions' | 'tags' | 'createdAt' | 'updatedAt'> & {
   ingredientCount: number
   stepCount: number
+  // Whether this version is in any of its owner's collections (#128). Only the
+  // listing says; a card built from elsewhere leaves it out, and it reads as no.
+  inCollection?: boolean
 }
 
 // What a deletion took, or would take. `ids` is the version asked for and

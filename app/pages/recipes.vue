@@ -248,11 +248,15 @@ useHead({ title: "My recipes — Recipeat" });
           <button
             type="button"
             class="entry-add icon-button"
-            :aria-label="`Add ${recipeTitle(recipe)} to a collection`"
-            title="Add to a collection"
+            :aria-label="
+              recipe.inCollection
+                ? `${recipeTitle(recipe)} is in a collection`
+                : `Add ${recipeTitle(recipe)} to a collection`
+            "
+            :title="recipe.inCollection ? 'In a collection' : 'Add to a collection'"
             @click="picker.open({ id: recipe.id, title: recipeTitle(recipe), pinned: true })"
           >
-            <AppIcon name="bookmark" :size="16" />
+            <AppIcon name="bookmark" :size="16" :filled="recipe.inCollection" />
           </button>
         </li>
       </ul>

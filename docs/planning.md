@@ -176,6 +176,31 @@ it. The signal to move is backups becoming painful, not a size.
 translation. Either a `translations JSONB` keyed by language tag, or a
 `recipe_translations` table.
 
+### Decided: shopping lists (#84)
+
+A list is made from one or more recipes, each at the servings chosen, and
+belongs to its owner like a recipe does.
+
+- **Merging is by food.** Lines with the same `food.key` (#132) are one line.
+  Their `canonical` amounts, scaled by the same factor as the recipe, add up
+  in grams or millilitres, and counts add to counts. What cannot be added
+  (a count beside grams, or a weight beside a volume for a food with no
+  `gramsPerMl`) stays a line of its own under the same food, amount as
+  written; no conversion is guessed. A line with no key merges with
+  nothing (#133 is how names get keys). A merged amount is shown in the
+  reader's units, converted in the browser by one shared function from
+  grams or millilitres into cups, spoons, ounces or pounds.
+- **A list is stored, not recomputed.** Making it copies the merged items
+  into a table, so a tick, an item added by hand or an edit stays put, and
+  editing a recipe afterwards does not move a line under a tick. The list
+  also records which recipes it came from, at which servings, so a recipe
+  page can link to the lists it is on. Deleting that recipe drops the link
+  and keeps the items. Three tables, one migration.
+- **Nothing is left out.** Salt and oil go on the list like anything else and
+  are ticked off. Knowing what is already in the kitchen is #96.
+- **Lists are the owner's alone.** Sending one elsewhere is #95. Sharing
+  between accounts waits for recipes to be shareable.
+
 ## Recipe lineage
 
 Three save actions, and the difference between them decides the schema before

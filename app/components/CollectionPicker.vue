@@ -10,6 +10,10 @@ import type { CollectionSummary } from "#shared/types/collection";
 // says so, before anything is ticked.
 const { target, close } = useCollectionPicker();
 const list = useCollectionListCache();
+const recipes = useRecipeListCache();
+// Whether anything was ticked, unticked or made since it opened. If so, the
+// filled bookmarks (#128) on the recipe list and page are read again on close.
+let changed = false;
 
 const collections = ref<CollectionSummary[]>([]);
 const ticked = ref(new Set<string>());
@@ -48,7 +52,12 @@ async function load() {
   }
 }
 
-watch(target, (value) => {
+watch(target, (value, before) => {
+  if (!value && before && changed) {
+    void recipes.relist();
+    void refreshNuxtData(`recipe-collections:${before.id}`);
+  }
+  changed = false;
   newName.value = "";
   pending.value = new Set();
   if (value) load();
@@ -83,6 +92,7 @@ async function toggle(collection: CollectionSummary, event: Event) {
       method: adding ? "PUT" : "DELETE",
       retry: 0,
     });
+    changed = true;
     list.forget(collection.id);
     collections.value = (await list.reload()).collections;
   } catch (error) {
@@ -110,6 +120,7 @@ async function create() {
       retry: 0,
     });
     await $fetch(`/api/collections/${collection.id}/recipes/${recipe.id}`, { method: "PUT", retry: 0 });
+    changed = true;
     if (target.value !== recipe) return;
     ticked.value = new Set(ticked.value).add(collection.id);
     newName.value = "";
