@@ -51,6 +51,11 @@ services:
       # what applies the schema:
       #   postgres://recipeat:PASSWORD@recipeat-postgres:5432/recipeat
       NUXT_DATABASE_URL: ${NUXT_DATABASE_URL:?required}
+      # How many cooks shared ingredient data takes (#147). The defaults are
+      # server/ingredients/community.ts's; a development .env sets them to 1.
+      NUXT_COMMUNITY_KEY_COOKS: ${NUXT_COMMUNITY_KEY_COOKS:-3}
+      NUXT_COMMUNITY_ALIAS_COOKS: ${NUXT_COMMUNITY_ALIAS_COOKS:-5}
+      NUXT_COMMUNITY_SUBSTITUTION_COOKS: ${NUXT_COMMUNITY_SUBSTITUTION_COOKS:-3}
       # Zitadel. The redirect URIs must be this deployment's public URL, not the
       # localhost:8100 a checkout defaults to, and must match the application
       # registered in Zitadel character for character.

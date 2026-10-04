@@ -15,6 +15,8 @@ import { readPreferences, writePreferences } from '../server/utils/preferences.t
 import { readFilters } from '../shared/utils/recipeFilters.ts'
 import { canonicalAmount, foodOf, matchFood, setFoods, type FoodEntry } from '../server/extraction/ingredients.ts'
 import { readFoods } from '../server/ingredients/store.ts'
+import { resolve } from '../server/ingredients/resolve.ts'
+import { COMMUNITY } from '../server/ingredients/community.ts'
 
 // The half of the runner that needs a database. Everything here happens inside
 // a schema of its own, so a development database keeps its own
@@ -1522,7 +1524,7 @@ describe('ingredient table', { skip: url ? false : 'NUXT_DATABASE_URL is not set
       })
     }
     try {
-      assert.deepEqual(matched(await readFoods(sql)), matched(fixture))
+      assert.deepEqual(matched(await readFoods(sql, COMMUNITY.aliasCooks)), matched(fixture))
     } finally {
       setFoods([])
     }
@@ -1635,5 +1637,88 @@ describe('ingredient sightings', { skip: url ? false : 'NUXT_DATABASE_URL is not
     }
     const rows = await sql<{ id: string, ingredients: { name: string }[] }[]>`SELECT id, ingredients FROM recipes WHERE owner_sub = 'cook_e'`
     assert.deepEqual(rows.map(row => [row.id, row.ingredients.map(ingredient => ingredient.name)]), [[saved.id, ['Reis']]])
+  })
+})
+
+describe('ingredient resolver', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () => {
+  const SCHEMA = 'resolver_check'
+  let admin: Sql
+  let sql: Sql
+  let db: Kysely<Database>
+
+  before(async () => {
+    admin = postgres(url!, { max: 1, onnotice: () => {} })
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin`CREATE SCHEMA ${admin(SCHEMA)}`
+    sql = postgres(url!, { max: 10, onnotice: () => {}, connection: { search_path: `${SCHEMA}, public` } })
+    db = new Kysely<Database>({ dialect: new PostgresJSDialect({ postgres: sql }) })
+    await applyMigrations(sql, migrations(...STORE))
+    await resolve(sql, COMMUNITY)
+  })
+
+  after(async () => {
+    setFoods([])
+    await sql?.end()
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin?.end()
+  })
+
+  // Invented cooks, counted at the real thresholds.
+  const save = (owner: string, name: string, source_lang = 'de') => insertRecipe(db, owner, normalizeRecipe(parseExtraction({
+    title: 'Bibimbap', source_lang, portions: 2,
+    ingredients: [{ originalText: name, quantity: null, name }],
+    steps: ['Mix.'],
+  }, { type: 'text', originalText: 'source' })))
+  const optOut = (owner: string) => sql`INSERT INTO preferences (owner_sub, settings) VALUES (${owner}, '{"sharedIngredients": "off"}')`
+  const key = (name: string, lang = 'de') => matchFood(name, lang)?.key ?? null
+
+  test('three cooks writing one name three ways make one key', async () => {
+    await save('cook_1', 'Gochujang')
+    await save('cook_2', '2 EL Gochujang')
+    assert.deepEqual((await resolve(sql, COMMUNITY)).learned, [])
+    await save('cook_3', 'gochujang (scharf)', 'en')
+    assert.deepEqual(await resolve(sql, COMMUNITY), { learned: ['gochujang'], changed: true })
+    assert.equal(key('2 EL Gochujang'), 'gochujang')
+    assert.equal(key('Gochujang', 'en'), 'gochujang')
+    const [row] = await sql`SELECT form, fdc_id, grams_per_ml, learned_at IS NOT NULL AS learned FROM ingredients WHERE key = 'gochujang'`
+    assert.deepEqual({ ...row }, { form: null, fdc_id: null, grams_per_ml: null, learned: true })
+    const names = await sql`SELECT lang, name FROM ingredient_names WHERE key = 'gochujang' ORDER BY lang`
+    assert.deepEqual(names.map(name => `${name.lang}:${name.name}`), ['de:gochujang', 'en:gochujang'])
+    // Learned once: its sightings stay, and it matches now.
+    assert.deepEqual(await resolve(sql, COMMUNITY), { learned: [], changed: false })
+  })
+
+  test('two cooks, or three with one opted out, make no key', async () => {
+    await save('cook_1', 'Doenjang')
+    await save('cook_2', 'Doenjang')
+    await optOut('cook_4')
+    await save('cook_4', 'Doenjang')
+    assert.deepEqual((await resolve(sql, COMMUNITY)).learned, [])
+    // Opting back in counts what was saved before.
+    await sql`DELETE FROM preferences WHERE owner_sub = 'cook_4'`
+    assert.deepEqual((await resolve(sql, COMMUNITY)).learned, ['doenjang'])
+  })
+
+  test('a name the votes say is an existing key is not made one', async () => {
+    for (const owner of ['cook_1', 'cook_2', 'cook_3']) await save(owner, 'Lorberblätter')
+    await sql`INSERT INTO ingredient_alias_votes (owner_sub, name, lang, key, chosen) VALUES ('cook_1', 'lorberblatter', 'de', 'bay_leaves', true)`
+    assert.deepEqual((await resolve(sql, COMMUNITY)).learned, [])
+    await sql`INSERT INTO ingredient_alias_votes (owner_sub, name, lang, key, chosen) VALUES ('cook_2', 'lorberblatter', 'de', 'bay_leaves', false)`
+    assert.deepEqual((await resolve(sql, COMMUNITY)).learned, ['lorberblatter'])
+  })
+
+  test('a shared alias matches once five cooks chose it, and more chose it than rejected it', async () => {
+    const vote = (owner: string, chosen: boolean) => sql`
+      INSERT INTO ingredient_alias_votes (owner_sub, name, lang, key, chosen) VALUES (${owner}, 'zuccini', 'de', 'zucchini', ${chosen})`
+    for (const owner of ['v1', 'v2', 'v3', 'v4']) await vote(owner, true)
+    assert.equal((await resolve(sql, COMMUNITY)).changed, false)
+    assert.equal(key('Zuccini'), null)
+    for (const owner of ['v5', 'v6', 'v7', 'v8', 'v9']) await vote(owner, false)
+    await vote('v10', true)
+    await resolve(sql, COMMUNITY)
+    assert.equal(key('Zuccini'), null)
+    await vote('v11', true)
+    assert.equal((await resolve(sql, COMMUNITY)).changed, true)
+    assert.equal(key('Zuccini'), 'zucchini')
   })
 })

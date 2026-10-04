@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url'
+import { COMMUNITY } from './server/ingredients/community.ts'
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
@@ -19,6 +20,10 @@ export default defineNuxtConfig({
     // SearXNG, for "Similar recipes elsewhere" (#59). No key: it's ours, on
     // recipeat-search-net. Empty turns the section into a quiet "not set up".
     searxngBaseUrl: 'http://127.0.0.1:8104',
+    // How many cooks shared ingredient data takes (#147), as
+    // NUXT_COMMUNITY_KEY_COOKS, NUXT_COMMUNITY_ALIAS_COOKS and
+    // NUXT_COMMUNITY_SUBSTITUTION_COOKS.
+    community: { ...COMMUNITY },
   },
   modules: ['nuxt-oidc-auth'],
   oidc: {

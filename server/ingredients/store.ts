@@ -4,13 +4,24 @@ import type { Database } from '../database/schema.ts'
 import { hasFoods, sightedName, type FoodEntry } from '../extraction/ingredients.ts'
 import type { ExtractedRecipe } from '../extraction/recipe.ts'
 
-/** Every active key with its names, as the matcher's snapshot holds them. */
-export async function readFoods(sql: Sql): Promise<FoodEntry[]> {
+/**
+ * Every active key with its names, as the matcher's snapshot holds them. A
+ * shared alias (#133) is a name too, once `aliasCooks` cooks chose it for the
+ * key and more chose it than rejected it. It comes after the key's own names,
+ * so it is never the one shown.
+ */
+export async function readFoods(sql: Sql, aliasCooks: number): Promise<FoodEntry[]> {
   return sql<FoodEntry[]>`
+    WITH names AS (
+      SELECT key, lang, name, position FROM ingredient_names
+      UNION ALL
+      SELECT key, lang, name, 32767 FROM ingredient_alias_counts
+      WHERE chosen >= ${aliasCooks} AND chosen > rejected AND lang IN ('en', 'de')
+    )
     SELECT i.key, i.form, i.grams_per_ml AS "gramsPerMl",
-           coalesce(array_agg(n.name ORDER BY n.position) FILTER (WHERE n.lang = 'en'), '{}') AS en,
-           coalesce(array_agg(n.name ORDER BY n.position) FILTER (WHERE n.lang = 'de'), '{}') AS de
-    FROM ingredients i LEFT JOIN ingredient_names n ON n.key = i.key
+           coalesce(array_agg(n.name ORDER BY n.position, n.name) FILTER (WHERE n.lang = 'en'), '{}') AS en,
+           coalesce(array_agg(n.name ORDER BY n.position, n.name) FILTER (WHERE n.lang = 'de'), '{}') AS de
+    FROM ingredients i LEFT JOIN names n ON n.key = i.key
     GROUP BY i.key
     ORDER BY i.key
   `

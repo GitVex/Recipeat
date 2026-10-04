@@ -1,17 +1,24 @@
 import { applyMigrations, closeDatabase, hasDatabase, migrationOrder, useDatabase, waitForDatabase, type Migration } from '../utils/database.ts'
-import { setFoods } from '../extraction/ingredients.ts'
-import { readFoods } from '../ingredients/store.ts'
+import { lowered, type Community } from '../ingredients/community.ts'
+import { loadFoods, resolve } from '../ingredients/resolve.ts'
+
+// The ingredient resolver's interval (#147).
+const RESOLVE_EVERY_MS = 10 * 60_000
 
 // Migrations run once, at startup, because Coolify rebuilds and restarts a
 // resource and gives nothing a per-deploy command to hang a one-shot runner
 // on. The app container already starts on every deploy, so this needs no new
 // mechanism — at the cost of the two races below.
 export default defineNitroPlugin((nitroApp) => {
+  const community = useRuntimeConfig().community as Community
+  const low = lowered(community)
+  if (low.length) console.warn(`[ingredients] below their defaults: ${low.map(name => `${name} = ${community[name]}`).join(', ')}`)
+
   // Nitro calls plugins without awaiting them, so this cannot be an async
   // plugin: the server would answer requests while the schema was still being
   // written. The promise is kept instead, and every request waits on it.
   let failure: unknown
-  const ready = migrate().catch((error) => {
+  const ready = migrate(community).catch((error) => {
     failure = error
     console.error('[database] migrations failed', error)
     // A half-migrated schema answering requests is worse than a container that
@@ -26,10 +33,25 @@ export default defineNitroPlugin((nitroApp) => {
     if (failure) throw createError({ statusCode: 503, statusMessage: 'Database migrations failed' })
   })
 
-  nitroApp.hooks.hook('close', closeDatabase)
+  // In-process, which assumes one app container, as today. Two would each
+  // run it: the resolver's advisory lock keeps them from learning one name
+  // twice, but each reloads its own snapshot only on its own tick. More than
+  // one needs a shared signal to reload on, or a single runner.
+  let timer: ReturnType<typeof setInterval> | undefined
+  void ready.then(() => {
+    if (failure || !hasDatabase()) return
+    timer = setInterval(() => {
+      resolve(useDatabase(), community).catch(error => console.error('[ingredients] resolver failed', error))
+    }, RESOLVE_EVERY_MS)
+  })
+
+  nitroApp.hooks.hook('close', async () => {
+    clearInterval(timer)
+    await closeDatabase()
+  })
 })
 
-async function migrate(): Promise<void> {
+async function migrate(community: Community): Promise<void> {
   // Nothing to migrate and nothing to fail: the app serves what it can, and
   // the storage routes answer 503 rather than the whole process refusing to
   // start. A deployment cannot reach this — compose.app.yaml requires the URL.
@@ -59,5 +81,5 @@ async function migrate(): Promise<void> {
 
   // Inside ready, which every request waits on, so no request is normalized
   // against an empty snapshot. Failing here stops the app like a migration.
-  setFoods(await readFoods(sql))
+  await loadFoods(sql, community)
 }
