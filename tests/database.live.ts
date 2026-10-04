@@ -1834,6 +1834,7 @@ describe('FoodData Central', { skip: url ? false : 'NUXT_DATABASE_URL is not set
     await admin?.end()
   })
 
+  const key = (name: string, lang = 'de') => matchFood(name, lang)?.key ?? null
   const sighted = async (name: string) => {
     for (const owner of ['cook_1', 'cook_2', 'cook_3']) await sql`INSERT INTO ingredient_sightings (name, lang, owner_sub) VALUES (${name}, 'de', ${owner})`
   }
@@ -1859,5 +1860,33 @@ describe('FoodData Central', { skip: url ? false : 'NUXT_DATABASE_URL is not set
     // "Oil, perilla" is perilla oil, not perilla; two doenjangs are no clear hit.
     assert.deepEqual({ ...await learned('perilla') }, { fdc_id: null, portion: null, grams_per_ml: null })
     assert.deepEqual({ ...await learned('doenjang') }, { fdc_id: null, portion: null, grams_per_ml: null })
+  })
+
+  const flags = async () => (await sql<{ a: string, b: string, reason: string }[]>`SELECT a, b, reason FROM ingredient_flags ORDER BY a, b, reason`).map(f => `${f.a}/${f.b} ${f.reason}`)
+
+  test('similar learned keys are flagged, and nothing is merged', async () => {
+    // gochujang was learned above. A name plus trailing words is flagged; a
+    // word in front makes another food, so almond milk is not milk.
+    for (const name of ['gochujang paste', 'almond milk']) await sighted(name)
+    assert.deepEqual((await resolve(sql, COMMUNITY)).learned, ['almond_milk', 'gochujang_paste'])
+    assert.deepEqual(await flags(), ['gochujang/gochujang_paste trailing'])
+    // A flag merges nothing: both keys stay, and so do their names.
+    assert.equal(key('Gochujang Paste'), 'gochujang_paste')
+    assert.equal(key('Gochujang'), 'gochujang')
+    assert.equal(key('almond milk'), 'almond_milk')
+    assert.equal(key('milk'), 'milk')
+  })
+
+  test('a short name is flagged one letter off, a longer one two, and a shared FDC food always', async () => {
+    for (const name of ['nato', 'perillas', 'doenjangu']) await sighted(name)
+    await sql`UPDATE ingredients SET fdc_id = 1001 WHERE key = 'doenjang'`
+    await resolve(sql, COMMUNITY)
+    assert.deepEqual(await flags(), [
+      'doenjang/doenjangu edit',
+      'doenjang/gochujang fdc',
+      'gochujang/gochujang_paste trailing',
+      'nato/natto edit',
+      'perilla/perillas edit',
+    ])
   })
 })
