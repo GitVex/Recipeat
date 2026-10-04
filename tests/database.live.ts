@@ -31,7 +31,7 @@ const migrations = (...versions: string[]) => versions.map(version => ({
   sql: readFileSync(new URL(`../server/database/migrations/${version}`, import.meta.url), 'utf8'),
 }))
 // What the stores need under them.
-const STORE = ['001_recipes.sql', '002_collections.sql', '003_tags.sql', '004_preferences.sql', '005_images.sql']
+const STORE = ['001_recipes.sql', '002_collections.sql', '003_tags.sql', '004_preferences.sql', '005_images.sql', '006_ingredients.sql']
 
 describe('migration runner', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () => {
   let admin: Sql
@@ -238,7 +238,7 @@ describe('recipes store', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }
     admin = postgres(url!, { max: 1, onnotice: () => {} })
     await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
     await admin`CREATE SCHEMA ${admin(SCHEMA)}`
-    sql = postgres(url!, { max: 5, onnotice: () => {}, connection: { search_path: SCHEMA } })
+    sql = postgres(url!, { max: 5, onnotice: () => {}, connection: { search_path: `${SCHEMA}, public` } })
     // Kysely over the same instance, so both layers see the same search_path
     // and the same pool — which is how the app wires them too.
     db = new Kysely<Database>({ dialect: new PostgresJSDialect({ postgres: sql }) })
@@ -320,7 +320,7 @@ describe('recipes lineage writes', { skip: url ? false : 'NUXT_DATABASE_URL is n
     admin = postgres(url!, { max: 1, onnotice: () => {} })
     await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
     await admin`CREATE SCHEMA ${admin(SCHEMA)}`
-    sql = postgres(url!, { max: 5, onnotice: () => {}, connection: { search_path: SCHEMA } })
+    sql = postgres(url!, { max: 5, onnotice: () => {}, connection: { search_path: `${SCHEMA}, public` } })
     // Kysely over the same instance, so both layers see the same search_path
     // and the same pool — which is how the app wires them too.
     db = new Kysely<Database>({ dialect: new PostgresJSDialect({ postgres: sql }) })
@@ -646,7 +646,7 @@ describe('collections schema', { skip: url ? false : 'NUXT_DATABASE_URL is not s
     admin = postgres(url!, { max: 1, onnotice: () => {} })
     await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
     await admin`CREATE SCHEMA ${admin(SCHEMA)}`
-    sql = postgres(url!, { max: 5, onnotice: () => {}, connection: { search_path: SCHEMA } })
+    sql = postgres(url!, { max: 5, onnotice: () => {}, connection: { search_path: `${SCHEMA}, public` } })
     db = new Kysely<Database>({ dialect: new PostgresJSDialect({ postgres: sql }) })
     // Every one of them: the recipes written here are written by the store,
     // which reads a line's tags back with them.
@@ -800,7 +800,7 @@ describe('collections store', { skip: url ? false : 'NUXT_DATABASE_URL is not se
     admin = postgres(url!, { max: 1, onnotice: () => {} })
     await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
     await admin`CREATE SCHEMA ${admin(SCHEMA)}`
-    sql = postgres(url!, { max: 5, onnotice: () => {}, connection: { search_path: SCHEMA } })
+    sql = postgres(url!, { max: 5, onnotice: () => {}, connection: { search_path: `${SCHEMA}, public` } })
     db = new Kysely<Database>({ dialect: new PostgresJSDialect({ postgres: sql }) })
     await applyMigrations(sql, migrations(...STORE))
   })
@@ -912,7 +912,7 @@ describe('collection membership', { skip: url ? false : 'NUXT_DATABASE_URL is no
     admin = postgres(url!, { max: 1, onnotice: () => {} })
     await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
     await admin`CREATE SCHEMA ${admin(SCHEMA)}`
-    sql = postgres(url!, { max: 10, onnotice: () => {}, connection: { search_path: SCHEMA } })
+    sql = postgres(url!, { max: 10, onnotice: () => {}, connection: { search_path: `${SCHEMA}, public` } })
     db = new Kysely<Database>({ dialect: new PostgresJSDialect({ postgres: sql }) })
     await applyMigrations(sql, migrations(...STORE))
   })
@@ -1049,7 +1049,7 @@ describe('tags', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () => {
     admin = postgres(url!, { max: 1, onnotice: () => {} })
     await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
     await admin`CREATE SCHEMA ${admin(SCHEMA)}`
-    sql = postgres(url!, { max: 10, onnotice: () => {}, connection: { search_path: SCHEMA } })
+    sql = postgres(url!, { max: 10, onnotice: () => {}, connection: { search_path: `${SCHEMA}, public` } })
     db = new Kysely<Database>({ dialect: new PostgresJSDialect({ postgres: sql }) })
     await applyMigrations(sql, migrations(...STORE))
   })
@@ -1183,7 +1183,7 @@ describe('recipe filters', { skip: url ? false : 'NUXT_DATABASE_URL is not set' 
     admin = postgres(url!, { max: 1, onnotice: () => {} })
     await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
     await admin`CREATE SCHEMA ${admin(SCHEMA)}`
-    sql = postgres(url!, { max: 5, onnotice: () => {}, connection: { search_path: SCHEMA } })
+    sql = postgres(url!, { max: 5, onnotice: () => {}, connection: { search_path: `${SCHEMA}, public` } })
     db = new Kysely<Database>({ dialect: new PostgresJSDialect({ postgres: sql }) })
     await applyMigrations(sql, migrations(...STORE))
 
@@ -1285,7 +1285,7 @@ describe('preferences', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, 
     admin = postgres(url!, { max: 1, onnotice: () => {} })
     await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
     await admin`CREATE SCHEMA ${admin(SCHEMA)}`
-    sql = postgres(url!, { max: 10, onnotice: () => {}, connection: { search_path: SCHEMA } })
+    sql = postgres(url!, { max: 10, onnotice: () => {}, connection: { search_path: `${SCHEMA}, public` } })
     db = new Kysely<Database>({ dialect: new PostgresJSDialect({ postgres: sql }) })
     await applyMigrations(sql, migrations(...STORE))
   })
@@ -1335,7 +1335,7 @@ describe('images', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () =>
     admin = postgres(url!, { max: 1, onnotice: () => {} })
     await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
     await admin`CREATE SCHEMA ${admin(SCHEMA)}`
-    sql = postgres(url!, { max: 10, onnotice: () => {}, connection: { search_path: SCHEMA } })
+    sql = postgres(url!, { max: 10, onnotice: () => {}, connection: { search_path: `${SCHEMA}, public` } })
     db = new Kysely<Database>({ dialect: new PostgresJSDialect({ postgres: sql }) })
     await applyMigrations(sql, migrations(...STORE))
   })
@@ -1463,5 +1463,64 @@ describe('images', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () =>
     assert.equal((await deleteRecipe(sql, 'user_a', cake.id))!.photos, 2)
     const [{ n }] = await sql<{ n: number }[]>`SELECT count(*)::int AS n FROM images WHERE owner_sub = 'user_a' AND recipe_id = ${cake.id}`
     assert.equal(n, 0)
+  })
+})
+
+describe('ingredient table', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () => {
+  const SCHEMA = 'ingredients_check'
+  let admin: Sql
+  let sql: Sql
+
+  before(async () => {
+    admin = postgres(url!, { max: 1, onnotice: () => {} })
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin`CREATE SCHEMA ${admin(SCHEMA)}`
+    sql = postgres(url!, { max: 10, onnotice: () => {}, connection: { search_path: `${SCHEMA}, public` } })
+    await applyMigrations(sql, migrations(...STORE))
+  })
+
+  after(async () => {
+    await sql?.end()
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin?.end()
+  })
+
+  test('the seeded keys are the fixture’s, so no stored food.key points at nothing', async () => {
+    const fixture: { key: string, fdcId: number | null, fdc?: string | null, form: string, portion?: string | null, gramsPerMl?: number | null, en: string[], de: string[] }[] =
+      JSON.parse(readFileSync(new URL('../server/extraction/ingredients.json', import.meta.url), 'utf8'))
+    const keys = await sql<{ key: string, fdc_id: number | null, fdc: string | null, form: string, portion: string | null, grams_per_ml: number | null, learned_at: Date | null }[]>`
+      SELECT key, fdc_id, fdc, form, portion, grams_per_ml, learned_at FROM ingredients ORDER BY key
+    `
+    const names = await sql<{ key: string, lang: 'en' | 'de', name: string }[]>`
+      SELECT key, lang, name FROM ingredient_names ORDER BY key, lang, position
+    `
+    const seeded = keys.map(row => ({
+      key: row.key, fdcId: row.fdc_id, fdc: row.fdc, form: row.form, portion: row.portion, gramsPerMl: row.grams_per_ml,
+      en: names.filter(name => name.key === row.key && name.lang === 'en').map(name => name.name),
+      de: names.filter(name => name.key === row.key && name.lang === 'de').map(name => name.name),
+    }))
+    assert.ok(keys.every(row => row.learned_at === null))
+    // A name the file listed twice for one food is seeded once.
+    const expected = fixture
+      .map(({ key, fdcId, fdc, form, portion, gramsPerMl, en, de }) => ({ key, fdcId, fdc: fdc ?? null, form, portion: portion ?? null, gramsPerMl: gramsPerMl ?? null, en: [...new Set(en)], de: [...new Set(de)] }))
+      .sort((a, b) => a.key < b.key ? -1 : 1)
+    assert.deepEqual(seeded, expected)
+  })
+
+  test('re-normalizing leaves updated_at alone; an edit still moves it', async () => {
+    const [row] = await sql<{ id: string, updated_at: Date }[]>`
+      INSERT INTO recipes (owner_sub, source_lang, ingredients, steps, source, pinned)
+      VALUES ('user_a', 'en', '[]', '[]', '{"type": "text", "originalText": "x"}', true)
+      RETURNING id, updated_at
+    `
+    const touched = async () => (await sql<{ updated_at: Date }[]>`SELECT updated_at FROM recipes WHERE id = ${row!.id}`)[0]!.updated_at
+    await sql.begin(async (tx) => {
+      await tx`SELECT set_config('recipeat.renormalizing', 'on', true)`
+      await tx`UPDATE recipes SET title = 'Re-normalized' WHERE id = ${row!.id}`
+    })
+    assert.deepEqual(await touched(), row!.updated_at)
+    // Local to that transaction: the next edit on the same pool is an edit.
+    await sql`UPDATE recipes SET title = 'Edited' WHERE id = ${row!.id}`
+    assert.ok((await touched()) > row!.updated_at)
   })
 })

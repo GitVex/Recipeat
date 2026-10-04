@@ -14,6 +14,7 @@ app startup. Nothing else talks to it.
 | `003_tags.sql` | `tags`, and `recipe_tags`: which lines wear each |
 | `004_preferences.sql` | `preferences`: one settings document per person |
 | `005_images.sql` | `images`: dish photos per version, and a line's source photo, as bytes |
+| `006_ingredients.sql` | The ingredient table, what it learns from, and FoodData Central |
 | `server/database/migrate.ts` | The runner: a ledger, an advisory lock, one transaction per file |
 | `server/plugins/database.ts` | Runs the above at startup and holds requests until it is done |
 | `server/utils/database.ts` | The shared connection pool |
@@ -121,6 +122,38 @@ returns an id, and the URL is built from it.
 
 An image's bytes never change: replacing the source photo deletes the row and
 writes a new one. That is what lets `/api/images/{id}` be cached as immutable.
+
+## Ingredients
+
+The ingredient table (#147), which was a file until then. `ingredients` holds
+one key per food, with its form and its density from FoodData Central.
+`ingredient_names` holds the names a key is matched by, per language, in the
+order they are shown. The migration seeded both once with the 420 entries of
+#132. A wrong seeded name or density is fixed by a later migration.
+
+Normalization never queries these tables. It matches against a snapshot of
+them held in memory. How the snapshot is loaded and refreshed, and how the
+table learns, is in [extraction.md](extraction.md#the-ingredient-table).
+
+`ingredient_sightings` records each name a saved recipe used that matched
+nothing, with the cook and the recipe. It only grows: an edit or a deletion
+leaves the sighting, and a deleted recipe leaves it with no `recipe_id`.
+`ingredient_alias_votes` holds the answers of #133, and `ingredient_flags`
+holds pairs of keys that may be one food, for a curator (#148). The views
+`ingredient_sighting_counts` and `ingredient_alias_counts` count cooks with
+the opt-out applied, as `ingredient_opted_out` reads it from `preferences`.
+The thresholds are the app's configuration, so a view returns counts and the
+query compares them.
+
+`fdc_foods` and `fdc_portions` are SR Legacy and Foundation Foods, loaded and
+replaced whole by `scripts/ingredients.ts`. They are plain tables beside the
+others rather than a schema of their own, so the live tests isolate them like
+everything else. `pg_trgm` searches them and `fuzzystrmatch` compares names.
+Both extensions live in `public`.
+
+`recipes_touch_updated_at` leaves `updated_at` alone in a transaction that
+sets `recipeat.renormalizing`. Only re-normalization sets it, since giving a
+recipe a key it was missing is not an edit.
 
 ## A fresh database
 
