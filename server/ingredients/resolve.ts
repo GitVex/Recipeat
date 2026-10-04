@@ -1,5 +1,6 @@
 import type { Sql } from 'postgres'
 import { matchFood, setFoods } from '../extraction/ingredients.ts'
+import { renormalize } from '../recipes/renormalize.ts'
 import type { Community } from './community.ts'
 import { readFoods } from './store.ts'
 
@@ -59,14 +60,18 @@ async function learnKeys(sql: Sql, community: Community): Promise<{ learned: str
 }
 
 /**
- * One run of the resolver: learns keys, and reloads the snapshot. Run every
- * ten minutes by the app and on demand by `npm run ingredients:resolve`.
+ * One run of the resolver: learns keys, reloads the snapshot, and when the
+ * table changed, re-normalizes the stored recipes it changes. Run every ten
+ * minutes by the app and on demand by `npm run ingredients:resolve`.
  */
-export async function resolve(sql: Sql, community: Community): Promise<{ learned: string[], changed: boolean }> {
+export async function resolve(sql: Sql, community: Community): Promise<{ learned: string[], changed: boolean, renormalized: number }> {
   const { learned, changed } = await learnKeys(sql, community)
   if (learned.length) {
     console.info(`[ingredients] learned ${learned.join(', ')}`)
     await loadFoods(sql, community)
   }
-  return { learned, changed: changed || learned.length > 0 }
+  if (!changed && !learned.length) return { learned, changed: false, renormalized: 0 }
+  const renormalized = await renormalize(sql)
+  if (renormalized) console.info(`[ingredients] re-normalized ${renormalized} recipes`)
+  return { learned, changed: true, renormalized }
 }

@@ -25,8 +25,9 @@ try {
   if (command === 'resolve') {
     const low = lowered(community)
     if (low.length) console.warn(`Below their defaults: ${low.map(name => `${name} = ${community[name]}`).join(', ')}`)
-    const { learned } = await resolve(sql, community)
+    const { learned, renormalized } = await resolve(sql, community)
     console.log(learned.length ? `Learned ${learned.join(', ')}` : 'Nothing to learn')
+    console.log(`Re-normalized ${renormalized} recipes`)
   } else {
     throw new Error('Usage: scripts/ingredients.ts resolve')
   }

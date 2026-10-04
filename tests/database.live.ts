@@ -15,7 +15,8 @@ import { readPreferences, writePreferences } from '../server/utils/preferences.t
 import { readFilters } from '../shared/utils/recipeFilters.ts'
 import { canonicalAmount, foodOf, matchFood, setFoods, type FoodEntry } from '../server/extraction/ingredients.ts'
 import { readFoods } from '../server/ingredients/store.ts'
-import { resolve } from '../server/ingredients/resolve.ts'
+import { loadFoods, resolve } from '../server/ingredients/resolve.ts'
+import { renormalize } from '../server/recipes/renormalize.ts'
 import { COMMUNITY } from '../server/ingredients/community.ts'
 
 // The half of the runner that needs a database. Everything here happens inside
@@ -1677,7 +1678,8 @@ describe('ingredient resolver', { skip: url ? false : 'NUXT_DATABASE_URL is not 
     await save('cook_2', '2 EL Gochujang')
     assert.deepEqual((await resolve(sql, COMMUNITY)).learned, [])
     await save('cook_3', 'gochujang (scharf)', 'en')
-    assert.deepEqual(await resolve(sql, COMMUNITY), { learned: ['gochujang'], changed: true })
+    const learned = await resolve(sql, COMMUNITY)
+    assert.deepEqual([learned.learned, learned.changed], [['gochujang'], true])
     assert.equal(key('2 EL Gochujang'), 'gochujang')
     assert.equal(key('Gochujang', 'en'), 'gochujang')
     const [row] = await sql`SELECT form, fdc_id, grams_per_ml, learned_at IS NOT NULL AS learned FROM ingredients WHERE key = 'gochujang'`
@@ -1685,7 +1687,7 @@ describe('ingredient resolver', { skip: url ? false : 'NUXT_DATABASE_URL is not 
     const names = await sql`SELECT lang, name FROM ingredient_names WHERE key = 'gochujang' ORDER BY lang`
     assert.deepEqual(names.map(name => `${name.lang}:${name.name}`), ['de:gochujang', 'en:gochujang'])
     // Learned once: its sightings stay, and it matches now.
-    assert.deepEqual(await resolve(sql, COMMUNITY), { learned: [], changed: false })
+    assert.deepEqual(await resolve(sql, COMMUNITY), { learned: [], changed: false, renormalized: 0 })
   })
 
   test('two cooks, or three with one opted out, make no key', async () => {
@@ -1720,5 +1722,91 @@ describe('ingredient resolver', { skip: url ? false : 'NUXT_DATABASE_URL is not 
     await vote('v11', true)
     assert.equal((await resolve(sql, COMMUNITY)).changed, true)
     assert.equal(key('Zuccini'), 'zucchini')
+  })
+})
+
+describe('re-normalization', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () => {
+  const SCHEMA = 'renormalize_check'
+  let admin: Sql
+  let sql: Sql
+  let db: Kysely<Database>
+
+  before(async () => {
+    admin = postgres(url!, { max: 1, onnotice: () => {} })
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin`CREATE SCHEMA ${admin(SCHEMA)}`
+    sql = postgres(url!, { max: 10, onnotice: () => {}, connection: { search_path: `${SCHEMA}, public` } })
+    db = new Kysely<Database>({ dialect: new PostgresJSDialect({ postgres: sql }) })
+    await applyMigrations(sql, migrations(...STORE))
+    await loadFoods(sql, COMMUNITY)
+  })
+
+  after(async () => {
+    setFoods([])
+    await sql?.end()
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin?.end()
+  })
+
+  const draft = (title: string, ...names: string[]) => normalizeRecipe(parseExtraction({
+    title, source_lang: 'de', portions: 2,
+    ingredients: names.map(name => ({ originalText: `100 g ${name}`, quantity: '100 g', name })),
+    steps: ['Mix.'],
+  }, { type: 'text', originalText: 'source' }))
+  const stored = async (id: string) => (await sql<{ title: string, keys: (string | null)[], canonical: unknown[], stamp: string, versions: number }[]>`
+    SELECT title, updated_at::text AS stamp,
+           (SELECT jsonb_agg(i->'food'->'key') FROM jsonb_array_elements(ingredients) i) AS keys,
+           (SELECT jsonb_agg(i->'canonical') FROM jsonb_array_elements(ingredients) i) AS canonical,
+           (SELECT count(*)::int FROM recipes v WHERE v.line_id = recipes.line_id) AS versions
+    FROM recipes WHERE id = ${id}
+  `)[0]!
+  const learn = async (name: string) => {
+    await sql`INSERT INTO ingredients (key, learned_at) VALUES (${name}, now())`
+    await sql`INSERT INTO ingredient_names (name, lang, key, position) VALUES (${name}, 'de', ${name}, 0)`
+    await loadFoods(sql, COMMUNITY)
+  }
+
+  test('a stored recipe gets a newly learned key without an edit or a new version', async () => {
+    const saved = await insertRecipe(db, 'cook_1', draft('Bibimbap', 'Gochujang', 'Reis'))
+    const before = await stored(saved.id)
+    assert.deepEqual(before.keys, [null, 'rice'])
+    for (const owner of ['cook_2', 'cook_3']) await insertRecipe(db, owner, draft('Tteokbokki', 'Gochujang'))
+    const run = await resolve(sql, COMMUNITY)
+    assert.deepEqual(run.learned, ['gochujang'])
+    assert.equal(run.renormalized, 3)
+    const after = await stored(saved.id)
+    assert.deepEqual(after.keys, ['gochujang', 'rice'])
+    // A learned key has no form: a weight stays a weight.
+    assert.deepEqual(after.canonical[0], { value: 100, maxValue: null, unit: 'g' })
+    assert.deepEqual([after.title, after.stamp, after.versions], [before.title, before.stamp, before.versions])
+    // A second run finds nothing to write.
+    assert.equal(await renormalize(sql), 0)
+  })
+
+  test('an edit saved while it runs is kept, and keyed on the next run', async () => {
+    const saved = await insertRecipe(db, 'cook_1', draft('Doenjang-Jjigae', 'Doenjang'))
+    await learn('doenjang')
+    let job: Promise<number> | undefined
+    await sql.begin(async (tx) => {
+      // The cook's save holds the row; the job reads it, and waits to write.
+      await tx`SELECT 1 FROM recipes WHERE id = ${saved.id} FOR UPDATE`
+      job = renormalize(sql)
+      for (let tries = 0; ; tries++) {
+        // From outside the transaction, which would see one snapshot of it.
+        const [{ waiting }] = await sql<{ waiting: number }[]>`
+          SELECT count(*)::int AS waiting FROM pg_stat_activity
+          WHERE wait_event_type = 'Lock' AND query LIKE '%UPDATE recipes SET ingredients%'`
+        if (waiting) break
+        if (tries > 100) throw new Error('the job never reached the row')
+        await new Promise(done => setTimeout(done, 50))
+      }
+      await tx`UPDATE recipes SET title = 'Edited' WHERE id = ${saved.id}`
+    })
+    await job
+    const edited = await stored(saved.id)
+    assert.deepEqual([edited.title, edited.keys], ['Edited', [null]])
+    assert.equal(await renormalize(sql), 1)
+    const next = await stored(saved.id)
+    assert.deepEqual([next.title, next.keys, next.stamp], ['Edited', ['doenjang'], edited.stamp])
   })
 })
