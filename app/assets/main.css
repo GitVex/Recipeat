@@ -2752,6 +2752,27 @@ input.editable-input {
 .earlier-version .button {
     gap: 8px;
 }
+/* After a new version (#66): a note in the margin, not a banner. */
+.paper-nudge {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 14px;
+    margin: -6px 0 18px;
+    font-family: "Playfair Display", Georgia, serif;
+    font-style: italic;
+    font-size: var(--text-ui);
+    color: var(--hand-ink);
+}
+.paper-nudge .text-button {
+    font-family: "DM Sans", sans-serif;
+    font-style: normal;
+    font-size: var(--text-small);
+    padding-bottom: 2px;
+}
+.paper-nudge .icon-button {
+    color: var(--muted);
+}
 
 /* The collections page (#71): quiet — a heading, a search bar, and cards on
    the page's own cream. A card is its first four recipes as a 2×2 mosaic,
@@ -4225,6 +4246,7 @@ a.history-title:hover {
     .scale-reset,
     .tag-editor,
     .earlier-version,
+    .paper-nudge,
     .recipe-actions,
     .edit-bar,
     .recipe-photos,

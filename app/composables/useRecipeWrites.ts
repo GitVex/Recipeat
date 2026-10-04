@@ -57,6 +57,7 @@ export function useRecipeWrites(
   const list = useRecipeListCache();
   const cache = useRecipeCache();
   const { notify } = useToast();
+  const nudge = usePaperNudge();
 
   // The listing shows the pinned version of each line, newest line first. A
   // new version moves a line's pin and a delete can too, so the listing is
@@ -96,7 +97,10 @@ export function useRecipeWrites(
         // row, and that is where the reader goes.
         editor.reset();
         if (action === "variant") list.add(stored);
-        else void relist();
+        else {
+          void relist();
+          nudge.value = stored.id;
+        }
         notify(action === "variant" ? "Saved as a separate recipe" : "Saved as a new version");
         await open(`/recipes/${stored.id}`);
       }
