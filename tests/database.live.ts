@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { after, before, describe, test } from 'node:test'
 import postgres, { type Sql } from 'postgres'
 import { Kysely } from 'kysely'
@@ -17,6 +18,7 @@ import { canonicalAmount, foodOf, matchFood, setFoods, type FoodEntry } from '..
 import { readFoods } from '../server/ingredients/store.ts'
 import { loadFoods, resolve } from '../server/ingredients/resolve.ts'
 import { renormalize } from '../server/recipes/renormalize.ts'
+import { loadFdc } from '../server/ingredients/fdc.ts'
 import { COMMUNITY } from '../server/ingredients/community.ts'
 
 // The half of the runner that needs a database. Everything here happens inside
@@ -1808,5 +1810,54 @@ describe('re-normalization', { skip: url ? false : 'NUXT_DATABASE_URL is not set
     assert.equal(await renormalize(sql), 1)
     const next = await stored(saved.id)
     assert.deepEqual([next.title, next.keys, next.stamp], ['Edited', ['doenjang'], edited.stamp])
+  })
+})
+
+describe('FoodData Central', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () => {
+  const SCHEMA = 'fdc_check'
+  let admin: Sql
+  let sql: Sql
+  const dirs = ['legacy', 'foundation'].map(dir => fileURLToPath(new URL(`./fdc/${dir}`, import.meta.url)))
+
+  before(async () => {
+    admin = postgres(url!, { max: 1, onnotice: () => {} })
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin`CREATE SCHEMA ${admin(SCHEMA)}`
+    sql = postgres(url!, { max: 10, onnotice: () => {}, connection: { search_path: `${SCHEMA}, public` } })
+    await applyMigrations(sql, migrations(...STORE))
+  })
+
+  after(async () => {
+    setFoods([])
+    await sql?.end()
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin?.end()
+  })
+
+  const sighted = async (name: string) => {
+    for (const owner of ['cook_1', 'cook_2', 'cook_3']) await sql`INSERT INTO ingredient_sightings (name, lang, owner_sub) VALUES (${name}, 'de', ${owner})`
+  }
+  const learned = async (key: string) => (await sql<{ fdc_id: number | null, portion: string | null, grams_per_ml: number | null }[]>`
+    SELECT fdc_id, portion, grams_per_ml FROM ingredients WHERE key = ${key}`)[0]
+
+  test('loads SR Legacy and Foundation Foods, and a rerun replaces them', async () => {
+    assert.deepEqual(await loadFdc(sql, dirs), { foods: 5, portions: 5 })
+    assert.deepEqual(await loadFdc(sql, dirs), { foods: 5, portions: 5 })
+    const foods = await sql<{ fdc_id: number }[]>`SELECT fdc_id FROM fdc_foods ORDER BY fdc_id`
+    // A lab sample is not a food to look up.
+    assert.deepEqual(foods.map(food => food.fdc_id), [1001, 1002, 1003, 1004, 2001])
+    const portions = await sql<{ fdc_id: number, unit: string, modifier: string }[]>`SELECT fdc_id, unit, modifier FROM fdc_portions ORDER BY fdc_id`
+    // A serving is no volume; Foundation Foods names its unit.
+    assert.deepEqual(portions.map(p => `${p.fdc_id} ${p.unit} ${p.modifier}`), ['1001 tbsp tbsp', '1002 cup cup', '1003 tbsp tbsp', '1004 tbsp tbsp', '2001 tbsp tablespoon'])
+  })
+
+  test('a learned key gets a density only from one clear hit', async () => {
+    for (const name of ['gochujang', 'natto', 'perilla', 'doenjang']) await sighted(name)
+    assert.deepEqual((await resolve(sql, COMMUNITY)).learned, ['doenjang', 'gochujang', 'natto', 'perilla'])
+    assert.deepEqual({ ...await learned('gochujang') }, { fdc_id: 1001, portion: '1 tbsp = 20 g', grams_per_ml: 1.3526 })
+    assert.deepEqual({ ...await learned('natto') }, { fdc_id: 2001, portion: '2 tablespoon = 30 g', grams_per_ml: 1.0144 })
+    // "Oil, perilla" is perilla oil, not perilla; two doenjangs are no clear hit.
+    assert.deepEqual({ ...await learned('perilla') }, { fdc_id: null, portion: null, grams_per_ml: null })
+    assert.deepEqual({ ...await learned('doenjang') }, { fdc_id: null, portion: null, grams_per_ml: null })
   })
 })

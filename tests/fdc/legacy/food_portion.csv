@@ -1,0 +1,6 @@
+"id","fdc_id","seq_num","amount","measure_unit_id","portion_description","modifier","gram_weight","data_points","footnote","min_year_acquired"
+"1","1001","1","1","9999","","tbsp","20","","",""
+"2","1001","2","1","9999","","serving","40","","",""
+"3","1002","1","1","9999","","cup","218","","",""
+"4","1003","1","1","9999","","tbsp","17","","",""
+"5","1004","1","1","9999","","tbsp","17","","",""

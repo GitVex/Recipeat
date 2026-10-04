@@ -2,12 +2,19 @@
 // .env names:
 //
 //   npm run ingredients:resolve      one resolver run, as the app runs every ten minutes
+//   npm run ingredients:fdc -- <folder>...
+//                                    loads FoodData Central, replacing what was loaded
+//
+// FDC is "SR Legacy" and "Foundation Foods" as CSV, from
+// https://fdc.nal.usda.gov/download-datasets, unzipped; give both folders.
+// Rerun it with a newer release. Learned keys look their density up in it.
 //
 // The app reloads its snapshot on its next run, within ten minutes.
 
 import postgres from 'postgres'
 import { COMMUNITY, lowered, type Community } from '../server/ingredients/community.ts'
 import { resolve } from '../server/ingredients/resolve.ts'
+import { loadFdc } from '../server/ingredients/fdc.ts'
 
 const url = process.env.NUXT_DATABASE_URL
 if (!url) throw new Error('NUXT_DATABASE_URL is not set')
@@ -21,15 +28,18 @@ const community: Community = {
 
 const sql = postgres(url, { max: 2, onnotice: () => {} })
 try {
-  const [command] = process.argv.slice(2)
+  const [command, ...args] = process.argv.slice(2)
   if (command === 'resolve') {
     const low = lowered(community)
     if (low.length) console.warn(`Below their defaults: ${low.map(name => `${name} = ${community[name]}`).join(', ')}`)
     const { learned, renormalized } = await resolve(sql, community)
     console.log(learned.length ? `Learned ${learned.join(', ')}` : 'Nothing to learn')
     console.log(`Re-normalized ${renormalized} recipes`)
+  } else if (command === 'fdc' && args.length) {
+    const { foods, portions } = await loadFdc(sql, args)
+    console.log(`Loaded ${foods} foods, ${portions} cup and spoon portions`)
   } else {
-    throw new Error('Usage: scripts/ingredients.ts resolve')
+    throw new Error('Usage: scripts/ingredients.ts resolve | fdc <folder>...')
   }
 } finally {
   await sql.end()

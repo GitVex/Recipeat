@@ -1,6 +1,7 @@
 import type { Sql } from 'postgres'
 import { matchFood, setFoods } from '../extraction/ingredients.ts'
 import { renormalize } from '../recipes/renormalize.ts'
+import { fdcMatch } from './fdc.ts'
 import type { Community } from './community.ts'
 import { readFoods } from './store.ts'
 
@@ -27,8 +28,9 @@ const slug = (name: string) => name.replace(/ /g, '_').replace(/[^a-z0-9_]/g, ''
 /**
  * Makes a key of every name enough cooks have used, unless it matches now or
  * the votes lean towards it being an existing key (#133). The new key has the
- * name in each language it was sighted in, no form and no density. Answers
- * with the keys it made, and whether the table had changed before it did.
+ * name in each language it was sighted in, no form, and a density only from
+ * one clear FoodData Central hit. Answers with the keys it made, and whether
+ * the table had changed before it did.
  */
 async function learnKeys(sql: Sql, community: Community): Promise<{ learned: string[], changed: boolean }> {
   return sql.begin(async (tx) => {
@@ -51,7 +53,11 @@ async function learnKeys(sql: Sql, community: Community): Promise<{ learned: str
       let key = slug(name)
       for (let n = 2; keys.has(key); n++) key = `${slug(name)}_${n}`
       keys.add(key)
-      await tx`INSERT INTO ingredients (key, learned_at) VALUES (${key}, now())`
+      const hit = await fdcMatch(tx, name)
+      await tx`
+        INSERT INTO ingredients (key, fdc_id, fdc, portion, grams_per_ml, learned_at)
+        VALUES (${key}, ${hit?.fdcId ?? null}, ${hit?.fdc ?? null}, ${hit?.portion ?? null}, ${hit?.gramsPerMl ?? null}, now())
+      `
       await tx`INSERT INTO ingredient_names ${tx(langs.map(lang => ({ name, lang, key, position: 0 })))}`
       learned.push(key)
     }
