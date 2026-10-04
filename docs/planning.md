@@ -220,6 +220,45 @@ adding to a collection. "Don't suggest this" is the `paperNudge` preference
 migration. Cut: "a recipe opened many times", which needs a count the app
 does not keep.
 
+### Decided: an ingredient table that learns (#147)
+
+This reverses two decisions of #132. The table is no longer a file checked
+in beside the matcher: it lives in Postgres, seeded once from that file,
+which survives only as a test fixture, and a wrong seeded entry is fixed by
+a migration. And its set of keys is no longer closed: an unmatched name
+saved by three cooks becomes a key. Matching stays synchronous and pure,
+against a snapshot held in memory. How it works is in
+[extraction.md](extraction.md#the-ingredient-table). What was settled
+along the way:
+
+- **Sightings only grow.** A sighting outlives the edit that removed the
+  name and the recipe it came from, so a count is of cooks who ever saved
+  the name. Cooks are counted across languages: a loanword sighted in German
+  and English recipes is one name, and the key gets it in both lists.
+  Recipes in other languages sight nothing until the table has names in
+  them (#127).
+- **An amount in the name is dropped by the matcher too**, not just for the
+  sighting, or a key learned from "2 EL Gochujang" would not match that line.
+- **A learned key has no form.** A weight of it converts to grams and a
+  volume to millilitres, never across, until someone says which it is.
+- **No key while the votes say alias.** A name with more cooks choosing an
+  existing key for it (#133) than rejecting one is not made a key of its own,
+  even before the alias reaches its threshold.
+- **A clear FDC hit**, measured on the seeded entries: trigram score 0.4 or
+  more, 0.1 ahead of the next, a cup or spoon portion, and the name's last
+  word in what FDC lists first. 62 of 408 get one; of those, 5 are not the
+  food picked by hand, all within 15% density.
+- **FDC data sits beside the other tables** (`fdc_foods`, `fdc_portions`)
+  rather than in a schema of its own, so the live tests can isolate it like
+  everything else.
+- **Flags only for learned keys.** The rules as written flagged about a
+  hundred seeded pairs, mostly wrong (jam/ham, egg/egg white). So a pair
+  needs a learned key, names are compared in one language, and edit distance
+  is one letter under six letters and two from six on.
+- **Re-normalization here is what #147 needs:** run by the resolver when the
+  table changed. Running it on deploy, and recording that it ran, stay with
+  #53.
+
 ## Recipe lineage
 
 Three save actions, and the difference between them decides the schema before

@@ -378,52 +378,123 @@ measurement.
 
 ## The ingredient table
 
-`server/extraction/ingredients.json` lists about 420 common ingredients (#132).
-Each has a key, English and German names, whether it's a solid or a liquid,
-and how many grams a millilitre of it weighs. Normalization matches an
-ingredient's `name` against it and stores two things beside the quantity: the
-matched `food`, and the amount as `canonical`, in grams for a solid and
-millilitres for a liquid. "1 cup flour" and "125 g flour" then add up, which
-is what a shopping list (#84) and substitutions (#43) need.
+The ingredient table knows about 420 common ingredients from the start (#132),
+and learns more from the recipes people save (#147). Each key has English
+and German names, whether it's a solid or a liquid, and how many grams a
+millilitre of it weighs. Normalization matches an ingredient's `name`
+against it and stores two things beside the quantity: the matched `food`,
+and the amount as `canonical`, in grams for a solid and millilitres for a
+liquid. "1 cup flour" and "125 g flour" then add up, which is what a
+shopping list (#84) and substitutions (#43) need.
 
 The quantity as written is still the truth. `canonical` is derived, rebuilt on
 every save like the step parts, and never accepted from a client. A recipe
 stored before the table existed has neither field until it's saved again, or
-until #53 re-normalizes stored recipes.
+until the next re-normalization below; running one on deploy is #53.
+
+**Where it lives.** In Postgres (`ingredients`, `ingredient_names`, see
+[database.md](database.md#ingredients)), but normalization never queries it.
+It matches against a snapshot in memory, so it stays synchronous and pure.
+`server/plugins/database.ts` loads the snapshot inside the promise every
+request waits on, so nothing is normalized against an empty one. Every run
+of the resolver reloads it. Without a database URL the snapshot is empty and
+nothing matches. The unit tests load `tests/ingredients.json`, the 420
+entries the table was seeded with.
 
 **Matching** is by name: the recipe's language first, then the other one,
 since English names turn up in German recipes. Accents, case and anything in
 parentheses don't matter. Each part between commas is tried in turn, since the
 food usually comes first ("butter, softened") but not always ("bone-in,
-skin-on chicken thighs"). Leading words that only describe the ingredient are dropped one at a time
-("2 large eggs", "frischer Ingwer"). Words that make it a different food
-("dried", "ground", "canned", "cooked") are not, so "cooked rice" and "almond
-milk" match nothing rather than "rice" and "milk". English plurals match their
-singular; German plurals are listed, since no rule covers Ei/Eier and
+skin-on chicken thighs"). Leading words that only describe or measure the
+ingredient are dropped one at a time ("2 large eggs", "frischer Ingwer",
+"2 EL Mehl"). A number and a lone measure ("2 cloves", "2 Zehen") are no
+food at all. Words that make it a different food ("dried", "ground",
+"canned", "cooked") are not dropped, so "cooked rice" and "almond milk" match
+nothing rather than "rice" and "milk". English plurals match their singular;
+German plurals are listed, since no rule covers Ei/Eier and
 Zwiebel/Zwiebeln alike.
 
-**Densities** come from [USDA FoodData Central](https://fdc.nal.usda.gov/),
-SR Legacy: the household portions it lists for each food ("1 cup = 125 g"),
-which were weighed rather than estimated. A cup is preferred to a spoon, being
-measured more precisely, and where the first cup listed is the wrong one
-("1 cup, whipped" for cream) the entry names the right one in `pick`. Foods
-bought by the piece, most meat and fish, have no density: their weights
-convert, and a volume of them doesn't. FoodData Central is public domain
-(CC0); USDA asks to be named as the source.
+**Learning.** Saving, editing, progressing or varying a recipe records a
+*sighting* of each name in it that matched nothing, in the same transaction:
+the name as the matcher compares it, with the leading words dropped, so
+"Gochujang", "2 EL Gochujang" and "gochujang (scharf)" are one name. Lines
+holding two foods ("Pfeffer/Salz", "salt and pepper") or none ("2 cloves")
+are not sighted. Neither are recipes in a language the table has no names in,
+or anything while the snapshot is empty, which would sight every seeded name.
+An extract route stores nothing, so a preview that is thrown away sights
+nothing.
 
-A few common foods aren't in FoodData Central at all: Quark, crème fraîche,
-Vanillezucker, paneer, harissa, garam masala, the ginger and garlic pastes.
-They have `fdcId: null`, a key and names, and no density. They still match and
-merge by key, and a weight of them converts like any other.
+The **resolver** makes a key of a name once three distinct cooks have
+sighted it, in any language. One account can't make a key, so parser junk,
+typos and private names stay out of the shared table. A name the votes of
+#133 lean towards being an existing key is not made a key of its own. The
+new key is the name with underscores (`gochujang_paste`), has the name in
+each language it was sighted in, and has no form: a weight of it converts to
+grams and a volume to millilitres, never across. Nothing merges a name into
+an existing key except cooks voting for it (#133), since a wrong merge is
+silent and corrupts every conversion the key is in.
 
-The keys, FDC ids and names are written by hand. The FDC description, the
-portion and the density are filled in by a script, so a new FDC release is one
-rerun. It also refuses a key used twice, or one name given to two foods in the
-same language:
+The resolver runs every ten minutes in the app, and once from the host:
 
 ```sh
-# SR Legacy as CSV, from https://fdc.nal.usda.gov/download-datasets
-node --experimental-strip-types scripts/ingredients.ts <unzipped folder>
+npm run ingredients:resolve
+```
+
+Each run reloads the snapshot, so the app picks up a run from the host on its
+next one. When the table changed, by a key learned or an alias gained or
+lost, it re-normalizes every stored recipe through the assembly a save runs.
+That is not an edit: `updated_at` stays, and the line gets no new version. A
+row is written only while its `updated_at` is still what was read, so an edit
+saved meanwhile is kept, and that recipe is picked up on the next run.
+
+**Similar keys.** After learning, the resolver flags pairs that may be one
+food: one name is the other plus trailing words (`gochujang`, `gochujang
+paste`), the names are one letter apart under six letters or two from six
+on, or both have the same FDC food. A word in front makes a different food,
+so `milk` and `almond milk` are never flagged. Only pairs with a learned key
+are checked, since the seeded ones were curated by hand. A flag is a row in
+`ingredient_flags` and changes nothing else. Deciding on it is for a curator
+(#148).
+
+**Thresholds** are configuration: `NUXT_COMMUNITY_KEY_COOKS` (3),
+`NUXT_COMMUNITY_ALIAS_COOKS` (5) and `NUXT_COMMUNITY_SUBSTITUTION_COOKS` (3,
+for #43). A development `.env` sets them to 1, so one person can click
+through the whole flow; the app warns at startup when one is below its
+default. **Opting out** is the "Contribute to shared ingredient data"
+preference. An opted-out cook's sightings and votes count for nobody, past
+ones included. They still get the shared keys, and a key that is already
+active stays.
+
+**Densities** come from [USDA FoodData Central](https://fdc.nal.usda.gov/):
+the household portions it lists for each food ("1 cup = 125 g"), which were
+weighed rather than estimated. A cup is preferred to a spoon, being measured
+more precisely. Foods bought by the piece, most meat and fish, have no
+density: their weights convert, and a volume of them doesn't. FoodData
+Central is public domain (CC0); USDA asks to be named as the source.
+
+The seeded densities were picked by hand from SR Legacy. A few common foods
+aren't in FoodData Central at all (Quark, crème fraîche, Vanillezucker,
+paneer, harissa, garam masala, the ginger and garlic pastes): they have a
+key and names, and no density.
+
+A learned key looks its density up in SR Legacy and Foundation Foods, loaded
+into `fdc_foods` and `fdc_portions`. It takes a density only from **one clear
+hit**: the best match of the name against FDC's descriptions by trigram
+similarity scores 0.4 or more, is 0.1 ahead of the next, has a cup or spoon
+portion, and has the name's last word in what FDC lists first ("Oil,
+avocado" is not avocado). Otherwise its FDC id and density stay null. A
+missing density is honest; a wrong one corrupts every conversion. Measured
+on the 408 seeded entries with an FDC food picked by hand, this gives 62 of
+them a density, and the 5 of those whose food differs from the hand-picked
+one are within 15% of its density.
+
+Loading FDC replaces what was loaded, so a newer release is one rerun. With
+nothing loaded, keys are still learned, with no density:
+
+```sh
+# "SR Legacy" and "Foundation Foods" as CSV, from
+# https://fdc.nal.usda.gov/download-datasets, unzipped
+npm run ingredients:fdc -- <sr legacy folder> <foundation folder>
 ```
 
 ## Testing
