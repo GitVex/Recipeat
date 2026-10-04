@@ -126,6 +126,8 @@ const stepRows = computed(() => {
     };
   });
 });
+const print = () => window.print();
+
 // A duration as it will be saved, once it is one.
 const typedTime = computed(() => {
   const minutes = edit.value ? parseMinutes(edit.value.totalTime) : null;
@@ -180,6 +182,15 @@ const typedTime = computed(() => {
           :locked="locked"
           @toggle="toggleMode"
         />
+        <!-- Prints what is read: amounts at this scale, in these units. -->
+        <button
+          v-if="editor && scalable && !editing"
+          type="button"
+          class="unit-toggle print-button"
+          @click="print"
+        >
+          <AppIcon name="printer" :size="15" /><span>Print</span>
+        </button>
         <!-- Only where switching would change something on the page. -->
         <UnitToggle v-if="convertible" :system="system" @toggle="toggle" />
         <slot name="controls" />
