@@ -22,7 +22,7 @@ url ──────▶ fetcher ─┘
 | Storage | Done; Postgres, the `recipes` table, a migration runner, and every route the collection needs. Nothing in the browser calls them yet |
 | Import UI wired to the API | Done for the shared part (#36): all three tabs call their route and open what comes back. Per-source polish is #37–#39. An import can be added to the collection (#41) |
 | Website import | Done; returns a recipe, stores nothing. The fetcher only reaches public addresses (#117) |
-| Photo import | Done; the model reads the photo directly, returns a recipe, stores nothing. The picture can be kept with the recipe once it is saved (#45) |
+| Photo import | Done; the model reads a 1600 px copy of the photo (#40), returns a recipe, stores nothing. The picture can be kept with the recipe once it is saved (#45) |
 | Images | Done (#45): dish photos per version and a line's source photo, as `BYTEA` in Postgres, served only through `/api/images/{id}` |
 | Instagram import | Done for one public post (#22), as a kind of website import (#120): pasted in the Website tab, read logged out by the fetcher, caption links tried first (#122), then caption and images to the model together. The creator's site is #123, reel audio #124, profile scanning #116 |
 
@@ -135,8 +135,15 @@ written rather than as a bare number.
 
 **Photo import: the image itself.** The argument for a job and a poll is
 gone — a photo is read in five to nine seconds, which is the whole request.
-What the model is sent is still the upload as it arrived; whether to shrink
-that too is what is left of #40, and turns on how small print survives.
+Settled in #40: the model is sent the 1600 px JPEG a kept photo is stored as,
+made in the browser, not the upload as it arrived. On 18 cookbook pages it
+read amounts as well as the 2048 px originals (one smudged amount dropped,
+against two misread by each run of the original), while 1200 px and below
+misread three to five. Gemini counts an image at 1064 tokens whatever its
+size, so this saves upload, not cost. `MAX_PHOTO_BYTES` stays, as a guard
+against a request that skipped the browser rather than a limit a person
+meets. Not yet tried against a phone's full 4032 px; the test photos were
+all 2048 px.
 
 ### Decided: images live in Postgres (#45)
 
