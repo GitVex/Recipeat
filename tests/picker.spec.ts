@@ -26,7 +26,10 @@ async function mockApi(page: Page, fake: Fake, { pinned = true, failAdd = false,
     id: c.id, name: c.name, count: c.members.length, thumbnails: [],
     createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z',
   })
-  await page.route('**/api/recipes', route => route.fulfill({ json: { recipes: listing } }))
+  const inAny = (id: string) => fake.collections.some(c => c.members.includes(id))
+  await page.route('**/api/recipes', route => route.fulfill({
+    json: { recipes: listing.map(recipe => ({ ...recipe, inCollection: inAny(recipe.id) })) },
+  }))
   await page.route('**/api/recipes/*', (route) => {
     const id = new URL(route.request().url()).pathname.split('/').pop()!
     return route.fulfill({ json: { recipe: full(id, pinned) } })
@@ -178,7 +181,7 @@ test('at phone width the picker fits, and works from the list', async ({ page })
   await mockApi(page, twoCollections())
   await openCollection(page)
   await page.setViewportSize({ width: 390, height: 844 })
-  const button = page.getByRole('button', { name: 'Add Ragù to a collection' })
+  const button = page.getByRole('button', { name: 'Ragù is in a collection' })
   // No pointer to reveal it with, on a real phone; here, it is still reachable.
   await button.click()
   const dialog = page.getByRole('dialog', { name: /Add to a collection/ })
@@ -226,8 +229,8 @@ test('the recipe page bookmark fills while the version is in a collection', asyn
   await expect(dialog.getByRole('checkbox', { name: /Sunday bakes/ })).toBeChecked()
   await dialog.getByRole('button', { name: 'Done' }).click()
   await expect(bookmark(page)).toHaveAttribute('fill', 'currentColor')
-  // Other bookmarks on the page are not touched.
-  await expect(page.locator('svg[fill="currentColor"]')).toHaveCount(1)
+  // Other bookmarks on the recipe are not touched.
+  await expect(page.locator('.collection-pane svg[fill="currentColor"]')).toHaveCount(1)
 })
 
 test('a membership that cannot be read shows the outline and no error', async ({ page }) => {
@@ -241,4 +244,29 @@ test('a membership that cannot be read shows the outline and no error', async ({
   // The picker is still there, and it is what says the read failed.
   await page.getByRole('button', { name: 'Add to collection' }).click()
   await expect(page.getByRole('dialog').getByRole('alert')).toContainText('couldn’t be read')
+})
+
+test('the list fills the bookmark of a recipe in a collection, and follows the picker', async ({ page }) => {
+  await mockApi(page, twoCollections())
+  await openCollection(page)
+  const entryBookmark = (title: string) => page.locator('li', { hasText: title }).locator('.entry-add svg')
+  // Ragù starts in Weeknight; Focaccia in nothing.
+  await expect(page.getByRole('button', { name: 'Ragù is in a collection' })).toBeAttached()
+  await expect(entryBookmark('Ragù')).toHaveAttribute('fill', 'currentColor')
+  await expect(entryBookmark('Focaccia')).toHaveAttribute('fill', 'none')
+
+  await page.getByRole('button', { name: 'Add Focaccia to a collection' }).click()
+  const dialog = page.getByRole('dialog', { name: /Add to a collection/ })
+  await dialog.getByRole('checkbox', { name: /Christmas 2026/ }).check()
+  await expect(dialog.getByRole('checkbox', { name: /Christmas 2026/ })).toBeChecked()
+  await dialog.getByRole('button', { name: 'Done' }).click()
+  await expect(page.getByRole('button', { name: 'Focaccia is in a collection' })).toBeAttached()
+  await expect(entryBookmark('Focaccia')).toHaveAttribute('fill', 'currentColor')
+
+  await page.getByRole('button', { name: 'Ragù is in a collection' }).click()
+  await dialog.getByRole('checkbox', { name: /Weeknight/ }).uncheck()
+  await expect(dialog.getByRole('checkbox', { name: /Weeknight/ })).not.toBeChecked()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('button', { name: 'Add Ragù to a collection' })).toBeAttached()
+  await expect(entryBookmark('Ragù')).toHaveAttribute('fill', 'none')
 })

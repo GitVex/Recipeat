@@ -7,7 +7,11 @@ disable-model-invocation: true
 
 # Start work on #$ARGUMENTS
 
-1. **Read it.** `gh issue view $ARGUMENTS --comments`, its parent and
+1. **Read it, fresh, even if it was read earlier in the session.**
+   `gh issue view $ARGUMENTS --json title,body,labels,milestone,comments`
+   (not `--comments`, which without a terminal prints the comments and
+   drops the body). Comments can change the scope: treat a later comment
+   from the maintainer as overriding the body. Then its parent and
    sub-issues (`gh api graphql -f query='query{repository(owner:"GitVex",name:"Recipeat"){issue(number:$ARGUMENTS){parent{number title} subIssues(first:50){nodes{number title state}}}}}'`),
    everything it links, and the `docs/planning.md` sections it touches.
 

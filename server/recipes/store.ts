@@ -351,7 +351,7 @@ const containing = (term: string) => `%${term.replace(/[\\%_]/g, char => `\\${ch
  * A line's tags are matched in any case, and it has to wear all of them.
  */
 export async function listRecipes(sql: Sql, ownerSub: string, filters: RecipeFilters = NO_FILTERS, limit = 200): Promise<RecipeSummary[]> {
-  return (await listing(sql, ownerSub, filters, limit)).map(asSummary)
+  return (await listing(sql, ownerSub, filters, limit)).map(row => ({ ...asSummary(row), inCollection: row.in_collection }))
 }
 
 // The statement listRecipes runs, unrun: the tests explain this rather than a
@@ -375,12 +375,16 @@ export function listing(sql: Sql, ownerSub: string, filters: RecipeFilters, limi
     filters.maxPortions !== null ? sql`AND portions <= ${filters.maxPortions}` : sql``,
     filters.sources.length ? sql`AND source->>'type' = ANY(${filters.sources}::text[])` : sql``,
   ]
-  return sql<SummaryRow[]>`
+  return sql<(SummaryRow & { in_collection: boolean })[]>`
     SELECT id, line_id, title, image, total_time, portions, created_at, updated_at,
            jsonb_array_length(ingredients) AS ingredient_count,
            jsonb_array_length(steps) AS step_count,
            ${tagsOf(sql, 'recipes')} AS tags,
-           ${coverOf(sql, 'recipes')} AS cover_id
+           ${coverOf(sql, 'recipes')} AS cover_id,
+           EXISTS (
+             SELECT 1 FROM collection_recipes cr
+             WHERE cr.recipe_id = recipes.id AND cr.owner_sub = recipes.owner_sub
+           ) AS in_collection
     FROM recipes
     WHERE owner_sub = ${ownerSub} AND pinned
     ${where.reduce((all, condition) => sql`${all} ${condition}`)}

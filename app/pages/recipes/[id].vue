@@ -84,15 +84,12 @@ const picker = useCollectionPicker();
 
 // Whether this version is in a collection, for the bookmark to say so (#128).
 // Unknown, or unreadable, is drawn as not: the picker says what went wrong.
-// Read again whenever the picker closes, since that is where it changes.
+// The picker reads it again under this key when it closes having changed it.
 const containing = useFetch<{ collections: string[] }>(`/api/recipes/${id}/collections`, {
   key: `recipe-collections:${id}`,
   retry: 0,
 });
 const inCollection = computed(() => !!containing.data.value?.collections.length);
-watch(picker.target, (value, before) => {
-  if (!value && before?.id === id) containing.refresh();
-});
 const save = () => writes.save(choice.value);
 
 // Deleting the recipe on the page is deleting "this recipe"; deleting another

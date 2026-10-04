@@ -941,10 +941,17 @@ describe('collection membership', { skip: url ? false : 'NUXT_DATABASE_URL is no
     const opened = await readCollection(db, 'user_a', id)
     assert.equal(opened!.name, 'Breakfast')
     assert.deepEqual(opened!.recipes.map(entry => entry.title), ['Toast', 'Eggs'])
-    // The listing's card, whole, plus where the line stands.
+    // The listing's card, whole, plus where the line stands. Only the listing
+    // says whether a version is in a collection (#128): inside one, it is.
     const [first] = opened!.recipes
-    assert.deepEqual(first, { ...(await listRecipes(sql, 'user_a')).find(card => card.id === toast.id)!, pinned: true, pinnedId: toast.id })
+    const listed = await listRecipes(sql, 'user_a')
+    const { inCollection, ...card } = listed.find(card => card.id === toast.id)!
+    assert.equal(inCollection, true)
+    assert.deepEqual(first, { ...card, pinned: true, pinnedId: toast.id })
     assert.equal(first!.ingredientCount, 2)
+    // And a version in none says so.
+    const loose = await insertRecipe(db, 'user_a', recipe('Porridge'))
+    assert.equal((await listRecipes(sql, 'user_a')).find(card => card.id === loose.id)!.inCollection, false)
   })
 
   test('adding twice changes nothing', async () => {
