@@ -1,6 +1,6 @@
 import { BASE, resolveUnit } from '../../shared/utils/recipeText.ts'
 import type { Food, Quantity } from '../../shared/types/recipe.ts'
-import { kindOf } from './quantity.ts'
+import { kindOf, unitInfo } from './quantity.ts'
 
 // The ingredient table (#132, #147): what an ingredient is, matched by name,
 // and how heavy a millilitre of it is, from USDA FoodData Central. The table
@@ -60,6 +60,25 @@ const DESCRIPTORS = {
 const isDescriptor = (word: string, lang: Language) =>
   lang === 'en' ? DESCRIPTORS.en.has(word) : DESCRIPTORS.de.test(word)
 
+// Words that say how much rather than what, when an amount ends up in the
+// name ("2 EL Gochujang", "1 Prise Salz"). The units the parser reads count
+// too. Accents are already gone: "stuck" is Stück.
+const MEASURES = new Set(['el', 'tl', 'msp', 'prise', 'prisen', 'zehe', 'zehen', 'stuck', 'scheibe', 'scheiben',
+  'dose', 'dosen', 'packung', 'packchen', 'becher', 'bund', 'handvoll', 'spritzer', 'schuss',
+  'pinch', 'pinches', 'dash', 'dashes', 'handful', 'handfuls', 'clove', 'cloves', 'can', 'cans',
+  'slice', 'slices', 'piece', 'pieces', 'sprig', 'sprigs', 'bunch', 'bunches'])
+const isNumber = (word: string) => /^\p{N}+$/u.test(word)
+const isMeasure = (word: string) => MEASURES.has(word) || unitInfo(word) !== null
+
+// A word that can go before the food without being part of it.
+const isLeading = (word: string) =>
+  isNumber(word) || isMeasure(word) || isDescriptor(word, 'en') || isDescriptor(word, 'de')
+
+// "2 cloves": a count of something the line doesn't name. Matching the spice
+// would be wrong, so the measure left on its own is no food at all.
+const unnamed = (words: string[], start: number) =>
+  start > 0 && start === words.length - 1 && isMeasure(words[start]!) && words.slice(0, start).some(isNumber)
+
 // English plurals the table doesn't list: "tomatoes", "cherries", "peaches".
 // German ones are listed, since no rule covers Ei/Eier and Zwiebel/Zwiebeln alike.
 function singulars(text: string): string[] {
@@ -83,19 +102,20 @@ function find(text: string, lang: Language): FoodEntry | null {
  * is tried first and the other one after it, since an English name in a
  * German recipe is common ("Cheddar"). Each part between commas is tried in
  * turn, since the food is usually first ("butter, softened") but not always
- * ("bone-in, skin-on chicken thighs"). Leading words that only describe
- * ("2 large eggs", "frischer Ingwer") are dropped one at a time; anything else
- * unmatched stays unmatched.
+ * ("bone-in, skin-on chicken thighs"). Leading words that only describe or
+ * measure ("2 large eggs", "frischer Ingwer", "2 EL Mehl") are dropped one at
+ * a time; anything else unmatched stays unmatched.
  */
 export function matchFood(name: string, sourceLang: string): FoodEntry | null {
   const first: Language = sourceLang.toLowerCase().startsWith('de') ? 'de' : 'en'
   for (const part of name.split(',')) {
     const words = matchKey(part).split(' ').filter(Boolean)
     for (let start = 0; start < words.length; start++) {
+      if (unnamed(words, start)) break
       const text = words.slice(start).join(' ')
       const entry = find(text, first) ?? find(text, first === 'en' ? 'de' : 'en')
       if (entry) return entry
-      if (!isDescriptor(words[start]!, 'en') && !isDescriptor(words[start]!, 'de')) break
+      if (!isLeading(words[start]!)) break
     }
   }
   return null

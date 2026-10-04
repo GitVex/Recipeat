@@ -37,6 +37,26 @@ test('words that only describe are dropped; words that change the food are not',
   assert.equal(key('bone-in, skin-on chicken thighs'), 'chicken_thigh')
 })
 
+test('an amount left in the name is dropped like a describing word', () => {
+  assert.equal(key('2 EL Mehl', 'de'), 'flour')
+  assert.equal(key('1 Prise Salz', 'de'), 'salt')
+  assert.equal(key('2 large eggs'), 'egg')
+  assert.equal(key('3 cloves garlic'), 'garlic')
+  assert.equal(key('200 g Butter', 'de'), 'butter')
+})
+
+test('a count of something unnamed is no food, even one the table has', () => {
+  const spice = { key: 'cloves', form: 'solid' as const, en: ['cloves'], de: [] }
+  setFoods([spice])
+  try {
+    assert.equal(key('cloves'), 'cloves')
+    assert.equal(key('2 cloves'), null)
+    assert.equal(key('2 Zehen', 'de'), null)
+  } finally {
+    setFoods(fixture as Parameters<typeof setFoods>[0])
+  }
+})
+
 test('a food FoodData Central lacks still matches, and weighs as written', () => {
   assert.equal(key('Harissa', 'de'), 'harissa')
   assert.equal(matchFood('garam masala', 'en')!.gramsPerMl, null)
