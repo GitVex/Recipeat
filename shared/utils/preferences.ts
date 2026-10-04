@@ -36,6 +36,16 @@ export const PREFERENCES = {
     unset: "Suggest it",
     options: [{ value: "off", label: "Don’t suggest it" }],
   },
+  // The one opt-out for shared ingredient data (#147). Unset is in. Off
+  // leaves this account's sightings, alias votes and substitutions out of
+  // every count, past ones too; it still gets the shared keys.
+  sharedIngredients: {
+    kind: "choice",
+    label: "Contribute to shared ingredient data",
+    description: "Ingredient names in your recipes help the app learn new ingredients for everyone. Nothing else of the recipe is shared.",
+    unset: "Contribute",
+    options: [{ value: "off", label: "Don’t contribute" }],
+  },
 } as const satisfies Record<string, PreferenceSpec>;
 
 export type PreferenceKey = keyof typeof PREFERENCES;

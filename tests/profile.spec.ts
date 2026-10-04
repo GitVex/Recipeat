@@ -71,7 +71,7 @@ test('preferences are saved to the account as they change', async ({ page }) => 
   await page.route('**/api/me', route => route.fulfill({ json: me }))
   await page.route('**/api/recipes', route => route.fulfill({ json: { recipes: [] } }))
   await page.route('**/api/preferences', (route) => {
-    if (route.request().method() === 'GET') return route.fulfill({ json: { preferences: { unitSystem: null, portions: null, paperNudge: null } } })
+    if (route.request().method() === 'GET') return route.fulfill({ json: { preferences: { unitSystem: null, portions: null, paperNudge: null, sharedIngredients: null } } })
     const body = route.request().postDataJSON()
     writes.push(body)
     return route.fulfill({ json: { preferences: body } })
@@ -85,7 +85,7 @@ test('preferences are saved to the account as they change', async ({ page }) => 
   await preferences.getByRole('spinbutton', { name: 'Servings' }).fill('4')
   await preferences.getByRole('spinbutton', { name: 'Servings' }).press('Enter')
   await expect.poll(() => writes.length).toBe(2)
-  expect(writes).toEqual([{ unitSystem: 'imperial', portions: null, paperNudge: null }, { unitSystem: 'imperial', portions: 4, paperNudge: null }])
+  expect(writes).toEqual([{ unitSystem: 'imperial', portions: null, paperNudge: null, sharedIngredients: null }, { unitSystem: 'imperial', portions: 4, paperNudge: null, sharedIngredients: null }])
   await page.screenshot({ path: 'test-results/profile-preferences.png', fullPage: true })
 })
 
@@ -93,7 +93,7 @@ test('a preference that does not save says so, and shows what is saved', async (
   await page.route('**/api/me', route => route.fulfill({ json: me }))
   await page.route('**/api/recipes', route => route.fulfill({ json: { recipes: [] } }))
   await page.route('**/api/preferences', route => route.request().method() === 'GET'
-    ? route.fulfill({ json: { preferences: { unitSystem: 'metric', portions: 2, paperNudge: null } } })
+    ? route.fulfill({ json: { preferences: { unitSystem: 'metric', portions: 2, paperNudge: null, sharedIngredients: null } } })
     : route.fulfill({ status: 500, json: {} }))
   await visit(page)
   const preferences = page.getByRole('region', { name: 'Preferences' })
