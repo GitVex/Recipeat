@@ -208,6 +208,18 @@ belongs to its owner like a recipe does.
 - **Lists are the owner's alone.** Sending one elsewhere is #95. Sharing
   between accounts waits for recipes to be shareable.
 
+### Decided: a nudge towards paper (#66)
+
+The app is not meant to be the only place a recipe lives. After an edit is
+saved as a new version, and only then, one line under the title says it may
+deserve a page in a notebook, with Print (#135), × and "Don't suggest this".
+It shows once, on arriving at the new version; coming back to it later does
+not ask again. Not after a separate recipe or an overwrite, and not on
+adding to a collection. "Don't suggest this" is the `paperNudge` preference
+(#62), set from the line and turned back on from the profile page; no
+migration. Cut: "a recipe opened many times", which needs a count the app
+does not keep.
+
 ## Recipe lineage
 
 Three save actions, and the difference between them decides the schema before

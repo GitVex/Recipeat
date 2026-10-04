@@ -1,7 +1,6 @@
 // Every preference a person can set (#62), and what each may hold. The one
 // place to add one: the type, the route's check and the profile's form all
-// follow from this. Null is always allowed, and is `unset` — "as the recipe
-// is written" for the two here.
+// follow from this. Null is always allowed, and is `unset`.
 //
 // Read them anywhere with usePreferences().
 type Common = { label: string; description: string; unset: string };
@@ -28,6 +27,14 @@ export const PREFERENCES = {
     // A household, not a canteen.
     min: 1,
     max: 100,
+  },
+  // The line after a new version is saved (#66). Unset is on.
+  paperNudge: {
+    kind: "choice",
+    label: "Keeping it on paper",
+    description: "After a new version, a line suggesting it may deserve a page in your notebook.",
+    unset: "Suggest it",
+    options: [{ value: "off", label: "Don’t suggest it" }],
   },
 } as const satisfies Record<string, PreferenceSpec>;
 
