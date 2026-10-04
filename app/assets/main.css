@@ -4194,3 +4194,85 @@ a.history-title:hover {
         opacity: 0;
     }
 }
+
+/* Printing a recipe (#135): what is on the screen, ink on white, with
+   nothing that is only there to be pressed. The print dialog picks the page;
+   the layout flows to whatever it is given. */
+.print-button svg {
+    align-self: center;
+    margin: 0 0 0 6px;
+    color: var(--muted);
+}
+@media print {
+    @page {
+        margin: 12mm;
+    }
+    :root {
+        --paper: #fff;
+        --cream: #fff;
+        --ink: #000;
+        --ink-soft: #000;
+        --muted: #444;
+        background: #fff;
+    }
+    .header,
+    footer,
+    .toast,
+    .modal-backdrop,
+    .collection-list,
+    .title-controls,
+    .portion-control .row-control,
+    .scale-reset,
+    .tag-editor,
+    .earlier-version,
+    .recipe-actions,
+    .edit-bar,
+    .recipe-photos,
+    .recipe-history,
+    .similar-recipes {
+        display: none !important;
+    }
+    /* One column, and nothing that clips: a grid or a hidden overflow stops
+       Firefox carrying the recipe onto a second page. */
+    .page-width {
+        width: auto;
+    }
+    .collection {
+        display: block;
+        padding: 0;
+    }
+    .collection-pane {
+        border: 0;
+        border-radius: 0;
+        overflow: visible;
+        min-height: 0;
+    }
+    .detail-content {
+        padding: 0;
+    }
+    .detail-image {
+        height: 40mm;
+        border-radius: var(--radius-m);
+        margin-bottom: 4mm;
+    }
+    .portion-control,
+    .scale-factor {
+        border: 0;
+        background: none;
+    }
+    .amount.scalable,
+    .amount.scalable.anchored {
+        background: none;
+        color: var(--ink);
+        text-decoration: none;
+        padding: 0;
+        margin: 0;
+    }
+    .detail-content h3,
+    .ingredients-heading {
+        break-after: avoid;
+    }
+    .detail-content li {
+        break-inside: avoid;
+    }
+}
