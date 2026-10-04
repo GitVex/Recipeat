@@ -32,14 +32,33 @@ async function fitted(bitmap: ImageBitmap, longEdge: number, max: number): Promi
   throw new UnreadableImage();
 }
 
-/** The multipart body the image routes take. */
-export async function imageForm(file: Blob): Promise<FormData> {
-  let bitmap: ImageBitmap;
+async function bitmapOf(file: Blob): Promise<ImageBitmap> {
   try {
-    bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+    return await createImageBitmap(file, { imageOrientation: "from-image" });
   } catch {
     throw new UnreadableImage();
   }
+}
+
+/**
+ * What photo import shows the model (#40): the same 1600 px copy a kept photo
+ * is stored as. Compared on eighteen cookbook pages, it read amounts as well as
+ * the full-size photo; 1200 px and below began to misread them. Gemini counts
+ * an image at the same tokens whatever its size, so this saves upload, not
+ * cost.
+ */
+export async function extractionPhoto(file: Blob): Promise<Blob> {
+  const bitmap = await bitmapOf(file);
+  try {
+    return await fitted(bitmap, 1600, MAX_IMAGE_BYTES);
+  } finally {
+    bitmap.close();
+  }
+}
+
+/** The multipart body the image routes take. */
+export async function imageForm(file: Blob): Promise<FormData> {
+  const bitmap = await bitmapOf(file);
   try {
     const form = new FormData();
     form.append("image", await fitted(bitmap, 1600, MAX_IMAGE_BYTES), "image.jpg");

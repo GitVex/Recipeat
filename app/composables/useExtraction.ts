@@ -97,14 +97,15 @@ function failureFor(
   }
 }
 
-function bodyOf(request: ExtractionRequest) {
+async function bodyOf(request: ExtractionRequest) {
   if (request.source === "website" || request.source === "instagram")
     return { url: request.url };
   if (request.source === "text") return { text: request.text };
   // No Content-Type is set for this one: the browser writes the multipart
-  // boundary into it, and a header set by hand would drop it.
+  // boundary into it, and a header set by hand would drop it. The model is
+  // sent the 1600 px copy, not the file as chosen (#40), under its name.
   const form = new FormData();
-  form.append("file", request.file);
+  form.append("file", await extractionPhoto(request.file), request.file.name);
   return form;
 }
 
@@ -149,12 +150,15 @@ export function useExtraction() {
     try {
       const { recipe } = await $fetch<{ recipe: ExtractedRecipe }>(
         `/api/extract/${request.source === "instagram" ? "website" : request.source}`,
-        { method: "POST", body: bodyOf(request), signal: own.signal, retry: 0 },
+        { method: "POST", body: await bodyOf(request), signal: own.signal, retry: 0 },
       );
       // An answer that arrives after the request was given up on opens nothing.
       return own.signal.aborted ? null : recipe;
     } catch (error) {
-      if (!own.signal.aborted) {
+      // A photo this browser cannot draw is refused before anything is sent.
+      if (error instanceof UnreadableImage) {
+        failure.value = { action: "edit", message: uploadMessage(error), fault: false };
+      } else if (!own.signal.aborted) {
         failure.value = failureFor(
           (error as { statusCode?: number }).statusCode,
           request.source,

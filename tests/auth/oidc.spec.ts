@@ -1,4 +1,5 @@
 import { createHash, generateKeyPairSync, randomUUID, sign } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import { createServer, type Server } from 'node:http'
 import { test, expect } from '@playwright/test'
 import postgres from 'postgres'
@@ -360,12 +361,74 @@ test('a photo goes up as multipart, and a photo with no recipe says so', async (
   await page.getByRole('tab', { name: 'Photo', exact: true }).click()
   await page.getByRole('button', { name: 'Bring it in' }).click()
   await expect(page.getByRole('alert')).toContainText('Choose a photo')
-  await page.locator('input[type=file]').setInputFiles({ name: 'recipe.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64') })
+  await page.locator('input[type=file]').setInputFiles({ name: 'recipe.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64') })
   await page.getByRole('button', { name: 'Bring it in' }).click()
   await expect(page.getByRole('alert')).toContainText('couldn’t find a recipe in that photo')
   expect(contentType).toMatch(/^multipart\/form-data; boundary=/)
+  // Sent as the 1600 px JPEG copy (#40), under the name it was chosen by.
   expect(body).toContain('name="file"; filename="recipe.png"')
-  expect(body).toContain('Content-Type: image/png')
+  expect(body).toContain('Content-Type: image/jpeg')
+})
+
+// The long edge of a JPEG, from its first frame header.
+function longEdge(jpeg: Buffer) {
+  for (let i = 2; i < jpeg.length;) {
+    if (jpeg[i] !== 0xff) { i++; continue }
+    const marker = jpeg[i + 1]!
+    if (marker >= 0xc0 && marker <= 0xc3) return Math.max(jpeg.readUInt16BE(i + 5), jpeg.readUInt16BE(i + 7))
+    i += 2 + jpeg.readUInt16BE(i + 2)
+  }
+  return 0
+}
+
+test('a photo is sent to the model as its 1600 px copy, and one the browser cannot draw is refused unsent', async ({ page }) => {
+  const sent: Buffer[] = []
+  await page.route('**/api/extract/photo', route => {
+    sent.push(route.request().postDataBuffer() ?? Buffer.alloc(0))
+    return route.fulfill(answer(422))
+  })
+  await signIn(page)
+  await page.getByRole('button', { name: 'Save your first recipe' }).click()
+  await page.getByRole('tab', { name: 'Photo', exact: true }).click()
+
+  // A cookbook page as a phone sends it, 2048 px on its long edge.
+  const original = readFileSync('tests/imges/IMG_5273.JPEG')
+  await page.locator('input[type=file]').setInputFiles({ name: 'page.jpg', mimeType: 'image/jpeg', buffer: original })
+  await page.getByRole('button', { name: 'Bring it in' }).click()
+  await expect(page.getByRole('alert')).toContainText('couldn’t find a recipe in that photo')
+  expect(sent).toHaveLength(1)
+  const start = sent[0]!.indexOf(Buffer.from([0xff, 0xd8, 0xff]))
+  const jpeg = sent[0]!.subarray(start)
+  expect(longEdge(jpeg)).toBe(1600)
+  expect(jpeg.length).toBeLessThan(original.length)
+
+  // Over the server's 10 MB cap as chosen, well under it as sent: a phone's
+  // full 4032 px, filled with noise so no encoder can shrink it.
+  const huge = Buffer.from(await page.evaluate(async () => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 4032
+    canvas.height = 3024
+    const context = canvas.getContext('2d')!
+    const pixels = context.createImageData(canvas.width, canvas.height)
+    for (let i = 0; i < pixels.data.length; i++) pixels.data[i] = i % 4 === 3 ? 255 : Math.random() * 256
+    context.putImageData(pixels, 0, 0)
+    const blob = await new Promise<Blob>(resolve => canvas.toBlob(blob => resolve(blob!), 'image/jpeg', 1))
+    const bytes = new Uint8Array(await blob.arrayBuffer())
+    let binary = ''
+    for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+    return btoa(binary)
+  }), 'base64')
+  expect(huge.length).toBeGreaterThan(10_000_000)
+  await page.locator('input[type=file]').setInputFiles({ name: 'huge.jpg', mimeType: 'image/jpeg', buffer: huge })
+  await page.getByRole('button', { name: 'Bring it in' }).click()
+  await expect.poll(() => sent.length).toBe(2)
+  expect(sent[1]!.length).toBeLessThan(1_600_000)
+
+  // What desktop Chrome makes of a HEIC: bytes it cannot decode.
+  await page.locator('input[type=file]').setInputFiles({ name: 'page.heic', mimeType: 'image/heic', buffer: Buffer.from('not a picture this browser can draw') })
+  await page.getByRole('button', { name: 'Bring it in' }).click()
+  await expect(page.getByRole('alert')).toContainText('can’t read that picture')
+  expect(sent).toHaveLength(2)
 })
 
 // Which way a link will be read (#60): a hint from the fetcher's site list,
