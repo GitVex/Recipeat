@@ -4,6 +4,7 @@ import { boolean, integer, json, numeric, text, uuid, type Database, type Recipe
 import { fail } from '../extraction/errors.ts'
 import { lineTags } from '../tags/store.ts'
 import { copySourcePhoto, imageUrl } from '../images/store.ts'
+import { recordSightings, recordSightingsSql } from '../ingredients/store.ts'
 import { recipeChanges } from '../../shared/utils/recipeDiff.ts'
 import { NO_FILTERS, type RecipeFilters } from '../../shared/utils/recipeFilters.ts'
 import type { ExtractedRecipe, RecipeBranch, RecipeDeletion, RecipeHistory, RecipeSummary, RecipeVersion, SavedRecipe } from '../../shared/types/recipe.ts'
@@ -97,11 +98,15 @@ const coverOf = (sql: Sql, table: string) => sql`(
  * new row.
  */
 export async function insertRecipe(db: Kysely<Database>, ownerSub: string, recipe: ExtractedRecipe): Promise<SavedRecipe> {
-  const row = await db
-    .insertInto('recipes')
-    .values({ ...content(ownerSub, recipe), pinned: true })
-    .returningAll()
-    .executeTakeFirstOrThrow()
+  const row = await db.transaction().execute(async (tx) => {
+    const row = await tx
+      .insertInto('recipes')
+      .values({ ...content(ownerSub, recipe), pinned: true })
+      .returningAll()
+      .executeTakeFirstOrThrow()
+    await recordSightings(tx, ownerSub, row.id, recipe)
+    return row
+  })
   // A line that did not exist a moment ago has no tags.
   return asRecipe(row, [])
 }
@@ -120,14 +125,18 @@ export async function insertRecipe(db: Kysely<Database>, ownerSub: string, recip
  * Null means no such row, or not theirs.
  */
 export async function updateRecipe(sql: Sql, ownerSub: string, id: string, recipe: ExtractedRecipe): Promise<SavedRecipe | null> {
-  const [row] = await sql<(Row & { tags: string[] })[]>`
-    UPDATE recipes SET
-      title = ${recipe.title}, source_lang = ${recipe.source_lang}, portions = ${recipe.portions},
-      image = ${recipe.image}, total_time = ${recipe.totalTime},
-      ingredients = ${sql.json(recipe.ingredients)}, steps = ${sql.json(recipe.steps)}, source = ${sql.json(recipe.source)}
-    WHERE id = ${id} AND owner_sub = ${ownerSub}
-    RETURNING *, ${tagsOf(sql, 'recipes')} AS tags
-  `
+  const row = await sql.begin(async (tx) => {
+    const [row] = await tx<(Row & { tags: string[] })[]>`
+      UPDATE recipes SET
+        title = ${recipe.title}, source_lang = ${recipe.source_lang}, portions = ${recipe.portions},
+        image = ${recipe.image}, total_time = ${recipe.totalTime},
+        ingredients = ${tx.json(recipe.ingredients)}, steps = ${tx.json(recipe.steps)}, source = ${tx.json(recipe.source)}
+      WHERE id = ${id} AND owner_sub = ${ownerSub}
+      RETURNING *, ${tagsOf(tx, 'recipes')} AS tags
+    `
+    if (row) await recordSightingsSql(tx, ownerSub, row.id, recipe)
+    return row
+  })
   return row ? asRecipe(row, row.tags) : null
 }
 
@@ -158,7 +167,7 @@ export async function insertProgression(db: Kysely<Database>, ownerSub: string, 
           .where('owner_sub', '=', ownerSub))
         .execute()
 
-      return await tx
+      const row = await tx
         .insertInto('recipes')
         .columns([
           'owner_sub', 'title', 'source_lang', 'portions', 'image', 'total_time',
@@ -182,6 +191,8 @@ export async function insertProgression(db: Kysely<Database>, ownerSub: string, 
         // The line's, which it joined: a progression is still the same dish.
         .returning(lineTags('recipes').as('tags'))
         .executeTakeFirst()
+      if (row) await recordSightings(tx, ownerSub, row.id, recipe)
+      return row
     })
     return row ? asRecipe(row, row.tags) : null
   } catch (error) {
@@ -209,6 +220,7 @@ export async function insertVariant(db: Kysely<Database>, ownerSub: string, pare
   return db.transaction().execute(async (tx) => {
     const row = await insertBranch(tx, ownerSub, parentId, recipe)
     if (!row) return null
+    await recordSightings(tx, ownerSub, row.id, recipe)
     await copySourcePhoto(tx, ownerSub, parentId, row.id)
     await tx
       .insertInto('recipe_tags')

@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { canonicalAmount, matchFood, setFoods } from '../server/extraction/ingredients.ts'
+import { canonicalAmount, matchFood, setFoods, sightedName } from '../server/extraction/ingredients.ts'
 import { normalizeRecipe, parseExtraction, type Unit } from '../server/utils/extraction.ts'
 import { validateRecipe } from '../server/recipes/validate.ts'
+import { sightings } from '../server/ingredients/store.ts'
 import fixture from './ingredients.json' with { type: 'json' }
 
 // The table as #132 seeded it; the app loads the same from Postgres.
@@ -140,4 +141,40 @@ test('a key or amount a client sends is ignored and rebuilt from the name', () =
   const saved = normalizeRecipe(parseExtraction(draft, source))
   assert.deepEqual(saved.ingredients[0]!.food, { key: 'flour', gramsPerMl: 0.5283 })
   assert.deepEqual(saved.ingredients[0]!.canonical, { value: 125, maxValue: null, unit: 'g' })
+})
+
+test('an unmatched name is sighted as the matcher compares it, leading words dropped', () => {
+  for (const name of ['Gochujang', '2 EL Gochujang', 'gochujang (scharf)', 'Gochujang, scharf', 'frische Gochujang'])
+    assert.equal(sightedName(name), 'gochujang', name)
+  assert.equal(sightedName('gochujang paste'), 'gochujang paste')
+})
+
+test('a line that isn’t one food is never sighted', () => {
+  for (const name of ['Pfeffer/Salz', 'salt and pepper', 'Salz und Pfeffer', 'Salz & Pfeffer', 'Öl oder Butter'])
+    assert.equal(sightedName(name), null, name)
+  for (const name of ['2 cloves', '2 Zehen', '1 Prise', 'fresh', '3', ''])
+    assert.equal(sightedName(name), null, name)
+})
+
+test('a save sights each distinct unmatched name, and nothing without a snapshot or for another language', () => {
+  const recipe = (source_lang: string) => normalizeRecipe(parseExtraction({
+    title: 'Bibimbap',
+    source_lang,
+    portions: 2,
+    ingredients: [
+      { originalText: '2 EL Gochujang', quantity: '2 EL', name: '2 EL Gochujang' },
+      { originalText: 'Gochujang (scharf)', quantity: null, name: 'Gochujang (scharf)' },
+      { originalText: '200 g Reis', quantity: '200 g', name: 'Reis' },
+      { originalText: 'Salz/Pfeffer', quantity: null, name: 'Salz/Pfeffer' },
+    ],
+    steps: ['Mix.'],
+  }, { type: 'text', originalText: 'source' }))
+  assert.deepEqual(sightings('cook_a', 'r1', recipe('de-DE')), [{ name: 'gochujang', lang: 'de', owner_sub: 'cook_a', recipe_id: 'r1' }])
+  assert.deepEqual(sightings('cook_a', 'r1', recipe('fr')), [])
+  setFoods([])
+  try {
+    assert.deepEqual(sightings('cook_a', 'r1', recipe('de')), [])
+  } finally {
+    setFoods(fixture as Parameters<typeof setFoods>[0])
+  }
 })

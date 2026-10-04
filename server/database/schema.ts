@@ -90,6 +90,15 @@ export type ImagesTable = {
 
 export type ImageType = 'image/jpeg' | 'image/webp'
 
+// A name a saved recipe used that matched nothing — see 006_ingredients.sql.
+export type IngredientSightingsTable = {
+  name: string
+  lang: 'en' | 'de'
+  owner_sub: string
+  recipe_id: string | null
+  created_at: Generated<Date>
+}
+
 export type Database = {
   recipes: RecipesTable
   collections: CollectionsTable
@@ -98,6 +107,7 @@ export type Database = {
   recipe_tags: RecipeTagsTable
   preferences: PreferencesTable
   images: ImagesTable
+  ingredient_sightings: IngredientSightingsTable
 }
 
 export type RecipeRow = Selectable<RecipesTable>

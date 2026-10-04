@@ -121,6 +121,30 @@ export function matchFood(name: string, sourceLang: string): FoodEntry | null {
   return null
 }
 
+// Two foods in one line: "Pfeffer/Salz", "salt and pepper", "Salz & Pfeffer".
+const SEPARATOR = /[/&+]|\b(?:and|und|or|oder)\b/i
+
+/**
+ * The name an unmatched ingredient is recorded under when a recipe is saved
+ * (#147): as matchFood compares it, with the leading words it would drop
+ * dropped, so "Gochujang", "2 EL Gochujang" and "gochujang (scharf)" are one
+ * name. Null for a line that isn't one food, which three cooks writing would
+ * otherwise make a key: two foods ("Pfeffer/Salz"), or none ("2 cloves").
+ */
+export function sightedName(name: string): string | null {
+  if (SEPARATOR.test(name)) return null
+  for (const part of name.split(',')) {
+    const words = matchKey(part).split(' ').filter(Boolean)
+    let start = 0
+    while (start < words.length && isLeading(words[start]!)) {
+      if (unnamed(words, start)) return null
+      start++
+    }
+    if (start < words.length) return words.slice(start).join(' ')
+  }
+  return null
+}
+
 const tenth = (value: number) => Math.round(value * 10) / 10
 
 /**

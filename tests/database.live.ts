@@ -1545,3 +1545,95 @@ describe('ingredient table', { skip: url ? false : 'NUXT_DATABASE_URL is not set
     assert.ok((await touched()) > row!.updated_at)
   })
 })
+
+describe('ingredient sightings', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () => {
+  const SCHEMA = 'sightings_check'
+  let admin: Sql
+  let sql: Sql
+  let db: Kysely<Database>
+  const fixture: FoodEntry[] = JSON.parse(readFileSync(new URL('./ingredients.json', import.meta.url), 'utf8'))
+
+  before(async () => {
+    admin = postgres(url!, { max: 1, onnotice: () => {} })
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin`CREATE SCHEMA ${admin(SCHEMA)}`
+    sql = postgres(url!, { max: 10, onnotice: () => {}, connection: { search_path: `${SCHEMA}, public` } })
+    db = new Kysely<Database>({ dialect: new PostgresJSDialect({ postgres: sql }) })
+    await applyMigrations(sql, migrations(...STORE))
+    setFoods(fixture)
+  })
+
+  after(async () => {
+    setFoods([])
+    await sql?.end()
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin?.end()
+  })
+
+  const recipe = (...names: string[]) => normalizeRecipe(parseExtraction({
+    title: 'Bibimbap',
+    source_lang: 'de',
+    portions: 2,
+    ingredients: [...names, 'Reis'].map(name => ({ originalText: name, quantity: null, name })),
+    steps: ['Mix.'],
+  }, { type: 'text', originalText: 'source' }))
+  const seen = async (owner: string) => [...await sql<{ name: string, lang: string, recipe_id: string | null }[]>`
+    SELECT name, lang, recipe_id FROM ingredient_sightings WHERE owner_sub = ${owner} ORDER BY created_at, name
+  `]
+
+  test('saving, editing, progressing and varying each sight the unmatched names', async () => {
+    const saved = await insertRecipe(db, 'cook_a', recipe('2 EL Gochujang'))
+    assert.deepEqual(await seen('cook_a'), [{ name: 'gochujang', lang: 'de', recipe_id: saved.id }])
+    await updateRecipe(sql, 'cook_a', saved.id, recipe('Gochujang (scharf)', 'Doenjang'))
+    const progression = await insertProgression(db, 'cook_a', saved.id, recipe('Gochugaru'))
+    const variant = await insertVariant(db, 'cook_a', saved.id, recipe('Gochujang'))
+    assert.deepEqual(await seen('cook_a'), [
+      { name: 'gochujang', lang: 'de', recipe_id: saved.id },
+      { name: 'doenjang', lang: 'de', recipe_id: saved.id },
+      { name: 'gochugaru', lang: 'de', recipe_id: progression!.id },
+      { name: 'gochujang', lang: 'de', recipe_id: variant!.id },
+    ])
+  })
+
+  test('a sighting outlives the edit and the recipe it came from', async () => {
+    const saved = await insertRecipe(db, 'cook_b', recipe('Yuzu'))
+    await updateRecipe(sql, 'cook_b', saved.id, recipe('Zitrone'))
+    assert.deepEqual(await seen('cook_b'), [{ name: 'yuzu', lang: 'de', recipe_id: saved.id }])
+    await deleteRecipe(sql, 'cook_b', saved.id)
+    assert.deepEqual(await seen('cook_b'), [{ name: 'yuzu', lang: 'de', recipe_id: null }])
+  })
+
+  test('a write that finds nothing of its owner’s sights nothing', async () => {
+    const saved = await insertRecipe(db, 'cook_c', recipe())
+    assert.equal(await updateRecipe(sql, 'cook_x', saved.id, recipe('Yuzu')), null)
+    assert.equal(await insertProgression(db, 'cook_x', saved.id, recipe('Yuzu')), null)
+    assert.equal(await insertVariant(db, 'cook_x', saved.id, recipe('Yuzu')), null)
+    assert.deepEqual(await seen('cook_x'), [])
+  })
+
+  test('nothing is sighted without a snapshot', async () => {
+    setFoods([])
+    try {
+      await insertRecipe(db, 'cook_d', recipe('Yuzu'))
+    } finally {
+      setFoods(fixture)
+    }
+    assert.deepEqual(await seen('cook_d'), [])
+  })
+
+  test('a sighting is written with the recipe or not at all', async () => {
+    const saved = await insertRecipe(db, 'cook_e', recipe())
+    await sql`CREATE FUNCTION refuse() RETURNS trigger AS $$ BEGIN RAISE EXCEPTION 'refused'; END $$ LANGUAGE plpgsql`
+    await sql`CREATE TRIGGER refuse BEFORE INSERT ON ingredient_sightings FOR EACH ROW EXECUTE FUNCTION refuse()`
+    try {
+      await assert.rejects(() => insertRecipe(db, 'cook_e', recipe('Yuzu')), /refused/)
+      await assert.rejects(() => updateRecipe(sql, 'cook_e', saved.id, recipe('Yuzu')), /refused/)
+      await assert.rejects(() => insertProgression(db, 'cook_e', saved.id, recipe('Yuzu')), /refused/)
+      await assert.rejects(() => insertVariant(db, 'cook_e', saved.id, recipe('Yuzu')), /refused/)
+    } finally {
+      await sql`DROP TRIGGER refuse ON ingredient_sightings`
+    }
+    const rows = await sql<{ id: string, ingredients: { name: string }[] }[]>`SELECT id, ingredients FROM recipes WHERE owner_sub = 'cook_e'`
+    assert.deepEqual(rows.map(row => [row.id, row.ingredients.map(ingredient => ingredient.name)]), [[saved.id, ['Reis']]])
+  })
+})
