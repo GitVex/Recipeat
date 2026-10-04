@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { canonicalAmount, matchFood } from '../server/extraction/ingredients.ts'
+import { canonicalAmount, matchFood, setFoods } from '../server/extraction/ingredients.ts'
 import { normalizeRecipe, parseExtraction, type Unit } from '../server/utils/extraction.ts'
 import { validateRecipe } from '../server/recipes/validate.ts'
+import fixture from './ingredients.json' with { type: 'json' }
+
+// The table as #132 seeded it; the app loads the same from Postgres.
+setFoods(fixture as Parameters<typeof setFoods>[0])
 
 const key = (name: string, lang = 'en') => matchFood(name, lang)?.key ?? null
 

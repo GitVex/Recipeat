@@ -14,7 +14,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { matchKey, type FoodEntry } from '../server/extraction/ingredients.ts'
 
-const FILE = new URL('../server/extraction/ingredients.json', import.meta.url)
+const FILE = new URL('../tests/ingredients.json', import.meta.url)
 
 // FDC measures in US cups and spoons.
 const ML: Record<string, number> = { cup: 236.588, tbsp: 14.7868, tsp: 4.92892, 'fl oz': 29.5735 }

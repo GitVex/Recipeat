@@ -13,6 +13,8 @@ import { listTags, setTags } from '../server/tags/store.ts'
 import { addPhoto, arrangePhotos, deleteImage, listPhotos, readImage, setSourcePhoto } from '../server/images/store.ts'
 import { readPreferences, writePreferences } from '../server/utils/preferences.ts'
 import { readFilters } from '../shared/utils/recipeFilters.ts'
+import { canonicalAmount, foodOf, matchFood, setFoods, type FoodEntry } from '../server/extraction/ingredients.ts'
+import { readFoods } from '../server/ingredients/store.ts'
 
 // The half of the runner that needs a database. Everything here happens inside
 // a schema of its own, so a development database keeps its own
@@ -1487,7 +1489,7 @@ describe('ingredient table', { skip: url ? false : 'NUXT_DATABASE_URL is not set
 
   test('the seeded keys are the fixture’s, so no stored food.key points at nothing', async () => {
     const fixture: { key: string, fdcId: number | null, fdc?: string | null, form: string, portion?: string | null, gramsPerMl?: number | null, en: string[], de: string[] }[] =
-      JSON.parse(readFileSync(new URL('../server/extraction/ingredients.json', import.meta.url), 'utf8'))
+      JSON.parse(readFileSync(new URL('./ingredients.json', import.meta.url), 'utf8'))
     const keys = await sql<{ key: string, fdc_id: number | null, fdc: string | null, form: string, portion: string | null, grams_per_ml: number | null, learned_at: Date | null }[]>`
       SELECT key, fdc_id, fdc, form, portion, grams_per_ml, learned_at FROM ingredients ORDER BY key
     `
@@ -1505,6 +1507,25 @@ describe('ingredient table', { skip: url ? false : 'NUXT_DATABASE_URL is not set
       .map(({ key, fdcId, fdc, form, portion, gramsPerMl, en, de }) => ({ key, fdcId, fdc: fdc ?? null, form, portion: portion ?? null, gramsPerMl: gramsPerMl ?? null, en: [...new Set(en)], de: [...new Set(de)] }))
       .sort((a, b) => a.key < b.key ? -1 : 1)
     assert.deepEqual(seeded, expected)
+  })
+
+  test('the snapshot from Postgres matches every name as the file did', async () => {
+    const fixture: FoodEntry[] = JSON.parse(readFileSync(new URL('./ingredients.json', import.meta.url), 'utf8'))
+    const names = fixture.flatMap(entry => [...entry.en.map(name => [name, 'en']), ...entry.de.map(name => [name, 'de'])])
+    // Each written as a recipe would have it, too.
+    const lines = names.flatMap(([name, lang]) => [[name, lang], [`2 large ${name}s`, lang], [`frischer ${name}, gehackt`, lang]])
+    const matched = (entries: FoodEntry[]) => {
+      setFoods(entries)
+      return lines.map(([name, lang]) => {
+        const food = matchFood(name!, lang!)
+        return food && { ...foodOf(food), canonical: canonicalAmount({ value: 1, maxValue: null, unit: 'cup' }, food, lang!) }
+      })
+    }
+    try {
+      assert.deepEqual(matched(await readFoods(sql)), matched(fixture))
+    } finally {
+      setFoods([])
+    }
   })
 
   test('re-normalizing leaves updated_at alone; an edit still moves it', async () => {

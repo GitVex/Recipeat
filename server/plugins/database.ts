@@ -1,4 +1,6 @@
 import { applyMigrations, closeDatabase, hasDatabase, migrationOrder, useDatabase, waitForDatabase, type Migration } from '../utils/database.ts'
+import { setFoods } from '../extraction/ingredients.ts'
+import { readFoods } from '../ingredients/store.ts'
 
 // Migrations run once, at startup, because Coolify rebuilds and restarts a
 // resource and gives nothing a per-deploy command to hang a one-shot runner
@@ -32,7 +34,7 @@ async function migrate(): Promise<void> {
   // the storage routes answer 503 rather than the whole process refusing to
   // start. A deployment cannot reach this — compose.app.yaml requires the URL.
   if (!hasDatabase()) {
-    console.warn('[database] NUXT_DATABASE_URL is not set; storage is unavailable and migrations were skipped')
+    console.warn('[database] NUXT_DATABASE_URL is not set; storage is unavailable, migrations were skipped, and no ingredient will match')
     return
   }
 
@@ -54,4 +56,8 @@ async function migrate(): Promise<void> {
   // Silence when there was nothing to do: every restart of an unchanged
   // deployment passes through here.
   if (applied.length > 0) console.info(`[database] applied ${applied.join(', ')}`)
+
+  // Inside ready, which every request waits on, so no request is normalized
+  // against an empty snapshot. Failing here stops the app like a migration.
+  setFoods(await readFoods(sql))
 }
