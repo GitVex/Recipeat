@@ -70,12 +70,11 @@ export const hasConvertible = (recipe: ExtractedRecipe) =>
   [...quantitiesOf(recipe)].some(quantity => systemOf(quantity.unit, recipe.source_lang))
 
 // How much of the base unit — a gram, a millilitre, a millimetre — one of
-// each holds. The metric spoons are never converted between systems, but the
-// ingredient table (#132) weighs them.
-export const BASE: Partial<Record<Unit, number>> = {
-  mg: 0.001, g: 1, kg: 1000, oz: 28.3495, lb: 453.592,
+// each holds.
+const BASE: Partial<Record<Unit, number>> = {
+  g: 1, kg: 1000, oz: 28.3495, lb: 453.592,
   ml: 1, l: 1000, cup_us: 236.588, cup_metric: 250, fl_oz_us: 29.5735, fl_oz_imperial: 28.4131,
-  tsp_us: 4.92892, tbsp_us: 14.7868, tsp_metric: 5, tbsp_metric: 15, tbsp_au: 20,
+  tsp_us: 4.92892, tbsp_us: 14.7868,
   mm: 1, cm: 10, inch: 25.4,
 }
 
