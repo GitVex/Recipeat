@@ -1,1 +1,1 @@
-{ "name": "news-ticker", "version": "0.1.0", "description": "Scrolling RSS headlines from the last 6 hours above the prompt; unseen ones in dim yellow", "types": "./types/index.d.ts" }
+{ "name": "news-ticker", "version": "0.1.0", "description": "Scrolling RSS headlines from the last 6 hours above the prompt", "types": "./types/index.d.ts" }

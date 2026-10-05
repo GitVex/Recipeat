@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { ago, isRecent, isWanted, itemsOf, segmentsOf, startingAt, topicsOf, windowOf } from './register'
+import { ago, isRecent, isWanted, itemsOf, stripOf, topicsOf } from './register'
 
 test('decodes hex and astral character references', () => {
   const [i] = itemsOf('<item><title>It&#x2019;s &#X1F600; &#8212; ok</title></item>')
@@ -14,28 +14,14 @@ test('keeps headlines from the last 6 hours, and undated ones', () => {
   expect(isRecent(NaN, now)).toBe(true)
 })
 
-test('colours unseen headlines and wraps the loop', () => {
+test('works out headline ages when drawn', () => {
   const now = Date.parse('2026-10-05T12:00:00Z')
-  const segs = segmentsOf(
-    [
-      { key: 'a', title: 'A', outlet: 'X', published: now - 20 * 60_000 },
-      { key: 'b', title: 'B', outlet: 'Y', published: null },
-    ],
-    ['a'],
-    now,
-  )
-  expect(segs.map(s => s.text)).toEqual(['A [X, 20 min ago]  •  ', 'B [Y]  •  '])
-  expect(windowOf(segs, 17, 12)).toEqual([
-    { text: '  •  ', fresh: false },
-    { text: 'B [Y]  ', fresh: true },
-  ])
-  // Past the end it wraps back to the first headline.
-  expect(windowOf(segs, 29, 4)).toEqual([
-    { text: '•  ', fresh: true },
-    { text: 'A', fresh: false },
-  ])
-  expect(startingAt(segs, 22)?.key).toBe('b')
-  expect(startingAt(segs, 5)).toBe(undefined)
+  const list = [
+    { title: 'A', outlet: 'X', published: now - 20 * 60_000 },
+    { title: 'B', outlet: 'Y', published: null },
+  ]
+  expect(stripOf(list, now)).toBe('A [X, 20 min ago]  •  B [Y]  •  ')
+  expect(stripOf(list, now + 40 * 60_000)).toBe('A [X, 1 hour ago]  •  B [Y]  •  ')
 })
 
 test('reads titles and dates from RSS and RDF items', () => {

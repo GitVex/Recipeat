@@ -20,12 +20,9 @@ const TICK_MS = 350
 const REFRESH_MS = 10 * 60 * 1000
 const MAX_AGE_MS = 6 * 60 * 60 * 1000
 const PER_FEED = 4
-const SEEN_KEPT = 500
 
 // Every headline in ticker order; empty until the first fetch lands.
 const items = atom({ plugin: 'news-ticker', key: 'items' } as const, [])
-// Keys of headlines whose start has scrolled to the left edge; mirrored to $.store so they stay seen across sessions.
-const seen = atom({ plugin: 'news-ticker', key: 'seen' } as const, [])
 const offset = atom({ plugin: 'news-ticker', key: 'offset' } as const, 0)
 
 const decode = (s: string) =>
@@ -68,43 +65,11 @@ export const isWanted = (title: string, allow: RegExp[], deny: RegExp[]) =>
 // An undated headline can't be judged, so it stays.
 export const isRecent = (published: number, now: number) => Number.isNaN(published) || now - published <= MAX_AGE_MS
 
-// Each headline's ticker text, its age worked out now rather than at fetch time.
-export const segmentsOf = (list: readonly Item[], seenKeys: readonly string[], now: number) =>
-  list.map(i => ({
-    key: i.key,
-    text: `${i.title} [${i.outlet}${i.published === null ? '' : `, ${ago(now - i.published)}`}]${SEP}`,
-    fresh: !seenKeys.includes(i.key),
-  }))
-
-type Segment = ReturnType<typeof segmentsOf>[number]
-
-// The `width` characters of the endless loop starting at `from`, split where freshness changes.
-export const windowOf = (segs: readonly Segment[], from: number, width: number) => {
-  const total = segs.reduce((n, s) => n + s.text.length, 0)
-  const out: { text: string; fresh: boolean }[] = []
-  let pos = from % total
-  let i = 0
-  // Indexes stay in range: pos < total, and i wraps with the modulo.
-  while (pos >= segs[i]!.text.length) pos -= segs[i++]!.text.length
-  for (let left = width; left > 0; i = (i + 1) % segs.length, pos = 0) {
-    const seg = segs[i]!
-    const text = seg.text.slice(pos, pos + left)
-    left -= text.length
-    const last = out.at(-1)
-    if (last && last.fresh === seg.fresh) last.text += text
-    else out.push({ text, fresh: seg.fresh })
-  }
-  return out
-}
-
-// The segment whose first character sits at `at`, if one does.
-export const startingAt = (segs: readonly Segment[], at: number) => {
-  let pos = 0
-  for (const seg of segs) {
-    if (pos === at) return seg
-    pos += seg.text.length
-  }
-}
+// Every headline joined into one loop of text, its age worked out now rather than at fetch time.
+export const stripOf = (list: readonly Item[], now: number) =>
+  list
+    .map(i => `${i.title} [${i.outlet}${i.published === null ? '' : `, ${ago(now - i.published)}`}]${SEP}`)
+    .join('')
 
 let timers: Timer[] = []
 
@@ -115,8 +80,6 @@ async function start($: EngineInterface) {
   const dir = $.plugin.root.replace(/[\\/]\.claude-plugin$/, '')
   const list = (name: string) => $.fs.read(`${dir}/${name}`).then(topicsOf, () => [])
   const [allow, deny] = await Promise.all([list('whitelist.txt'), list('blacklist.txt')])
-  const stored = await $.store.get('seen')
-  await update($, seen, () => (Array.isArray(stored) ? stored : []))
 
   const refresh = async () => {
     const now = await $.clock.now()
@@ -129,7 +92,6 @@ async function start($: EngineInterface) {
                   .filter(i => i.title && isWanted(i.title, allow, deny) && isRecent(i.published, now))
                   .slice(0, PER_FEED)
                   .map(i => ({
-                    key: `${outlet}|${i.title}`,
                     title: i.title,
                     outlet,
                     published: Number.isNaN(i.published) ? null : i.published,
@@ -152,18 +114,8 @@ async function start($: EngineInterface) {
   const tick = async () => {
     const list = await read($, items)
     if (list.length === 0) return
-    const seenKeys = await read($, seen)
-    const segs = segmentsOf(list, seenKeys, await $.clock.now())
-    const total = segs.reduce((n, s) => n + s.text.length, 0)
-    const at = ((await read($, offset)) + 1) % total
-    await update($, offset, () => at)
-    // A headline counts as seen once its start reaches the left edge: by then all of it has crossed the band.
-    const reached = startingAt(segs, at)
-    if (reached?.fresh) {
-      const next = [...seenKeys, reached.key].slice(-SEEN_KEPT)
-      await update($, seen, () => next)
-      await $.store.set('seen', next)
-    }
+    const length = stripOf(list, await $.clock.now()).length
+    await update($, offset, o => (o + 1) % length)
   }
 
   timers = [
@@ -193,13 +145,14 @@ export const register: Register = on => {
 
     const { Text } = $.ui.resolve(e)
     const width = Math.max(20, (e.viewport?.columns ?? 80) - 2)
-    const segs = segmentsOf(list, await read($, seen), await $.clock.now())
-    const parts = windowOf(segs, await read($, offset), width)
+    const text = stripOf(list, await $.clock.now())
+    const from = (await read($, offset)) % text.length
+    const loop = text.repeat(Math.ceil((from + width) / text.length) + 1)
 
-    // "subtle" is the theme's faint gray; unseen headlines are the theme's yellow, dimmed toward the background.
+    // The theme's "subtle" key: a faint gray that sits close to the background in every theme.
     return (
       <Text color="subtle" wrap="truncate-end">
-        {parts.map(p => (p.fresh ? <Text color="warning" dimColor>{p.text}</Text> : p.text))}
+        {loop.slice(from, from + width)}
       </Text>
     )
   })
