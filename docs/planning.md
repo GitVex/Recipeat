@@ -34,9 +34,10 @@ Work is scheduled in Waves, one GitHub milestone each (`Wave N`). The
 - **Features.** A Wave holds at most **4 top-level features**: issues that are
   not bugs, not chores and have no parent issue. Sub-issues of those features don't count
   and belong in the same Wave.
-- **Migrations.** At most **one** issue in a Wave, bugs included, may add a
-  database migration. Issues that will are labelled `needs:migration` when
-  written.
+- **Migrations.** At most **one** top-level issue in a Wave, bugs included,
+  may add a database migration. Sub-issues don't count toward this either:
+  they follow their parent into its Wave, whatever they migrate. Issues that
+  will are labelled `needs:migration` when written.
 - **Dependencies.** A feature goes in a later Wave than every issue it depends
   on.
 - **Plans.** An issue titled `Plan:` lives in the *Plans* milestone, never in a
