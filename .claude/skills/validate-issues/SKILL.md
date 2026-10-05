@@ -1,13 +1,13 @@
 ---
 name: validate-issues
-description: Audit Recipeat's open issues and milestones against the Waves rules in docs/planning.md and report every violation. Use when the user asks to validate, check or lint the issue landscape, Waves or milestones.
+description: Audit Recipeat's open issues and milestones against the Waves rules in docs/repo_rules.md and report every violation. Use when the user asks to validate, check or lint the issue landscape, Waves or milestones.
 ---
 
 # Validate the issue landscape
 
 Read-only: report, don't fix. Offer fixes afterwards, one by one.
 
-1. **Read the rules** fresh from `docs/planning.md` ("Waves", "Issue Types");
+1. **Read the rules** fresh from `docs/repo_rules.md` ("Waves", "Issue Types");
    they change, so they win over anything listed below.
 
 2. **Fetch everything open:**
@@ -27,9 +27,9 @@ Read-only: report, don't fix. Offer fixes afterwards, one by one.
 3. **Check.** The current Wave is the lowest-numbered open `Wave N`.
    A top-level feature is a `Feat:` issue with no parent.
    - Every open issue has a milestone and a `Feat:`/`Bug:`/`Chore:`/`Plan:` title.
-   - Per Wave: at most 4 top-level features; at most 1 top-level
-     `needs:migration` issue, bugs included. Sub-issues count toward
-     neither.
+   - Per Wave: no more top-level features, and no more top-level
+     `needs:migration` issues, than `docs/repo_rules.md` allows. Sub-issues
+     count toward neither.
    - The migration a Wave's description names is the one labelled there.
    - Sub-issues sit in their parent's Wave.
    - Dependencies ("Depends on" in the body, or a Wave description's
@@ -45,6 +45,6 @@ Read-only: report, don't fix. Offer fixes afterwards, one by one.
    - Issues that will clearly add a migration but lack `needs:migration`.
      Flag these as suspicions, not violations.
 
-4. **Report** as a table per Wave (features n/4, migration, issues), then
+4. **Report** as a table per Wave (features n/limit, migration, issues), then
    violations grouped by rule, each with the issue number and the smallest
    move that fixes it, checked against the target Wave's limits.
