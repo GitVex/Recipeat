@@ -27,8 +27,9 @@ Read-only: report, don't fix. Offer fixes afterwards, one by one.
 3. **Check.** The current Wave is the lowest-numbered open `Wave N`.
    A top-level feature is a `Feat:` issue with no parent.
    - Every open issue has a milestone and a `Feat:`/`Bug:`/`Chore:`/`Plan:` title.
-   - Per Wave: at most 4 top-level features; at most 1 `needs:migration`
-     issue, bugs included.
+   - Per Wave: at most 4 top-level features; at most 1 top-level
+     `needs:migration` issue, bugs included. Sub-issues count toward
+     neither.
    - The migration a Wave's description names is the one labelled there.
    - Sub-issues sit in their parent's Wave.
    - Dependencies ("Depends on" in the body, or a Wave description's
