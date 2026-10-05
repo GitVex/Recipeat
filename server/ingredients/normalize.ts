@@ -41,6 +41,9 @@ const FOLD: Record<string, Fold> = {
   },
 }
 
+/** The language a name is keyed in: `source_lang`'s primary subtag, "de-AT" → "de". */
+export const primaryLang = (lang: string): string => lang.toLowerCase().split('-')[0]!
+
 const clean = (text: string) => text
   .normalize('NFKC')
   .normalize('NFD').replace(/\p{M}/gu, '')
@@ -55,7 +58,7 @@ const clean = (text: string) => text
  * line whose name fell back to its whole text) is dropped by `quantityText`.
  */
 export function normalizeName(name: string, lang: string, quantityText?: string | null): string | null {
-  const fold = FOLD[lang.toLowerCase().split('-')[0]!] ?? (word => word)
+  const fold = FOLD[primaryLang(lang)] ?? (word => word)
   let text = clean(name)
   const amount = quantityText ? clean(quantityText) : ''
   if (amount && (text === amount || text.startsWith(`${amount} `))) text = text.slice(amount.length)

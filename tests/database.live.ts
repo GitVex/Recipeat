@@ -13,6 +13,8 @@ import { listTags, setTags } from '../server/tags/store.ts'
 import { addPhoto, arrangePhotos, deleteImage, listPhotos, readImage, setSourcePhoto } from '../server/images/store.ts'
 import { readPreferences, writePreferences } from '../server/utils/preferences.ts'
 import { readFilters } from '../shared/utils/recipeFilters.ts'
+import { lookupAlias, writeAlias } from '../server/ingredients/store.ts'
+import { normalizeName } from '../server/ingredients/normalize.ts'
 
 // The half of the runner that needs a database. Everything here happens inside
 // a schema of its own, so a development database keeps its own
@@ -31,7 +33,7 @@ const migrations = (...versions: string[]) => versions.map(version => ({
   sql: readFileSync(new URL(`../server/database/migrations/${version}`, import.meta.url), 'utf8'),
 }))
 // What the stores need under them.
-const STORE = ['001_recipes.sql', '002_collections.sql', '003_tags.sql', '004_preferences.sql', '005_images.sql']
+const STORE = ['001_recipes.sql', '002_collections.sql', '003_tags.sql', '004_preferences.sql', '005_images.sql', '006_ingredients.sql']
 
 describe('migration runner', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () => {
   let admin: Sql
@@ -1463,5 +1465,88 @@ describe('images', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () =>
     assert.equal((await deleteRecipe(sql, 'user_a', cake.id))!.photos, 2)
     const [{ n }] = await sql<{ n: number }[]>`SELECT count(*)::int AS n FROM images WHERE owner_sub = 'user_a' AND recipe_id = ${cake.id}`
     assert.equal(n, 0)
+  })
+})
+
+describe('ingredient aliases', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () => {
+  const SCHEMA = 'ingredients_check'
+  let admin: Sql
+  let sql: Sql
+  let db: Kysely<Database>
+
+  before(async () => {
+    admin = postgres(url!, { max: 1, onnotice: () => {} })
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin`CREATE SCHEMA ${admin(SCHEMA)}`
+    sql = postgres(url!, { max: 10, onnotice: () => {}, connection: { search_path: SCHEMA } })
+    db = new Kysely<Database>({ dialect: new PostgresJSDialect({ postgres: sql }) })
+    await applyMigrations(sql, migrations(...STORE))
+  })
+
+  after(async () => {
+    await sql?.end()
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin?.end()
+  })
+
+  const ingredient = async (slug: string) =>
+    (await sql<{ id: number }[]>`INSERT INTO ingredients (slug) VALUES (${slug}) RETURNING id`)[0]!.id
+  const alias = (nameRaw: string, lang: string, ingredientId: number) =>
+    ({ nameRaw, nameNorm: normalizeName(nameRaw, lang)!, lang, ingredientId, source: 'model' })
+  const reviews = async (nameNorm: string) =>
+    sql<{ ingredient_id: number }[]>`SELECT ingredient_id FROM canonization_decisions WHERE outcome = 'review' AND name_norm = ${nameNorm}`
+
+  test('006 creates every table in the decided schema', async () => {
+    const rows = await sql<{ table_name: string }[]>`SELECT table_name FROM information_schema.tables WHERE table_schema = ${SCHEMA}`
+    const tables = new Set(rows.map(row => row.table_name))
+    for (const table of ['ingredient_categories', 'ingredients', 'ingredient_aliases', 'ingredient_portions', 'ingredient_samples', 'fdc_foods', 'fdc_portions', 'canonization_queue', 'canonization_decisions'])
+      assert.ok(tables.has(table), table)
+  })
+
+  test('a name with an alias in the recipe language gets its key; anything else is a miss', async () => {
+    const zucchini = await ingredient('zucchini')
+    await writeAlias(db, alias('Zucchini', 'de', zucchini))
+    assert.equal(await lookupAlias(db, normalizeName(' ZUCCHINI ', 'de')!, 'de'), zucchini)
+    assert.equal(await lookupAlias(db, 'zucchini', 'de-AT'), zucchini)
+    assert.equal(await lookupAlias(db, 'zucchini', 'en'), null)
+    assert.equal(await lookupAlias(db, 'zuccini', 'de'), null)
+  })
+
+  test('an alias pointing elsewhere stays, and the collision waits for review', async () => {
+    const chili = await ingredient('chili-powder')
+    const kashmiri = await ingredient('kashmiri-chili-powder')
+    assert.deepEqual(await writeAlias(db, alias('Chili powder', 'en', chili)), { ingredientId: chili, collision: false })
+    assert.deepEqual(await writeAlias(db, alias('chili powder', 'en', chili)), { ingredientId: chili, collision: false })
+    assert.deepEqual(await writeAlias(db, alias('Chili Powder', 'en', kashmiri)), { ingredientId: chili, collision: true })
+    assert.equal(await lookupAlias(db, 'chili powder', 'en'), chili)
+    assert.deepEqual((await reviews('chili powder')).map(row => row.ingredient_id), [kashmiri])
+  })
+
+  test('two writers adding one alias at once end with one row and one key', async () => {
+    const [a, b] = [await ingredient('gochujang'), await ingredient('gochujang-paste')]
+    const results = await Promise.all([writeAlias(db, alias('Gochujang', 'en', a)), writeAlias(db, alias('gochujang', 'en', b))])
+    assert.equal(results[0].ingredientId, results[1].ingredientId)
+    assert.equal(results.filter(result => result.collision).length, 1)
+    const [{ n }] = await sql<{ n: number }[]>`SELECT count(*)::int AS n FROM ingredient_aliases WHERE alias_norm = 'gochujang'`
+    assert.equal(n, 1)
+  })
+
+  test('a merged ingredient resolves to the one that stays, through a chain', async () => {
+    const [scallion, springOnion, greenOnion] = [await ingredient('scallion'), await ingredient('spring-onion'), await ingredient('green-onion')]
+    await writeAlias(db, alias('Frühlingszwiebel', 'de', springOnion))
+    await sql`UPDATE ingredients SET merged_into = ${greenOnion} WHERE id = ${springOnion}`
+    await sql`UPDATE ingredients SET merged_into = ${scallion} WHERE id = ${greenOnion}`
+    assert.equal(await lookupAlias(db, 'fruhlingszwiebel', 'de'), scallion)
+    // Writing the surviving key over a merged one is the same key, not a collision.
+    assert.deepEqual(await writeAlias(db, alias('Frühlingszwiebeln', 'de', scallion)), { ingredientId: scallion, collision: false })
+  })
+
+  test('an alias names an existing ingredient in a tidy language', async () => {
+    const refuses = (write: () => Promise<unknown>) => assert.rejects(write, /violates|check/i)
+    await refuses(() => sql`INSERT INTO ingredient_aliases (alias_norm, lang, ingredient_id, source) VALUES ('salt', 'en', 999999, 'model')`)
+    const salt = await ingredient('salt')
+    await refuses(() => sql`INSERT INTO ingredient_aliases (alias_norm, lang, ingredient_id, source) VALUES ('salt', 'de-DE', ${salt}, 'model')`)
+    await refuses(() => sql`INSERT INTO ingredient_aliases (alias_norm, lang, ingredient_id, source) VALUES ('', 'en', ${salt}, 'model')`)
+    await refuses(() => sql`UPDATE ingredients SET merged_into = id WHERE id = ${salt}`)
   })
 })
