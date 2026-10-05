@@ -31,16 +31,53 @@ const decode = (s: string) =>
     .replace(/\s+/g, ' ')
     .trim()
 
-// ponytail: regex RSS parsing, first PER_FEED <item> titles per feed; swap for a real parser if Atom feeds are added
-export const titlesOf = (xml: string) =>
-  [...xml.matchAll(/<item[\s>][\s\S]*?<title>([\s\S]*?)<\/title>/g)].slice(0, PER_FEED).map(m => decode(m[1]))
+// ponytail: regex RSS parsing (<pubDate>, or <dc:date> for DW's RDF); swap for a real parser if Atom feeds are added
+export const itemsOf = (xml: string) =>
+  [...xml.matchAll(/<item[\s>]([\s\S]*?)<\/item>/g)].map(([, body]) => ({
+    title: decode(body.match(/<title>([\s\S]*?)<\/title>/)?.[1] ?? ''),
+    published: Date.parse(body.match(/<(?:pubDate|dc:date)>([\s\S]*?)<\//)?.[1] ?? ''),
+  }))
+
+export const ago = (ms: number) => {
+  const minutes = Math.max(0, Math.round(ms / 60_000))
+  if (minutes < 60) return `${minutes} min ago`
+  const hours = Math.round(minutes / 60)
+  if (hours < 48) return hours === 1 ? '1 hour ago' : `${hours} hours ago`
+  return `${Math.round(hours / 24)} days ago`
+}
+
+// One topic per line, `#` starts a comment. Matches whole words or phrases, any case.
+export const topicsOf = (text: string) =>
+  text
+    .split('\n')
+    .map(line => line.replace(/#.*/, '').trim())
+    .filter(Boolean)
+    .map(t => new RegExp(`(?<![\\p{L}\\p{N}])${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}\\p{N}])`, 'iu'))
+
+export const isWanted = (title: string, allow: RegExp[], deny: RegExp[]) =>
+  (allow.length === 0 || allow.some(t => t.test(title))) && !deny.some(t => t.test(title))
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
+    // Editing either list reloads the plugin, so they're read once per load.
+    const dir = $.plugin.root.replace(/[\\/]\.claude-plugin$/, '')
+    const list = (name: string) => $.fs.read(`${dir}/${name}`).then(topicsOf, () => [])
+    const [allow, deny] = await Promise.all([list('whitelist.txt'), list('blacklist.txt')])
+
     const refresh = async () => {
+      const now = await $.clock.now()
       const results = await Promise.all(
         FEEDS.map(([outlet, url]) =>
-          $.http.fetch(url).then(r => (r.ok ? titlesOf(r.text).map(t => `${t} [${outlet}]`) : []), () => []),
+          $.http.fetch(url).then(
+            r =>
+              r.ok
+                ? itemsOf(r.text)
+                    .filter(i => i.title && isWanted(i.title, allow, deny))
+                    .slice(0, PER_FEED)
+                    .map(i => `${i.title} [${outlet}${Number.isNaN(i.published) ? '' : `, ${ago(now - i.published)}`}]`)
+                : [],
+            () => [],
+          ),
         ),
       )
       // Interleave feeds so one source doesn't hog a stretch of the ticker.

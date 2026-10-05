@@ -1,0 +1,5 @@
+# Topics to show. One per line; matches whole words or phrases in the headline, any case.
+# Leave empty (only comments) to show every headline.
+#
+# Ukraine
+# climate change

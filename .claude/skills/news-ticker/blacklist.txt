@@ -1,0 +1,5 @@
+# Topics to hide. One per line; matches whole words or phrases in the headline, any case.
+# Applies after the whitelist, so a headline matching both is hidden.
+#
+# football
+# Livestream
