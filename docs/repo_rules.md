@@ -1,3 +1,5 @@
+Claude should not edit this!
+
 # Issue Types
 
 - Feat: A complete feature description, which must have a description and Acceptance Criteria. Optional fields in the feat issue are:

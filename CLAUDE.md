@@ -2,9 +2,9 @@
 
 ## Issues and milestones
 
-Before filing an issue or moving one between milestones, read the Waves rules
-in `docs/planning.md`: at most four top-level features and one migration per
-Wave, `Plan:` issues in the Plans milestone, and bugs in the current Wave.
+Before filing an issue or moving one between milestones, read the rules in
+`docs/repo_rules.md` ("Issue Types", "Waves"): `Plan:` issues in the Plans
+milestone, and bugs in the current Wave.
 Never move a bug into Bug Hell; only the maintainer does that.
 
 ## Running the app to check a change

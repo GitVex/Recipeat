@@ -13,7 +13,9 @@ disable-model-invocation: true
    drops the body). Comments can change the scope: treat a later comment
    from the maintainer as overriding the body. Then its parent and
    sub-issues (`gh api graphql -f query='query{repository(owner:"GitVex",name:"Recipeat"){issue(number:$ARGUMENTS){parent{number title} subIssues(first:50){nodes{number title state}}}}}'`),
-   everything it links, and the `docs/planning.md` sections it touches.
+   everything it links, the `docs/planning.md` sections it touches, and the
+   rules in `docs/repo_rules.md` ("Issue Types", "Waves") the gate below
+   checks against.
 
 2. **Gate.** Stop and tell the user, rather than start, if:
    - it's a `Plan:`, or has no Acceptance criteria → suggest `/refine-issue $ARGUMENTS`;
