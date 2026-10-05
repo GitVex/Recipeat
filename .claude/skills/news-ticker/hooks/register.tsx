@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import type { Register } from 'claude-code'
+import type { EngineInterface, Register, Timer } from 'claude-code'
 
 const FEEDS = [
   ['BBC', 'https://feeds.bbci.co.uk/news/world/rss.xml'],
@@ -57,44 +57,61 @@ export const topicsOf = (text: string) =>
 export const isWanted = (title: string, allow: RegExp[], deny: RegExp[]) =>
   (allow.length === 0 || allow.some(t => t.test(title))) && !deny.some(t => t.test(title))
 
-export const register: Register = on => {
-  on('session.start', async ($, e, next) => {
-    // Editing either list reloads the plugin, so they're read once per load.
-    const dir = $.plugin.root.replace(/[\\/]\.claude-plugin$/, '')
-    const list = (name: string) => $.fs.read(`${dir}/${name}`).then(topicsOf, () => [])
-    const [allow, deny] = await Promise.all([list('whitelist.txt'), list('blacklist.txt')])
+let timers: Timer[] = []
 
-    const refresh = async () => {
-      const now = await $.clock.now()
-      const results = await Promise.all(
-        FEEDS.map(([outlet, url]) =>
-          $.http.fetch(url).then(
-            r =>
-              r.ok
-                ? itemsOf(r.text)
-                    .filter(i => i.title && isWanted(i.title, allow, deny))
-                    .slice(0, PER_FEED)
-                    .map(i => `${i.title} [${outlet}${Number.isNaN(i.published) ? '' : `, ${ago(now - i.published)}`}]`)
-                : [],
-            () => [],
-          ),
+// Reads the lists, then starts the scroll and the feed refresh, replacing any earlier run.
+async function start($: EngineInterface) {
+  timers.forEach(t => t.cancel())
+  // Editing either list reloads the plugin, so they're read once per load.
+  const dir = $.plugin.root.replace(/[\\/]\.claude-plugin$/, '')
+  const list = (name: string) => $.fs.read(`${dir}/${name}`).then(topicsOf, () => [])
+  const [allow, deny] = await Promise.all([list('whitelist.txt'), list('blacklist.txt')])
+
+  const refresh = async () => {
+    const now = await $.clock.now()
+    const results = await Promise.all(
+      FEEDS.map(([outlet, url]) =>
+        $.http.fetch(url).then(
+          r =>
+            r.ok
+              ? itemsOf(r.text)
+                  .filter(i => i.title && isWanted(i.title, allow, deny))
+                  .slice(0, PER_FEED)
+                  .map(i => `${i.title} [${outlet}${Number.isNaN(i.published) ? '' : `, ${ago(now - i.published)}`}]`)
+              : [],
+          () => [],
         ),
-      )
-      // Interleave feeds so one source doesn't hog a stretch of the ticker.
-      const fresh: string[] = []
-      for (let i = 0; i < PER_FEED; i++) for (const r of results) if (r[i]) fresh.push(r[i])
-      if (fresh.length === 0) return
-      await update($, strip, () => [...new Set(fresh)].join(SEP) + SEP)
-    }
+      ),
+    )
+    // Interleave feeds so one source doesn't hog a stretch of the ticker.
+    const fresh: string[] = []
+    for (let i = 0; i < PER_FEED; i++) for (const r of results) if (r[i]) fresh.push(r[i])
+    if (fresh.length === 0) return
+    await update($, strip, () => [...new Set(fresh)].join(SEP) + SEP)
+  }
 
+  timers = [
     $.clock.every(TICK_MS, async () => {
       const text = await read($, strip)
       if (text) await update($, offset, o => (o + 1) % text.length)
-    })
-    $.clock.every(REFRESH_MS, refresh)
-    void refresh()
+    }),
+    $.clock.every(REFRESH_MS, refresh),
+    // A timer, not a direct call: session.end aborts its own in-flight fetches after 1.5 s.
+    $.clock.after(0, refresh),
+  ]
+}
 
+export const register: Register = on => {
+  on('session.start', async ($, e, next) => {
+    await start($)
     return next(e)
+  })
+
+  // A /clear ends the session and starts no new session.start, so start over here.
+  on('session.end', async ($, e, next) => {
+    const result = await next(e)
+    if (e.reason === 'clear') await start($)
+    return result
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
