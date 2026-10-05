@@ -34,7 +34,7 @@ limit() {
   [ -z "$pct" ] && return
   pct=$(printf '%.0f' "$pct")
   [ "$pct" -gt 100 ] && pct=100
-  filled=$(( pct * WIDTH / 100 ))
+  filled=$(( (pct * WIDTH + 50) / 100 ))
   for (( i = 0; i < WIDTH; i++ )); do
     if   (( i >= filled ));      then bar+="${DIM}░"
     elif (( i < YELLOW_CELLS )); then bar+="${YELLOW}█"

@@ -5,11 +5,9 @@ title: "Area: Short name"
 labels: ''
 ---
 
-## Context
+## Description
 
-What the situation is now, and why this is worth doing. Written for someone
-picking it up cold in three months — including you. Link the code or the
-planning note that already covers it rather than restating them.
+Describe the work item in detail. Always ask user about design decisions.
 
 ## Acceptance criteria
 
@@ -20,15 +18,22 @@ planning note that already covers it rather than restating them.
 - [ ] If a decision has to be made before code, make the decision itself a
       criterion
 
-## Depends on / blocks
+## Depends on
+Delete the section if there are none.
+
+- #
+
+## Blocks
+Delete the section if there are none.
 
 - #
 
 ## Open questions
 
-Decisions not yet made. Better visible here than rediscovered halfway through.
+Decisions not yet made.
 Delete the section if there are none.
 
 ## Pointers
+Delete the section if there are none.
 
 - `path/to/file.ts` — and why it matters
