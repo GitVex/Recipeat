@@ -28,18 +28,7 @@ export type Ingredient = {
   // "finely diced", "for the sauce" — the rest of the line, for display
   // beside the name. Null where the source segmented nothing out.
   extra: string | null
-  // What the ingredient is, when the ingredient table knows it (#132), and
-  // its amount in grams for a solid or millilitres for a liquid, for adding
-  // amounts up across units. The quantity above stays what the recipe said.
-  // Rebuilt by normalization like every other derived field; absent on a
-  // recipe stored before the table existed.
-  food?: Food | null
-  canonical?: Quantity | null
 }
-
-// `gramsPerMl` is null for a food FoodData Central gives no cup or spoon for,
-// such as most meat.
-export type Food = { key: string, gramsPerMl: number | null }
 
 export type StepPart =
   | { type: 'text', value: string }
