@@ -2,7 +2,7 @@
 name: start-work
 description: Start implementing a refined Recipeat GitHub issue - branch, plan against its acceptance criteria, build, check in the container. Use when the user says to start or pick up work on an issue number.
 argument-hint: <issue number>
-disable-model-invocation: true
+disable-model-invocation: false
 ---
 
 # Start work on #$ARGUMENTS
@@ -24,8 +24,7 @@ disable-model-invocation: true
    - it isn't in the current Wave (lowest open `Wave N`): ask before going ahead.
 
 3. **Branch.** From an up-to-date `master` (ask first if the working tree is
-   dirty): `feat/<slug>`, `fix/<slug>` or `chore/<slug>` by title prefix,
-   slug from the title.
+   dirty): create branch names per `docs/repo_rules.md`.
 
 4. **Plan briefly.** Map each acceptance criterion to the files it touches
    and say how each will be checked. Note if the work needs a migration and

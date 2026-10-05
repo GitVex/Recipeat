@@ -1,6 +1,42 @@
 import { expect, test } from 'claude-code/testing'
 
-import { ago, isWanted, itemsOf, topicsOf } from './register'
+import { ago, isRecent, isWanted, itemsOf, segmentsOf, startingAt, topicsOf, windowOf } from './register'
+
+test('decodes hex and astral character references', () => {
+  const [i] = itemsOf('<item><title>It&#x2019;s &#X1F600; &#8212; ok</title></item>')
+  expect(i!.title).toBe('It’s \u{1F600} — ok')
+})
+
+test('keeps headlines from the last 6 hours, and undated ones', () => {
+  const now = Date.parse('2026-10-05T12:00:00Z')
+  expect(isRecent(Date.parse('2026-10-05T06:00:00Z'), now)).toBe(true)
+  expect(isRecent(Date.parse('2026-10-05T05:59:00Z'), now)).toBe(false)
+  expect(isRecent(NaN, now)).toBe(true)
+})
+
+test('colours unseen headlines and wraps the loop', () => {
+  const now = Date.parse('2026-10-05T12:00:00Z')
+  const segs = segmentsOf(
+    [
+      { key: 'a', title: 'A', outlet: 'X', published: now - 20 * 60_000 },
+      { key: 'b', title: 'B', outlet: 'Y', published: null },
+    ],
+    ['a'],
+    now,
+  )
+  expect(segs.map(s => s.text)).toEqual(['A [X, 20 min ago]  •  ', 'B [Y]  •  '])
+  expect(windowOf(segs, 17, 12)).toEqual([
+    { text: '  •  ', fresh: false },
+    { text: 'B [Y]  ', fresh: true },
+  ])
+  // Past the end it wraps back to the first headline.
+  expect(windowOf(segs, 29, 4)).toEqual([
+    { text: '•  ', fresh: true },
+    { text: 'A', fresh: false },
+  ])
+  expect(startingAt(segs, 22)?.key).toBe('b')
+  expect(startingAt(segs, 5)).toBe(undefined)
+})
 
 test('reads titles and dates from RSS and RDF items', () => {
   const xml =
@@ -8,10 +44,10 @@ test('reads titles and dates from RSS and RDF items', () => {
     '<item rdf:about="x"><title>C</title><dc:date>2026-10-05T08:00:00Z</dc:date></item>' +
     '<item><title>D</title></item>'
   const [a, c, d] = itemsOf(xml)
-  expect(a.title).toBe('A & B')
-  expect(ago(Date.parse('2026-10-05T13:00:00Z') - a.published)).toBe('3 hours ago')
-  expect(ago(Date.parse('2026-10-05T08:20:00Z') - c.published)).toBe('20 min ago')
-  expect(Number.isNaN(d.published)).toBe(true)
+  expect(a!.title).toBe('A & B')
+  expect(ago(Date.parse('2026-10-05T13:00:00Z') - a!.published)).toBe('3 hours ago')
+  expect(ago(Date.parse('2026-10-05T08:20:00Z') - c!.published)).toBe('20 min ago')
+  expect(Number.isNaN(d!.published)).toBe(true)
 })
 
 test('whitelist and blacklist match whole words, any case', () => {

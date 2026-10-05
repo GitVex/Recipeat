@@ -15,3 +15,6 @@ Claude should not edit this!
 # Waves
 A wave is a work package. It contains at most 5 Feature issues, At most 1 of these feature issues may be labeled with needs:migration.
 Chore issues and Bug issues are not counted towards the wave limit. Sub-issues, of any kind, are not counted towards the wave limit.
+
+# Branching
+Branches should always be created from `master` and should be related to an issue. The branch name should then be `feat/<slug>`, `fix/<slug>` or `chore/<slug>` by title prefix. The `<slug>` should lead with the issue number and the issue title.
