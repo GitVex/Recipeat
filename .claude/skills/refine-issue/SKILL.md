@@ -7,8 +7,7 @@ argument-hint: <issue number>
 # Refine issue #$ARGUMENTS
 
 1. **Read the rules and the issue.**
-   - `docs/planning.md`, sections "Waves" and "Issue Types", plus any section
-     that already covers this issue's topic (search for `#$ARGUMENTS`).
+   - `docs/repo_rules.md`, sections "Waves" and "Issue Types", plus any section that already covers this issue's topic (search for `#$ARGUMENTS`).
    - `.github/ISSUE_TEMPLATE/work.md` for the body shape.
    - `gh issue view $ARGUMENTS --comments --json title,body,labels,milestone,comments`
    - Parent and sub-issues:
@@ -23,10 +22,7 @@ argument-hint: <issue number>
 3. **Draft the refined issue.**
    - Title: `<Type>: <short name>`, sentence case, no trailing period, in the
      style of existing titles (`gh issue list --state all --limit 30`).
-   - Body for Feat/Bug/Chore, following the template: Context, optionally
-     Decided, Acceptance criteria (checkable statements, unhappy paths
-     included), Depends on / blocks, Open questions (omit if none), Pointers.
-     Start Context with `Part of #N.` if it has a parent.
+   - Body for Feat/Bug/Chore, following the template laid out in `docs/repo_rules.md`: Start Context with `Part of #N.` if it has a parent.
    - Body for a Plan: the one-line idea, the questions that block it, and
      `Aiming for: Wave N`.
    - Keep the author's decisions and wording where they're fine. Mark
@@ -46,7 +42,5 @@ argument-hint: <issue number>
 
 5. **Show the user** the new title, body, labels and milestone as a diff
    against what's there, plus anything placement forced (e.g. "Wave 7 already
-   has a migration, so Wave 8"). **Wait for approval**, then apply:
+   has a migration, so Wave 8"). Then apply:
    `gh issue edit $ARGUMENTS --title ... --body-file <scratch file> --add-label ... --milestone ...`.
-   If a decision got settled in the process, offer to record it in
-   `docs/planning.md` too; don't edit it unasked.
