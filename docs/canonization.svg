@@ -1,0 +1,244 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1640" height="930" viewBox="0 0 1640 930" font-family="system-ui,-apple-system,'Segoe UI',sans-serif">
+<defs>
+<marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#8a93a3"/></marker>
+<marker id="f" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#d55a55"/></marker>
+</defs>
+<rect width="1640" height="930" fill="#ffffff"/>
+<text x="30" y="40" font-size="22" font-weight="700" fill="#1f2430">Canonization (#154)</text>
+<text x="30" y="62" font-size="12.5" fill="#5b6372">A new ingredient line, after its recipe is saved; schema from server/database/migrations/006_ingredients.sql</text>
+<text x="30" y="100" font-size="11" font-weight="700" fill="#5b6372">PROCESS</text>
+<rect x="60" y="112" width="340" height="50" rx="8" fill="#ecfdf5" stroke="#5fb98c" stroke-width="1.4"/>
+<text x="230" y="131" text-anchor="middle" font-size="13" font-weight="600" fill="#1f2430">Recipe saved</text>
+<text x="230" y="148" text-anchor="middle" font-size="11.5" fill="#5b6372">enqueued in canonization_queue (#161)</text>
+<rect x="60" y="182" width="340" height="50" rx="8" fill="#ecfdf5" stroke="#5fb98c" stroke-width="1.4"/>
+<text x="230" y="201" text-anchor="middle" font-size="13" font-weight="600" fill="#1f2430">Worker takes it</text>
+<text x="230" y="218" text-anchor="middle" font-size="11.5" fill="#5b6372">FOR UPDATE SKIP LOCKED (#162)</text>
+<rect x="60" y="252" width="340" height="50" rx="8" fill="#f6f7f9" stroke="#c3c9d3" stroke-width="1.4"/>
+<text x="230" y="271" text-anchor="middle" font-size="13" font-weight="600" fill="#1f2430">1 · Normalize the name (#157)</text>
+<text x="230" y="288" text-anchor="middle" font-size="11.5" fill="#5b6372">"Zuccini" → alias_norm · lang = source_lang</text>
+<rect x="60" y="322" width="340" height="50" rx="8" fill="#ecfdf5" stroke="#5fb98c" stroke-width="1.4"/>
+<text x="230" y="341" text-anchor="middle" font-size="13" font-weight="600" fill="#1f2430">2 · Alias lookup (#158)</text>
+<text x="230" y="358" text-anchor="middle" font-size="11.5" fill="#5b6372">(alias_norm, lang) in ingredient_aliases</text>
+<rect x="60" y="402" width="340" height="50" rx="8" fill="#eef2ff" stroke="#7d8ff0" stroke-width="1.4"/>
+<text x="230" y="421" text-anchor="middle" font-size="13" font-weight="600" fill="#1f2430">3a · English search terms (#159)</text>
+<text x="230" y="438" text-anchor="middle" font-size="11.5" fill="#5b6372">qwen3.5:4b → { terms[2..3], head }</text>
+<rect x="60" y="472" width="340" height="50" rx="8" fill="#ecfdf5" stroke="#5fb98c" stroke-width="1.4"/>
+<text x="230" y="491" text-anchor="middle" font-size="13" font-weight="600" fill="#1f2430">3b · FDC candidates (#160)</text>
+<text x="230" y="508" text-anchor="middle" font-size="11.5" fill="#5b6372">pg_trgm + English FTS on fdc_foods</text>
+<rect x="60" y="542" width="340" height="50" rx="8" fill="#eef2ff" stroke="#7d8ff0" stroke-width="1.4"/>
+<text x="230" y="561" text-anchor="middle" font-size="13" font-weight="600" fill="#1f2430">3c · Model picks twice (#160)</text>
+<text x="230" y="578" text-anchor="middle" font-size="11.5" fill="#5b6372">candidates shuffled · exact | proxy | none</text>
+<path d="M230 162 V180" fill="none" stroke="#8a93a3" stroke-width="1.4" marker-end="url(#a)"/>
+<path d="M230 232 V250" fill="none" stroke="#8a93a3" stroke-width="1.4" marker-end="url(#a)"/>
+<path d="M230 302 V320" fill="none" stroke="#8a93a3" stroke-width="1.4" marker-end="url(#a)"/>
+<path d="M230 452 V470" fill="none" stroke="#8a93a3" stroke-width="1.4" marker-end="url(#a)"/>
+<path d="M230 522 V540" fill="none" stroke="#8a93a3" stroke-width="1.4" marker-end="url(#a)"/>
+<path d="M230 372 V400" fill="none" stroke="#8a93a3" stroke-width="1.4" marker-end="url(#a)"/>
+<text x="238" y="391" font-size="11" fill="#5b6372">miss</text>
+<rect x="450" y="322" width="300" height="50" rx="8" fill="#ecfdf5" stroke="#5fb98c" stroke-width="1.4"/>
+<text x="600" y="341" text-anchor="middle" font-size="13" font-weight="600" fill="#1f2430">Hit: key the line, done</text>
+<text x="600" y="358" text-anchor="middle" font-size="11.5" fill="#5b6372">not logged</text>
+<path d="M400 347 H448" fill="none" stroke="#8a93a3" stroke-width="1.4" marker-end="url(#a)"/>
+<text x="410" y="341" font-size="11" fill="#5b6372">hit</text>
+<rect x="450" y="392" width="300" height="84" rx="8" fill="#f7f1fd" stroke="#9b6bd6" stroke-width="1.4" stroke-dasharray="5 4"/>
+<text x="600" y="411" text-anchor="middle" font-size="13" font-weight="600" fill="#1f2430">Planned (#167): OFF names as aliases</text>
+<text x="600" y="428" text-anchor="middle" font-size="11.5" fill="#5b6372">seeded per OFF release, source 'off'</text>
+<text x="600" y="443" text-anchor="middle" font-size="11.5" fill="#5b6372">OFF FDC id accepted if 3b also finds it,</text>
+<text x="600" y="458" text-anchor="middle" font-size="11.5" fill="#5b6372">else a miss with that id as a candidate</text>
+<path d="M600 392 V374" fill="none" stroke="#9b6bd6" stroke-width="1.4" stroke-dasharray="5 4"/>
+<rect x="450" y="500" width="300" height="68" rx="8" fill="#fdf0f0" stroke="#d55a55" stroke-width="1.4" stroke-dasharray="5 4"/>
+<text x="600" y="519" text-anchor="middle" font-size="13" font-weight="600" fill="#1f2430">Ollama down or answer invalid</text>
+<text x="600" y="536" text-anchor="middle" font-size="11.5" fill="#5b6372">attempts + 1, next_try_at backs off,</text>
+<text x="600" y="551" text-anchor="middle" font-size="11.5" fill="#5b6372">the recipe stays unkeyed (#162)</text>
+<path d="M400 427 H425 V534 H448" fill="none" stroke="#d55a55" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#f)"/>
+<path d="M400 567 H425" fill="none" stroke="#d55a55" stroke-width="1.4" stroke-dasharray="5 4"/>
+<path d="M230 592 V606" fill="none" stroke="#8a93a3" stroke-width="1.4"/>
+<path d="M130 606 H590" fill="none" stroke="#8a93a3" stroke-width="1.4"/>
+<path d="M130 606 V626" fill="none" stroke="#8a93a3" stroke-width="1.4" marker-end="url(#a)"/>
+<path d="M360 606 V626" fill="none" stroke="#8a93a3" stroke-width="1.4" marker-end="url(#a)"/>
+<path d="M590 606 V626" fill="none" stroke="#8a93a3" stroke-width="1.4" marker-end="url(#a)"/>
+<text x="138" y="620" font-size="11" fill="#5b6372">same pick</text>
+<text x="368" y="620" font-size="11" fill="#5b6372">none twice</text>
+<text x="598" y="620" font-size="11" fill="#5b6372">disagree</text>
+<rect x="30" y="628" width="200" height="66" rx="8" fill="#ecfdf5" stroke="#5fb98c" stroke-width="1.4"/>
+<text x="130" y="647" text-anchor="middle" font-size="13" font-weight="600" fill="#1f2430">4 · Link the FDC entry</text>
+<text x="130" y="664" text-anchor="middle" font-size="11.5" fill="#5b6372">ingredients.fdc_id, fdc_match</text>
+<text x="130" y="679" text-anchor="middle" font-size="11.5" fill="#5b6372">exact + proxy → proxy</text>
+<rect x="260" y="628" width="200" height="66" rx="8" fill="#ecfdf5" stroke="#5fb98c" stroke-width="1.4"/>
+<text x="360" y="647" text-anchor="middle" font-size="13" font-weight="600" fill="#1f2430">5 · Match an existing</text>
+<text x="360" y="664" text-anchor="middle" font-size="11.5" fill="#5b6372">app ingredient, so "gochujang"</text>
+<text x="360" y="679" text-anchor="middle" font-size="11.5" fill="#5b6372">stays one row</text>
+<rect x="260" y="728" width="200" height="66" rx="8" fill="#f6f7f9" stroke="#c3c9d3" stroke-width="1.4"/>
+<text x="360" y="747" text-anchor="middle" font-size="13" font-weight="600" fill="#1f2430">6 · New ingredient</text>
+<text x="360" y="764" text-anchor="middle" font-size="11.5" fill="#5b6372">categorical fill from its</text>
+<text x="360" y="779" text-anchor="middle" font-size="11.5" fill="#5b6372">category, flagged for #155</text>
+<path d="M360 694 V726" fill="none" stroke="#8a93a3" stroke-width="1.4" marker-end="url(#a)"/>
+<text x="368" y="714" font-size="11" fill="#5b6372">no match</text>
+<rect x="490" y="628" width="200" height="66" rx="8" fill="#fff7ed" stroke="#e99a52" stroke-width="1.4"/>
+<text x="590" y="647" text-anchor="middle" font-size="13" font-weight="600" fill="#1f2430">Review (#156)</text>
+<text x="590" y="664" text-anchor="middle" font-size="11.5" fill="#5b6372">logged, outcome 'review';</text>
+<text x="590" y="679" text-anchor="middle" font-size="11.5" fill="#5b6372">the line stays unkeyed</text>
+<rect x="30" y="836" width="430" height="68" rx="8" fill="#ecfdf5" stroke="#5fb98c" stroke-width="1.4"/>
+<text x="245" y="855" text-anchor="middle" font-size="13" font-weight="600" fill="#1f2430">7 · Write the alias, key the line (#164)</text>
+<text x="245" y="872" text-anchor="middle" font-size="11.5" fill="#5b6372">ingredient_aliases (source 'model') · decision in</text>
+<text x="245" y="887" text-anchor="middle" font-size="11.5" fill="#5b6372">canonization_decisions · queue row deleted</text>
+<path d="M130 694 V834" fill="none" stroke="#8a93a3" stroke-width="1.4" marker-end="url(#a)"/>
+<path d="M360 794 V834" fill="none" stroke="#8a93a3" stroke-width="1.4" marker-end="url(#a)"/>
+<path d="M260 661 H245 V834" fill="none" stroke="#8a93a3" stroke-width="1.4" marker-end="url(#a)"/>
+<text x="237" y="760" text-anchor="end" font-size="11" fill="#5b6372">match</text>
+<text x="800" y="100" font-size="11" font-weight="700" fill="#5b6372">SCHEMA</text>
+<rect x="800" y="112" width="240" height="68" rx="8" fill="#ffffff" stroke="#c3c9d3" stroke-width="1.4" stroke-dasharray="5 4"/>
+<path d="M800 138 V120 a8 8 0 0 1 8 -8 H1032 a8 8 0 0 1 8 8 V138 Z" fill="#f6f7f9" stroke="#c3c9d3" stroke-width="1.4"/>
+<text x="810" y="130" font-size="12.5" font-weight="700" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">recipes</text>
+<text x="810" y="151" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">id</text>
+<text x="1030" y="151" text-anchor="end" font-size="10.5" fill="#5b6372">uuid PK</text>
+<text x="810" y="168" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">…</text>
+<text x="1030" y="168" text-anchor="end" font-size="10.5" fill="#5b6372">existing</text>
+<rect x="800" y="200" width="240" height="136" rx="8" fill="#ffffff" stroke="#c3c9d3" stroke-width="1.4"/>
+<path d="M800 226 V208 a8 8 0 0 1 8 -8 H1032 a8 8 0 0 1 8 8 V226 Z" fill="#f6f7f9" stroke="#c3c9d3" stroke-width="1.4"/>
+<text x="810" y="218" font-size="12.5" font-weight="700" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">canonization_queue</text>
+<text x="810" y="239" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">id</text>
+<text x="1030" y="239" text-anchor="end" font-size="10.5" fill="#5b6372">PK</text>
+<text x="810" y="256" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">recipe_id</text>
+<text x="1030" y="256" text-anchor="end" font-size="10.5" fill="#5b6372">FK UNIQUE</text>
+<text x="810" y="273" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">enqueued_at</text>
+<text x="810" y="290" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">attempts</text>
+<text x="810" y="307" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">next_try_at</text>
+<text x="1030" y="307" text-anchor="end" font-size="10.5" fill="#5b6372">indexed</text>
+<text x="810" y="324" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">last_error</text>
+<rect x="800" y="360" width="240" height="255" rx="8" fill="#ffffff" stroke="#c3c9d3" stroke-width="1.4"/>
+<path d="M800 386 V368 a8 8 0 0 1 8 -8 H1032 a8 8 0 0 1 8 8 V386 Z" fill="#f6f7f9" stroke="#c3c9d3" stroke-width="1.4"/>
+<text x="810" y="378" font-size="12.5" font-weight="700" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">canonization_decisions</text>
+<text x="810" y="399" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">id</text>
+<text x="1030" y="399" text-anchor="end" font-size="10.5" fill="#5b6372">PK</text>
+<text x="810" y="416" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">recipe_id</text>
+<text x="1030" y="416" text-anchor="end" font-size="10.5" fill="#5b6372">FK set null</text>
+<text x="810" y="433" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">name_raw</text>
+<text x="810" y="450" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">name_norm</text>
+<text x="810" y="467" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">lang</text>
+<text x="810" y="484" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">search_terms</text>
+<text x="1030" y="484" text-anchor="end" font-size="10.5" fill="#5b6372">jsonb</text>
+<text x="810" y="501" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">candidates</text>
+<text x="1030" y="501" text-anchor="end" font-size="10.5" fill="#5b6372">jsonb</text>
+<text x="810" y="518" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">picks</text>
+<text x="1030" y="518" text-anchor="end" font-size="10.5" fill="#5b6372">jsonb</text>
+<text x="810" y="535" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">outcome</text>
+<text x="1030" y="535" text-anchor="end" font-size="10.5" fill="#5b6372">exact|proxy|none|review</text>
+<text x="810" y="552" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">ingredient_id</text>
+<text x="1030" y="552" text-anchor="end" font-size="10.5" fill="#5b6372">FK</text>
+<text x="810" y="569" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">model</text>
+<text x="810" y="586" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">prompt_version</text>
+<text x="810" y="603" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">created_at</text>
+<rect x="1090" y="112" width="240" height="153" rx="8" fill="#ffffff" stroke="#5fb98c" stroke-width="1.4"/>
+<path d="M1090 138 V120 a8 8 0 0 1 8 -8 H1322 a8 8 0 0 1 8 8 V138 Z" fill="#ecfdf5" stroke="#5fb98c" stroke-width="1.4"/>
+<text x="1100" y="130" font-size="12.5" font-weight="700" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">ingredient_aliases</text>
+<text x="1100" y="151" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">alias_norm</text>
+<text x="1320" y="151" text-anchor="end" font-size="10.5" fill="#5b6372">PK</text>
+<text x="1100" y="168" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">lang</text>
+<text x="1320" y="168" text-anchor="end" font-size="10.5" fill="#5b6372">PK</text>
+<text x="1100" y="185" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">ingredient_id</text>
+<text x="1320" y="185" text-anchor="end" font-size="10.5" fill="#5b6372">FK</text>
+<text x="1100" y="202" font-size="11.5" fill="#9b6bd6" font-family="ui-monospace,Consolas,monospace">source</text>
+<text x="1320" y="202" text-anchor="end" font-size="10.5" fill="#9b6bd6">off|model|manual (#167)</text>
+<text x="1100" y="219" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">confidence</text>
+<text x="1320" y="219" text-anchor="end" font-size="10.5" fill="#5b6372">0..1</text>
+<text x="1100" y="236" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">created_at</text>
+<text x="1100" y="253" font-size="11.5" fill="#9b6bd6" font-family="ui-monospace,Consolas,monospace">off_release</text>
+<text x="1320" y="253" text-anchor="end" font-size="10.5" fill="#9b6bd6">planned #167</text>
+<rect x="1090" y="300" width="240" height="153" rx="8" fill="#ffffff" stroke="#5fb98c" stroke-width="1.4"/>
+<path d="M1090 326 V308 a8 8 0 0 1 8 -8 H1322 a8 8 0 0 1 8 8 V326 Z" fill="#ecfdf5" stroke="#5fb98c" stroke-width="1.4"/>
+<text x="1100" y="318" font-size="12.5" font-weight="700" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">ingredients</text>
+<text x="1100" y="339" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">id</text>
+<text x="1320" y="339" text-anchor="end" font-size="10.5" fill="#5b6372">PK</text>
+<text x="1100" y="356" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">slug</text>
+<text x="1320" y="356" text-anchor="end" font-size="10.5" fill="#5b6372">UNIQUE</text>
+<text x="1100" y="373" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">fdc_id</text>
+<text x="1320" y="373" text-anchor="end" font-size="10.5" fill="#5b6372">FK</text>
+<text x="1100" y="390" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">fdc_match</text>
+<text x="1320" y="390" text-anchor="end" font-size="10.5" fill="#5b6372">exact|proxy</text>
+<text x="1100" y="407" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">category</text>
+<text x="1320" y="407" text-anchor="end" font-size="10.5" fill="#5b6372">FK</text>
+<text x="1100" y="424" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">density_g_per_ml</text>
+<text x="1100" y="441" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">merged_into</text>
+<text x="1320" y="441" text-anchor="end" font-size="10.5" fill="#5b6372">FK self</text>
+<rect x="1090" y="500" width="240" height="136" rx="8" fill="#ffffff" stroke="#5fb98c" stroke-width="1.4"/>
+<path d="M1090 526 V508 a8 8 0 0 1 8 -8 H1322 a8 8 0 0 1 8 8 V526 Z" fill="#ecfdf5" stroke="#5fb98c" stroke-width="1.4"/>
+<text x="1100" y="518" font-size="12.5" font-weight="700" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">ingredient_portions</text>
+<text x="1100" y="539" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">ingredient_id</text>
+<text x="1320" y="539" text-anchor="end" font-size="10.5" fill="#5b6372">FK</text>
+<text x="1100" y="556" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">unit</text>
+<text x="1100" y="573" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">modifier</text>
+<text x="1100" y="590" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">grams</text>
+<text x="1100" y="607" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">source</text>
+<text x="1320" y="607" text-anchor="end" font-size="10.5" fill="#5b6372">fdc|category|community</text>
+<text x="1100" y="624" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">n_samples</text>
+<rect x="1090" y="676" width="240" height="136" rx="8" fill="#ffffff" stroke="#5fb98c" stroke-width="1.4"/>
+<path d="M1090 702 V684 a8 8 0 0 1 8 -8 H1322 a8 8 0 0 1 8 8 V702 Z" fill="#ecfdf5" stroke="#5fb98c" stroke-width="1.4"/>
+<text x="1100" y="694" font-size="12.5" font-weight="700" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">ingredient_samples</text>
+<text x="1100" y="715" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">id</text>
+<text x="1320" y="715" text-anchor="end" font-size="10.5" fill="#5b6372">PK</text>
+<text x="1100" y="732" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">ingredient_id</text>
+<text x="1320" y="732" text-anchor="end" font-size="10.5" fill="#5b6372">FK</text>
+<text x="1100" y="749" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">owner_sub</text>
+<text x="1100" y="766" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">unit</text>
+<text x="1100" y="783" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">grams</text>
+<text x="1100" y="800" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">created_at</text>
+<rect x="1370" y="112" width="240" height="102" rx="8" fill="#ffffff" stroke="#5fb98c" stroke-width="1.4"/>
+<path d="M1370 138 V120 a8 8 0 0 1 8 -8 H1602 a8 8 0 0 1 8 8 V138 Z" fill="#ecfdf5" stroke="#5fb98c" stroke-width="1.4"/>
+<text x="1380" y="130" font-size="12.5" font-weight="700" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">ingredient_categories</text>
+<text x="1380" y="151" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">id</text>
+<text x="1600" y="151" text-anchor="end" font-size="10.5" fill="#5b6372">PK</text>
+<text x="1380" y="168" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">name</text>
+<text x="1600" y="168" text-anchor="end" font-size="10.5" fill="#5b6372">UNIQUE</text>
+<text x="1380" y="185" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">categorical_modifier</text>
+<text x="1380" y="202" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">categorical_weighttograms</text>
+<rect x="1370" y="300" width="240" height="136" rx="8" fill="#ffffff" stroke="#c3c9d3" stroke-width="1.4"/>
+<path d="M1370 326 V308 a8 8 0 0 1 8 -8 H1602 a8 8 0 0 1 8 8 V326 Z" fill="#f6f7f9" stroke="#c3c9d3" stroke-width="1.4"/>
+<text x="1380" y="318" font-size="12.5" font-weight="700" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">fdc_foods</text>
+<text x="1380" y="339" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">fdc_id</text>
+<text x="1600" y="339" text-anchor="end" font-size="10.5" fill="#5b6372">PK</text>
+<text x="1380" y="356" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">data_type</text>
+<text x="1600" y="356" text-anchor="end" font-size="10.5" fill="#5b6372">sr_legacy|foundation</text>
+<text x="1380" y="373" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">description</text>
+<text x="1380" y="390" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">food_category</text>
+<text x="1380" y="407" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">search_text</text>
+<text x="1600" y="407" text-anchor="end" font-size="10.5" fill="#5b6372">trgm + fts</text>
+<text x="1380" y="424" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">release</text>
+<rect x="1370" y="500" width="240" height="136" rx="8" fill="#ffffff" stroke="#c3c9d3" stroke-width="1.4"/>
+<path d="M1370 526 V508 a8 8 0 0 1 8 -8 H1602 a8 8 0 0 1 8 8 V526 Z" fill="#f6f7f9" stroke="#c3c9d3" stroke-width="1.4"/>
+<text x="1380" y="518" font-size="12.5" font-weight="700" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">fdc_portions</text>
+<text x="1380" y="539" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">id</text>
+<text x="1600" y="539" text-anchor="end" font-size="10.5" fill="#5b6372">PK</text>
+<text x="1380" y="556" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">fdc_id</text>
+<text x="1600" y="556" text-anchor="end" font-size="10.5" fill="#5b6372">FK</text>
+<text x="1380" y="573" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">amount</text>
+<text x="1380" y="590" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">modifier</text>
+<text x="1380" y="607" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">measure_unit</text>
+<text x="1380" y="624" font-size="11.5" fill="#1f2430" font-family="ui-monospace,Consolas,monospace">gram_weight</text>
+<path d="M800 252 H786 V147 H798" fill="none" stroke="#8a93a3" stroke-width="1.4" marker-end="url(#a)"/>
+<path d="M800 412 H778 V153 H798" fill="none" stroke="#8a93a3" stroke-width="1.4" marker-end="url(#a)"/>
+<path d="M1040 548 H1062 V335 H1088" fill="none" stroke="#8a93a3" stroke-width="1.4" marker-end="url(#a)"/>
+<path d="M1090 181 H1074 V335" fill="none" stroke="#8a93a3" stroke-width="1.4"/>
+<path d="M1090 535 H1068 V335" fill="none" stroke="#8a93a3" stroke-width="1.4"/>
+<path d="M1090 728 H1056 V335" fill="none" stroke="#8a93a3" stroke-width="1.4"/>
+<path d="M1330 369 H1350 V335 H1368" fill="none" stroke="#8a93a3" stroke-width="1.4" marker-end="url(#a)"/>
+<path d="M1330 403 H1358 V147 H1368" fill="none" stroke="#8a93a3" stroke-width="1.4" marker-end="url(#a)"/>
+<path d="M1330 437 H1342 V341 H1332" fill="none" stroke="#8a93a3" stroke-width="1.4" marker-end="url(#a)"/>
+<path d="M1490 500 V438" fill="none" stroke="#8a93a3" stroke-width="1.4" marker-end="url(#a)"/>
+<text x="1500" y="486" font-size="10.5" fill="#5b6372">fdc_id</text>
+<text x="1370" y="700" font-size="11" fill="#5b6372">FK arrows point at the referenced key.</text>
+<text x="1370" y="716" font-size="11" fill="#5b6372">An alias collision (same alias_norm, lang,</text>
+<text x="1370" y="732" font-size="11" fill="#5b6372">another ingredient) goes to review.</text>
+<rect x="800" y="836" width="22" height="11" rx="3" fill="#ecfdf5" stroke="#5fb98c" stroke-width="1.4"/>
+<text x="830" y="846" font-size="11.5" fill="#5b6372">deterministic / database</text>
+<rect x="800" y="852" width="22" height="11" rx="3" fill="#eef2ff" stroke="#7d8ff0" stroke-width="1.4"/>
+<text x="830" y="862" font-size="11.5" fill="#5b6372">local model (Ollama)</text>
+<rect x="800" y="868" width="22" height="11" rx="3" fill="#f6f7f9" stroke="#c3c9d3" stroke-width="1.4"/>
+<text x="830" y="878" font-size="11.5" fill="#5b6372">deterministic, no lookup · FDC tables</text>
+<rect x="800" y="884" width="22" height="11" rx="3" fill="#fff7ed" stroke="#e99a52" stroke-width="1.4"/>
+<text x="830" y="894" font-size="11.5" fill="#5b6372">needs a person</text>
+<rect x="800" y="900" width="22" height="11" rx="3" fill="#f7f1fd" stroke="#9b6bd6" stroke-width="1.4" stroke-dasharray="5 4"/>
+<text x="830" y="910" font-size="11.5" fill="#5b6372">planned (#167)</text>
+<rect x="800" y="916" width="22" height="11" rx="3" fill="#fdf0f0" stroke="#d55a55" stroke-width="1.4" stroke-dasharray="5 4"/>
+<text x="830" y="926" font-size="11.5" fill="#5b6372">failure path</text>
+</svg>
