@@ -1,0 +1,2014 @@
+{
+ "de": [
+  {
+   "name": "mehl",
+   "fdc": "Wheat flour, white, all-purpose, enriched, bleached",
+   "en": "flour"
+  },
+  {
+   "name": "weizenmehl type 550",
+   "fdc": "Wheat flour, white, bread, enriched",
+   "en": "wheat flour type 550"
+  },
+  {
+   "name": "weizenvollkornmehl",
+   "fdc": "Wheat flour, whole-grain (Includes foods for USDA's Food Distribution Program)",
+   "en": "whole wheat flour"
+  },
+  {
+   "name": "roggenmehl",
+   "fdc": "Rye flour, medium",
+   "en": "roggenmehl"
+  },
+  {
+   "name": "speisestärke",
+   "fdc": "Cornstarch",
+   "en": "starch for cooking"
+  },
+  {
+   "name": "maismehl",
+   "fdc": "Cornmeal, whole-grain, yellow",
+   "en": "all-purpose flour"
+  },
+  {
+   "name": "polenta",
+   "fdc": "Cornmeal, degermed, enriched, yellow",
+   "en": "polenta"
+  },
+  {
+   "name": "grieß",
+   "fdc": "Semolina, enriched",
+   "en": "flour"
+  },
+  {
+   "name": "reismehl",
+   "fdc": "Rice flour, white, unenriched",
+   "en": "reismehl"
+  },
+  {
+   "name": "buchweizenmehl",
+   "fdc": "Buckwheat flour, whole-groat",
+   "en": "pulses flour"
+  },
+  {
+   "name": "kichererbsenmehl",
+   "fdc": "Chickpea flour (besan)",
+   "en": "mashed chickpeas"
+  },
+  {
+   "name": "kartoffelstärke",
+   "fdc": "Potato flour",
+   "en": "potato starch"
+  },
+  {
+   "name": "tapioka",
+   "fdc": "Tapioca, pearl, dry",
+   "en": "butoka"
+  },
+  {
+   "name": "pfeilwurzelmehl",
+   "fdc": "Arrowroot flour",
+   "en": "pfeilwurzelmehl"
+  },
+  {
+   "name": "semmelbrösel",
+   "fdc": "Bread, crumbs, dry, grated, plain",
+   "en": "semmelbrösel"
+  },
+  {
+   "name": "frische semmelbrösel",
+   "fdc": "Bread, white, commercially prepared (includes soft bread crumbs)",
+   "en": "fresh breadcrumbs"
+  },
+  {
+   "name": "weißbrot",
+   "fdc": "Bread, white, commercially prepared (includes soft bread crumbs)",
+   "en": "white bread"
+  },
+  {
+   "name": "vollkornbrot",
+   "fdc": "Bread, whole-wheat, commercially prepared",
+   "en": "whole wheat bread"
+  },
+  {
+   "name": "pitabrot",
+   "fdc": "Bread, pita, white, enriched",
+   "en": "pitabrot"
+  },
+  {
+   "name": "maistortillas",
+   "fdc": "Tortillas, ready-to-bake or -fry, corn",
+   "en": "maistortillas"
+  },
+  {
+   "name": "weizentortillas",
+   "fdc": "Tortillas, ready-to-bake or -fry, flour, refrigerated",
+   "en": "weizentortillas"
+  },
+  {
+   "name": "blätterteig",
+   "fdc": "Puff pastry, frozen, ready-to-bake",
+   "en": "leaf dough"
+  },
+  {
+   "name": "filoteig",
+   "fdc": "Phyllo dough",
+   "en": "filoteig"
+  },
+  {
+   "name": "haferflocken",
+   "fdc": "Cereals, oats, regular and quick, not fortified, dry",
+   "en": "haferflocken"
+  },
+  {
+   "name": "haferkleie",
+   "fdc": "Oat bran, raw",
+   "en": "haferkleie"
+  },
+  {
+   "name": "weizenkeime",
+   "fdc": "Wheat germ, crude",
+   "en": "wheat spores"
+  },
+  {
+   "name": "zucker",
+   "fdc": "Sugars, granulated",
+   "en": "sugar"
+  },
+  {
+   "name": "brauner zucker",
+   "fdc": "Sugars, brown",
+   "en": "brown sugar"
+  },
+  {
+   "name": "puderzucker",
+   "fdc": "Sugars, powdered",
+   "en": "puderzucker"
+  },
+  {
+   "name": "honig",
+   "fdc": "Honey",
+   "en": "honey"
+  },
+  {
+   "name": "ahornsirup",
+   "fdc": "Syrups, maple",
+   "en": "ahornsirup"
+  },
+  {
+   "name": "maissirup",
+   "fdc": "Syrups, corn, light",
+   "en": "mais syrup"
+  },
+  {
+   "name": "melasse",
+   "fdc": "Molasses",
+   "en": "melasse"
+  },
+  {
+   "name": "agavendicksaft",
+   "fdc": "Sweetener, syrup, agave",
+   "en": "agave extract"
+  },
+  {
+   "name": "marmelade",
+   "fdc": "Jams and preserves",
+   "en": "jam"
+  },
+  {
+   "name": "kakao",
+   "fdc": "Cocoa, dry powder, unsweetened",
+   "en": "cacao"
+  },
+  {
+   "name": "schokotropfen",
+   "fdc": "Candies, semisweet chocolate",
+   "en": "chocolate chips"
+  },
+  {
+   "name": "dunkle schokolade",
+   "fdc": "Chocolate, dark, 70-85% cacao solids",
+   "en": "dark chocolate"
+  },
+  {
+   "name": "marshmallows",
+   "fdc": "Candies, marshmallows",
+   "en": "marshmallows"
+  },
+  {
+   "name": "nutella",
+   "fdc": "Chocolate-flavored hazelnut spread",
+   "en": "nutella"
+  },
+  {
+   "name": "backpulver",
+   "fdc": "Leavening agents, baking powder, double-acting, sodium aluminum sulfate",
+   "en": "backspray"
+  },
+  {
+   "name": "natron",
+   "fdc": "Leavening agents, baking soda",
+   "en": "sodium nitrate"
+  },
+  {
+   "name": "weinstein",
+   "fdc": "Leavening agents, cream of tartar",
+   "en": "weinstein"
+  },
+  {
+   "name": "trockenhefe",
+   "fdc": "Leavening agents, yeast, baker's, active dry",
+   "en": "dry yeast"
+  },
+  {
+   "name": "frischhefe",
+   "fdc": "Leavening agents, yeast, baker's, compressed",
+   "en": "fresh yeast"
+  },
+  {
+   "name": "gelatine",
+   "fdc": "Gelatins, dry powder, unsweetened",
+   "en": "gelatin"
+  },
+  {
+   "name": "vanilleextrakt",
+   "fdc": "Vanilla extract",
+   "en": "vanilla extract"
+  },
+  {
+   "name": "salz",
+   "fdc": "Salt, table",
+   "en": "salt"
+  },
+  {
+   "name": "milch",
+   "fdc": "Milk, whole, 3.25% milkfat, with added vitamin D",
+   "en": "milk"
+  },
+  {
+   "name": "fettarme milch",
+   "fdc": "Milk, reduced fat, fluid, 2% milkfat, with added vitamin A and vitamin D",
+   "en": "low-fat milk"
+  },
+  {
+   "name": "magermilch",
+   "fdc": "Milk, nonfat, fluid, with added vitamin A and vitamin D (fat free or skim)",
+   "en": "magermilch"
+  },
+  {
+   "name": "buttermilch",
+   "fdc": "Milk, buttermilk, fluid, whole",
+   "en": "buttermilk"
+  },
+  {
+   "name": "sahne",
+   "fdc": "Cream, fluid, heavy whipping",
+   "en": "stage"
+  },
+  {
+   "name": "kaffeesahne",
+   "fdc": "Cream, fluid, light (coffee cream or table cream)",
+   "en": "coffee cream"
+  },
+  {
+   "name": "saure sahne",
+   "fdc": "Cream, sour, cultured",
+   "en": "sour stage"
+  },
+  {
+   "name": "joghurt",
+   "fdc": "Yogurt, plain, whole milk",
+   "en": "yogurt"
+  },
+  {
+   "name": "griechischer joghurt",
+   "fdc": "Yogurt, Greek, plain, whole milk",
+   "en": "greek yoghurt"
+  },
+  {
+   "name": "gezuckerte kondensmilch",
+   "fdc": "Milk, canned, condensed, sweetened",
+   "en": "sugared condensed milk"
+  },
+  {
+   "name": "kondensmilch",
+   "fdc": "Milk, canned, evaporated, with added vitamin A",
+   "en": "condensed milk"
+  },
+  {
+   "name": "milchpulver",
+   "fdc": "Milk, dry, whole, with added vitamin D",
+   "en": "milk powder"
+  },
+  {
+   "name": "butter",
+   "fdc": "Butter, without salt",
+   "en": "butter"
+  },
+  {
+   "name": "gesalzene butter",
+   "fdc": "Butter, salted",
+   "en": "salted butter"
+  },
+  {
+   "name": "ghee",
+   "fdc": "Butter oil, anhydrous",
+   "en": "ghee"
+  },
+  {
+   "name": "margarine",
+   "fdc": "Margarine, regular, 80% fat, composite, stick, without salt",
+   "en": "margarine"
+  },
+  {
+   "name": "pflanzenfett",
+   "fdc": "Shortening, household, soybean (partially hydrogenated)-cottonseed (partially hydrogenated)",
+   "en": "plant oils"
+  },
+  {
+   "name": "schmalz",
+   "fdc": "Lard",
+   "en": "smalz"
+  },
+  {
+   "name": "frischkäse",
+   "fdc": "Cheese, cream",
+   "en": "frischkäse"
+  },
+  {
+   "name": "ricotta",
+   "fdc": "Cheese, ricotta, whole milk",
+   "en": "ricotta"
+  },
+  {
+   "name": "hüttenkäse",
+   "fdc": "Cheese, cottage, creamed, large or small curd",
+   "en": "cheese"
+  },
+  {
+   "name": "parmesan",
+   "fdc": "Cheese, parmesan, grated",
+   "en": "parmesan"
+  },
+  {
+   "name": "pecorino",
+   "fdc": "Cheese, romano",
+   "en": "pecorino"
+  },
+  {
+   "name": "cheddar",
+   "fdc": "Cheese, cheddar, sharp, sliced",
+   "en": "cheddar"
+  },
+  {
+   "name": "mozzarella",
+   "fdc": "Cheese, mozzarella, whole milk",
+   "en": "mozzarella"
+  },
+  {
+   "name": "feta",
+   "fdc": "Cheese, feta",
+   "en": "feta"
+  },
+  {
+   "name": "gouda",
+   "fdc": "Cheese, gouda",
+   "en": "gouda"
+  },
+  {
+   "name": "emmentaler",
+   "fdc": "Cheese, swiss",
+   "en": "emmentaler"
+  },
+  {
+   "name": "greyerzer",
+   "fdc": "Cheese, gruyere",
+   "en": "greyerzer"
+  },
+  {
+   "name": "blauschimmelkäse",
+   "fdc": "Cheese, blue",
+   "en": "blauschimmelkäse"
+  },
+  {
+   "name": "ziegenkäse",
+   "fdc": "Cheese, goat, soft type",
+   "en": "ziegen cheese"
+  },
+  {
+   "name": "brie",
+   "fdc": "Cheese, brie",
+   "en": "brie"
+  },
+  {
+   "name": "provolone",
+   "fdc": "Cheese, provolone",
+   "en": "provolone"
+  },
+  {
+   "name": "ei",
+   "fdc": "Egg, whole, raw, fresh",
+   "en": "ei"
+  },
+  {
+   "name": "eiweiß",
+   "fdc": "Egg, white, raw, fresh",
+   "en": "protein"
+  },
+  {
+   "name": "eigelb",
+   "fdc": "Egg, yolk, raw, fresh",
+   "en": "yolk"
+  },
+  {
+   "name": "olivenöl",
+   "fdc": "Oil, olive, salad or cooking",
+   "en": "olive oil"
+  },
+  {
+   "name": "öl",
+   "fdc": "Oil, canola",
+   "en": "oil"
+  },
+  {
+   "name": "sonnenblumenöl",
+   "fdc": "Oil, sunflower, linoleic (less than 60%)",
+   "en": "sunflower oil"
+  },
+  {
+   "name": "sesamöl",
+   "fdc": "Oil, sesame, salad or cooking",
+   "en": "sesame oil"
+  },
+  {
+   "name": "kokosöl",
+   "fdc": "Oil, coconut",
+   "en": "coconut oil"
+  },
+  {
+   "name": "erdnussöl",
+   "fdc": "Oil, peanut, salad or cooking",
+   "en": "pistachio oil"
+  },
+  {
+   "name": "kokosmilch",
+   "fdc": "Nuts, coconut milk, canned (liquid expressed from grated meat and water)",
+   "en": "coconut milk"
+  },
+  {
+   "name": "kokoscreme",
+   "fdc": "Nuts, coconut cream, canned, sweetened",
+   "en": "coconut cream"
+  },
+  {
+   "name": "kokosraspeln",
+   "fdc": "Nuts, coconut meat, dried (desiccated), not sweetened",
+   "en": "coconut flakes"
+  },
+  {
+   "name": "frische kokosnuss",
+   "fdc": "Nuts, coconut meat, raw",
+   "en": "fresh coconut"
+  },
+  {
+   "name": "zwiebel",
+   "fdc": "Onions, raw",
+   "en": "onion"
+  },
+  {
+   "name": "rote zwiebel",
+   "fdc": "Onions, sweet, raw",
+   "en": "roten zwiebel"
+  },
+  {
+   "name": "frühlingszwiebel",
+   "fdc": "Onions, spring or scallions (includes tops and bulb), raw",
+   "en": "spring onion"
+  },
+  {
+   "name": "schalotte",
+   "fdc": "Shallots, raw",
+   "en": "shallotte"
+  },
+  {
+   "name": "lauch",
+   "fdc": "Leeks, (bulb and lower leaf-portion), raw",
+   "en": "lauch"
+  },
+  {
+   "name": "knoblauch",
+   "fdc": "Garlic, raw",
+   "en": "garlic"
+  },
+  {
+   "name": "ingwer",
+   "fdc": "Ginger root, raw",
+   "en": "ginger"
+  },
+  {
+   "name": "karotte",
+   "fdc": "Carrots, raw",
+   "en": "carrot"
+  },
+  {
+   "name": "staudensellerie",
+   "fdc": "Celery, raw",
+   "en": "staudensellerie"
+  },
+  {
+   "name": "knollensellerie",
+   "fdc": "Celeriac, raw",
+   "en": "knollensellerie"
+  },
+  {
+   "name": "kartoffel",
+   "fdc": "Potatoes, flesh and skin, raw",
+   "en": "potatoes"
+  },
+  {
+   "name": "süßkartoffel",
+   "fdc": "Sweet potato, raw, unprepared (Includes foods for USDA's Food Distribution Program)",
+   "en": "sweet potatoes"
+  },
+  {
+   "name": "tomate",
+   "fdc": "Tomatoes, red, ripe, raw, year round average",
+   "en": "tomato"
+  },
+  {
+   "name": "kirschtomaten",
+   "fdc": "Tomatoes, red, ripe, raw, year round average",
+   "en": "cherry tomatoes"
+  },
+  {
+   "name": "dosentomaten",
+   "fdc": "Tomatoes, red, ripe, canned, packed in tomato juice",
+   "en": "dosentomaten"
+  },
+  {
+   "name": "tomatenmark",
+   "fdc": "Tomato products, canned, paste, without salt added (Includes foods for USDA's Food Distribution Program)",
+   "en": "tomato paste"
+  },
+  {
+   "name": "passierte tomaten",
+   "fdc": "Tomato products, canned, puree, without salt added",
+   "en": "passed tomatoes"
+  },
+  {
+   "name": "tomatensauce",
+   "fdc": "Tomato products, canned, sauce",
+   "en": "tomato sauce"
+  },
+  {
+   "name": "getrocknete tomaten",
+   "fdc": "Tomatoes, sun-dried",
+   "en": "dried tomatoes"
+  },
+  {
+   "name": "paprika",
+   "fdc": "Peppers, sweet, red, raw",
+   "en": "pepper"
+  },
+  {
+   "name": "grüne paprika",
+   "fdc": "Peppers, sweet, green, raw",
+   "en": "green bell peppers"
+  },
+  {
+   "name": "geröstete paprika",
+   "fdc": "Peppers, sweet, red, canned, solids and liquids",
+   "en": "roasted paprika"
+  },
+  {
+   "name": "chili",
+   "fdc": "Peppers, hot chili, red, raw",
+   "en": "chili"
+  },
+  {
+   "name": "grüne chili",
+   "fdc": "Peppers, hot chili, green, raw",
+   "en": "green chili"
+  },
+  {
+   "name": "jalapeño",
+   "fdc": "Peppers, jalapeno, raw",
+   "en": "jalapeño"
+  },
+  {
+   "name": "zucchini",
+   "fdc": "Squash, summer, zucchini, includes skin, raw",
+   "en": "zucchini"
+  },
+  {
+   "name": "aubergine",
+   "fdc": "Eggplant, raw",
+   "en": "aubergine"
+  },
+  {
+   "name": "gurke",
+   "fdc": "Cucumber, with peel, raw",
+   "en": "grape"
+  },
+  {
+   "name": "kürbis",
+   "fdc": "Pumpkin, raw",
+   "en": "gourd"
+  },
+  {
+   "name": "butternusskürbis",
+   "fdc": "Squash, winter, butternut, raw",
+   "en": "butternusskürbis"
+  },
+  {
+   "name": "champignons",
+   "fdc": "Mushrooms, white, raw",
+   "en": "mushrooms"
+  },
+  {
+   "name": "shiitake",
+   "fdc": "Mushrooms, shiitake, raw",
+   "en": "shiitake"
+  },
+  {
+   "name": "spinat",
+   "fdc": "Spinach, raw",
+   "en": "spinach"
+  },
+  {
+   "name": "grünkohl",
+   "fdc": "Kale, raw",
+   "en": "green cabbage"
+  },
+  {
+   "name": "salat",
+   "fdc": "Lettuce, cos or romaine, raw",
+   "en": "salat"
+  },
+  {
+   "name": "kohl",
+   "fdc": "Cabbage, raw",
+   "en": "kohl"
+  },
+  {
+   "name": "rotkohl",
+   "fdc": "Cabbage, red, raw",
+   "en": "rotkohl"
+  },
+  {
+   "name": "wirsing",
+   "fdc": "Cabbage, savoy, raw",
+   "en": "wirsing"
+  },
+  {
+   "name": "pak choi",
+   "fdc": "Cabbage, chinese (pak-choi), raw",
+   "en": "pak choi"
+  },
+  {
+   "name": "rosenkohl",
+   "fdc": "Brussels sprouts, raw",
+   "en": "red cabbage"
+  },
+  {
+   "name": "brokkoli",
+   "fdc": "Broccoli, raw",
+   "en": "broccoli"
+  },
+  {
+   "name": "blumenkohl",
+   "fdc": "Cauliflower, raw",
+   "en": "broccoli"
+  },
+  {
+   "name": "grüne bohnen",
+   "fdc": "Beans, snap, green, raw",
+   "en": "green vegetables"
+  },
+  {
+   "name": "erbsen",
+   "fdc": "Peas, green, frozen, unprepared (Includes foods for USDA's Food Distribution Program)",
+   "en": "peas"
+  },
+  {
+   "name": "zuckerschoten",
+   "fdc": "Peas, edible-podded, raw",
+   "en": "pepper seeds"
+  },
+  {
+   "name": "edamame",
+   "fdc": "Edamame, frozen, unprepared",
+   "en": "edamame"
+  },
+  {
+   "name": "mais",
+   "fdc": "Corn, sweet, yellow, raw",
+   "en": "but…"
+  },
+  {
+   "name": "dosenmais",
+   "fdc": "Corn, sweet, yellow, canned, whole kernel, drained solids",
+   "en": "dosenmais"
+  },
+  {
+   "name": "gemischtes gemüse",
+   "fdc": "Vegetables, mixed, frozen, unprepared",
+   "en": "mixed vegetables"
+  },
+  {
+   "name": "spargel",
+   "fdc": "Asparagus, raw",
+   "en": "garlic"
+  },
+  {
+   "name": "rote bete",
+   "fdc": "Beets, raw",
+   "en": "just give up already"
+  },
+  {
+   "name": "radieschen",
+   "fdc": "Radishes, raw",
+   "en": "radishes"
+  },
+  {
+   "name": "pastinake",
+   "fdc": "Parsnips, raw",
+   "en": "pastinake"
+  },
+  {
+   "name": "rübe",
+   "fdc": "Turnips, raw",
+   "en": "rübe"
+  },
+  {
+   "name": "kohlrabi",
+   "fdc": "Kohlrabi, raw",
+   "en": "cobb’s lettuce"
+  },
+  {
+   "name": "fenchel",
+   "fdc": "Fennel, bulb, raw",
+   "en": "fenchel"
+  },
+  {
+   "name": "artischocke",
+   "fdc": "Artichokes, (globe or french), raw",
+   "en": "artischocken"
+  },
+  {
+   "name": "okra",
+   "fdc": "Okra, raw",
+   "en": "okra"
+  },
+  {
+   "name": "mangold",
+   "fdc": "Chard, swiss, raw",
+   "en": "mangold"
+  },
+  {
+   "name": "rucola",
+   "fdc": "Arugula, raw",
+   "en": "rucola"
+  },
+  {
+   "name": "brunnenkresse",
+   "fdc": "Watercress, raw",
+   "en": "brunnenkresse"
+  },
+  {
+   "name": "sojasprossen",
+   "fdc": "Mung beans, mature seeds, sprouted, raw",
+   "en": "japanese sprouts"
+  },
+  {
+   "name": "avocado",
+   "fdc": "Avocados, raw, all commercial varieties",
+   "en": "avocado"
+  },
+  {
+   "name": "oliven",
+   "fdc": "Olives, ripe, canned (small-extra large)",
+   "en": "olives"
+  },
+  {
+   "name": "grüne oliven",
+   "fdc": "Olives, pickled, canned or bottled, green",
+   "en": "green olives"
+  },
+  {
+   "name": "kapern",
+   "fdc": "Capers, canned",
+   "en": "kapern"
+  },
+  {
+   "name": "gewürzgurken",
+   "fdc": "Pickles, cucumber, dill or kosher dill",
+   "en": "wurstgurken"
+  },
+  {
+   "name": "sauerkraut",
+   "fdc": "Sauerkraut, canned, solids and liquids",
+   "en": "cabbage"
+  },
+  {
+   "name": "kimchi",
+   "fdc": "Cabbage, kimchi",
+   "en": "kimchi"
+  },
+  {
+   "name": "wasserkastanien",
+   "fdc": "Waterchestnuts, chinese, canned, solids and liquids",
+   "en": "wasserkastanien"
+  },
+  {
+   "name": "bambussprossen",
+   "fdc": "Bamboo shoots, canned, drained solids",
+   "en": "bamboo sprouts"
+  },
+  {
+   "name": "nori",
+   "fdc": "Seaweed, laver, raw",
+   "en": "nori"
+  },
+  {
+   "name": "apfel",
+   "fdc": "Apples, raw, with skin (Includes foods for USDA's Food Distribution Program)",
+   "en": "apple"
+  },
+  {
+   "name": "birne",
+   "fdc": "Pears, raw",
+   "en": "birne"
+  },
+  {
+   "name": "banane",
+   "fdc": "Bananas, raw",
+   "en": "banane"
+  },
+  {
+   "name": "zitrone",
+   "fdc": "Lemons, raw, without peel",
+   "en": "lemon"
+  },
+  {
+   "name": "zitronensaft",
+   "fdc": "Lemon juice, raw",
+   "en": "citron juice"
+  },
+  {
+   "name": "zitronenschale",
+   "fdc": "Lemon peel, raw",
+   "en": "lemon peel"
+  },
+  {
+   "name": "limette",
+   "fdc": "Limes, raw",
+   "en": "limette"
+  },
+  {
+   "name": "limettensaft",
+   "fdc": "Lime juice, raw",
+   "en": "lime juice"
+  },
+  {
+   "name": "orange",
+   "fdc": "Oranges, raw, all commercial varieties",
+   "en": "orange"
+  },
+  {
+   "name": "orangensaft",
+   "fdc": "Orange juice, raw (Includes foods for USDA's Food Distribution Program)",
+   "en": "orange juice"
+  },
+  {
+   "name": "grapefruit",
+   "fdc": "Grapefruit, raw, pink and red, all areas",
+   "en": "grapefruit"
+  },
+  {
+   "name": "erdbeeren",
+   "fdc": "Strawberries, raw",
+   "en": "raspberries"
+  },
+  {
+   "name": "himbeeren",
+   "fdc": "Raspberries, raw",
+   "en": "strawberries"
+  },
+  {
+   "name": "blaubeeren",
+   "fdc": "Blueberries, raw",
+   "en": "blueberries"
+  },
+  {
+   "name": "brombeeren",
+   "fdc": "Blackberries, raw",
+   "en": "brooms"
+  },
+  {
+   "name": "kirschen",
+   "fdc": "Cherries, sweet, raw",
+   "en": "cherries"
+  },
+  {
+   "name": "trauben",
+   "fdc": "Grapes, red or green (European type, such as Thompson seedless), raw",
+   "en": "grapes"
+  },
+  {
+   "name": "pfirsich",
+   "fdc": "Peaches, yellow, raw",
+   "en": "pear"
+  },
+  {
+   "name": "nektarine",
+   "fdc": "Nectarines, raw",
+   "en": "nectarines"
+  },
+  {
+   "name": "aprikose",
+   "fdc": "Apricots, raw",
+   "en": "apricot"
+  },
+  {
+   "name": "pflaume",
+   "fdc": "Plums, raw",
+   "en": "plum"
+  },
+  {
+   "name": "mango",
+   "fdc": "Mangos, raw",
+   "en": "mango"
+  },
+  {
+   "name": "ananas",
+   "fdc": "Pineapple, raw, all varieties",
+   "en": "ananas"
+  },
+  {
+   "name": "ananas aus der dose",
+   "fdc": "Pineapple, canned, juice pack, solids and liquids",
+   "en": "papayas from the dose"
+  },
+  {
+   "name": "kiwi",
+   "fdc": "Kiwifruit, green, raw",
+   "en": "kiwi"
+  },
+  {
+   "name": "papaya",
+   "fdc": "Papayas, raw",
+   "en": "papaya"
+  },
+  {
+   "name": "maracuja",
+   "fdc": "Passion-fruit, (granadilla), purple, raw",
+   "en": "maracuja"
+  },
+  {
+   "name": "melone",
+   "fdc": "Melons, cantaloupe, raw",
+   "en": "melon"
+  },
+  {
+   "name": "wassermelone",
+   "fdc": "Watermelon, raw",
+   "en": "watermelon"
+  },
+  {
+   "name": "rhabarber",
+   "fdc": "Rhubarb, raw",
+   "en": "rabarber"
+  },
+  {
+   "name": "cranberrys",
+   "fdc": "Cranberries, raw",
+   "en": "cranberries"
+  },
+  {
+   "name": "getrocknete cranberrys",
+   "fdc": "Cranberries, dried, sweetened (Includes foods for USDA's Food Distribution Program)",
+   "en": "dried cranberries"
+  },
+  {
+   "name": "stachelbeeren",
+   "fdc": "Gooseberries, raw",
+   "en": "stachelbeeren"
+  },
+  {
+   "name": "johannisbeeren",
+   "fdc": "Currants, red and white, raw",
+   "en": "johannisbeeren"
+  },
+  {
+   "name": "schwarze johannisbeeren",
+   "fdc": "Currants, european black, raw",
+   "en": "black johannisbeers"
+  },
+  {
+   "name": "holunderbeeren",
+   "fdc": "Elderberries, raw",
+   "en": "hollunderberries"
+  },
+  {
+   "name": "granatapfel",
+   "fdc": "Pomegranates, raw",
+   "en": "granatapfel"
+  },
+  {
+   "name": "feigen",
+   "fdc": "Figs, raw",
+   "en": "cowards"
+  },
+  {
+   "name": "getrocknete feigen",
+   "fdc": "Figs, dried, uncooked",
+   "en": "dried figs"
+  },
+  {
+   "name": "rosinen",
+   "fdc": "Raisins, dark, seedless (Includes foods for USDA's Food Distribution Program)",
+   "en": "rosinen"
+  },
+  {
+   "name": "datteln",
+   "fdc": "Dates, deglet noor",
+   "en": "datteln"
+  },
+  {
+   "name": "getrocknete aprikosen",
+   "fdc": "Apricots, dried, sulfured, uncooked",
+   "en": "dried apricots"
+  },
+  {
+   "name": "backpflaumen",
+   "fdc": "Plums, dried (prunes), uncooked",
+   "en": "plums"
+  },
+  {
+   "name": "apfelmus",
+   "fdc": "Applesauce, canned, unsweetened, without added ascorbic acid (Includes foods for USDA's Food Distribution Program)",
+   "en": "apple puree"
+  },
+  {
+   "name": "petersilie",
+   "fdc": "Parsley, fresh",
+   "en": "parsley"
+  },
+  {
+   "name": "basilikum",
+   "fdc": "Basil, fresh",
+   "en": "basilica"
+  },
+  {
+   "name": "koriander",
+   "fdc": "Coriander (cilantro) leaves, raw",
+   "en": "coriander"
+  },
+  {
+   "name": "dill",
+   "fdc": "Dill weed, fresh",
+   "en": "dill"
+  },
+  {
+   "name": "schnittlauch",
+   "fdc": "Chives, raw",
+   "en": "parsley"
+  },
+  {
+   "name": "minze",
+   "fdc": "Spearmint, fresh",
+   "en": "minze"
+  },
+  {
+   "name": "rosmarin",
+   "fdc": "Rosemary, fresh",
+   "en": "rosmarin"
+  },
+  {
+   "name": "thymian",
+   "fdc": "Thyme, fresh",
+   "en": "thyme"
+  },
+  {
+   "name": "salbei",
+   "fdc": "Spices, sage, ground",
+   "en": "salbei"
+  },
+  {
+   "name": "oregano",
+   "fdc": "Spices, oregano, dried",
+   "en": "oregano"
+  },
+  {
+   "name": "getrockneter thymian",
+   "fdc": "Spices, thyme, dried",
+   "en": "dried thymian"
+  },
+  {
+   "name": "getrockneter rosmarin",
+   "fdc": "Spices, rosemary, dried",
+   "en": "dried rosemary"
+  },
+  {
+   "name": "getrocknetes basilikum",
+   "fdc": "Spices, basil, dried",
+   "en": "dried basil"
+  },
+  {
+   "name": "getrocknete petersilie",
+   "fdc": "Spices, parsley, dried",
+   "en": "dried parsley"
+  },
+  {
+   "name": "getrockneter dill",
+   "fdc": "Spices, dill weed, dried",
+   "en": "dill that has been dried"
+  },
+  {
+   "name": "lorbeerblätter",
+   "fdc": "Spices, bay leaf",
+   "en": "lorbeer leaves"
+  },
+  {
+   "name": "estragon",
+   "fdc": "Spices, tarragon, dried",
+   "en": "estragon"
+  },
+  {
+   "name": "majoran",
+   "fdc": "Spices, marjoram, dried",
+   "en": "majoran"
+  },
+  {
+   "name": "pfeffer",
+   "fdc": "Spices, pepper, black",
+   "en": "pfeffer"
+  },
+  {
+   "name": "weißer pfeffer",
+   "fdc": "Spices, pepper, white",
+   "en": "white pepper"
+  },
+  {
+   "name": "cayennepfeffer",
+   "fdc": "Spices, pepper, red or cayenne",
+   "en": "cayennepfeffer"
+  },
+  {
+   "name": "paprikapulver",
+   "fdc": "Spices, paprika",
+   "en": "paprika powder"
+  },
+  {
+   "name": "chilipulver",
+   "fdc": "Spices, chili powder",
+   "en": "chili powder"
+  },
+  {
+   "name": "kreuzkümmel",
+   "fdc": "Spices, cumin seed",
+   "en": "cumin"
+  },
+  {
+   "name": "gemahlener koriander",
+   "fdc": "Spices, coriander seed",
+   "en": "blended coriander"
+  },
+  {
+   "name": "zimt",
+   "fdc": "Spices, cinnamon, ground",
+   "en": "cinnamon"
+  },
+  {
+   "name": "muskat",
+   "fdc": "Spices, nutmeg, ground",
+   "en": "muskat"
+  },
+  {
+   "name": "nelken",
+   "fdc": "Spices, cloves, ground",
+   "en": "nelken"
+  },
+  {
+   "name": "ingwerpulver",
+   "fdc": "Spices, ginger, ground",
+   "en": "ingwerpulver"
+  },
+  {
+   "name": "kurkuma",
+   "fdc": "Spices, turmeric, ground",
+   "en": "turmeric"
+  },
+  {
+   "name": "kardamom",
+   "fdc": "Spices, cardamom",
+   "en": "cardamom"
+  },
+  {
+   "name": "piment",
+   "fdc": "Spices, allspice, ground",
+   "en": "pepper"
+  },
+  {
+   "name": "currypulver",
+   "fdc": "Spices, curry powder",
+   "en": "curry powder"
+  },
+  {
+   "name": "knoblauchpulver",
+   "fdc": "Spices, garlic powder",
+   "en": "garlic powder"
+  },
+  {
+   "name": "zwiebelpulver",
+   "fdc": "Spices, onion powder",
+   "en": "onion powder"
+  },
+  {
+   "name": "senfpulver",
+   "fdc": "Spices, mustard seed, ground",
+   "en": "senfpulver"
+  },
+  {
+   "name": "fenchelsamen",
+   "fdc": "Spices, fennel seed",
+   "en": "fenchelsamen"
+  },
+  {
+   "name": "kümmel",
+   "fdc": "Spices, caraway seed",
+   "en": "kummel"
+  },
+  {
+   "name": "anis",
+   "fdc": "Spices, anise seed",
+   "en": "anis"
+  },
+  {
+   "name": "mohn",
+   "fdc": "Spices, poppy seed",
+   "en": "mohn"
+  },
+  {
+   "name": "selleriesamen",
+   "fdc": "Spices, celery seed",
+   "en": "selleriesamen"
+  },
+  {
+   "name": "safran",
+   "fdc": "Spices, saffron",
+   "en": "safran"
+  },
+  {
+   "name": "bockshornklee",
+   "fdc": "Spices, fenugreek seed",
+   "en": "bockshornklee"
+  },
+  {
+   "name": "lebkuchengewürz",
+   "fdc": "Spices, pumpkin pie spice",
+   "en": "lebkuchen gewürz"
+  },
+  {
+   "name": "geflügelgewürz",
+   "fdc": "Spices, poultry seasoning",
+   "en": "flügelgewürz"
+  },
+  {
+   "name": "reis",
+   "fdc": "Rice, white, long-grain, regular, raw, enriched",
+   "en": "rice"
+  },
+  {
+   "name": "rundkornreis",
+   "fdc": "Rice, white, short-grain, raw, unenriched",
+   "en": "rundkornreis"
+  },
+  {
+   "name": "risottoreis",
+   "fdc": "Rice, white, medium-grain, raw, enriched",
+   "en": "risotto"
+  },
+  {
+   "name": "naturreis",
+   "fdc": "Rice, brown, long-grain, raw (Includes foods for USDA's Food Distribution Program)",
+   "en": "naturreis"
+  },
+  {
+   "name": "wildreis",
+   "fdc": "Wild rice, raw",
+   "en": "wildreis"
+  },
+  {
+   "name": "quinoa",
+   "fdc": "Quinoa, uncooked",
+   "en": "quinoa"
+  },
+  {
+   "name": "couscous",
+   "fdc": "Couscous, dry",
+   "en": "couscous"
+  },
+  {
+   "name": "bulgur",
+   "fdc": "Bulgur, dry",
+   "en": "bulgur"
+  },
+  {
+   "name": "graupen",
+   "fdc": "Barley, pearled, raw",
+   "en": "graupen"
+  },
+  {
+   "name": "hirse",
+   "fdc": "Millet, raw",
+   "en": "hirse"
+  },
+  {
+   "name": "buchweizen",
+   "fdc": "Buckwheat groats, roasted, dry",
+   "en": "wheat"
+  },
+  {
+   "name": "amaranth",
+   "fdc": "Amaranth grain, uncooked",
+   "en": "amaranth"
+  },
+  {
+   "name": "dinkel",
+   "fdc": "Spelt, uncooked",
+   "en": "dinkel"
+  },
+  {
+   "name": "nudeln",
+   "fdc": "Pasta, dry, enriched",
+   "en": "noodles"
+  },
+  {
+   "name": "eiernudeln",
+   "fdc": "Noodles, egg, dry, enriched",
+   "en": "egg noodles"
+  },
+  {
+   "name": "reisnudeln",
+   "fdc": "Rice noodles, dry",
+   "en": "risen noodles"
+  },
+  {
+   "name": "linsen",
+   "fdc": "Lentils, raw",
+   "en": "linsen"
+  },
+  {
+   "name": "rote linsen",
+   "fdc": "Lentils, pink or red, raw",
+   "en": "rotten lentils"
+  },
+  {
+   "name": "getrocknete kichererbsen",
+   "fdc": "Chickpeas (garbanzo beans, bengal gram), mature seeds, raw",
+   "en": "dried chickpeas"
+  },
+  {
+   "name": "kichererbsen",
+   "fdc": "Chickpeas (garbanzo beans, bengal gram), mature seeds, canned, drained solids",
+   "en": "kidney beans"
+  },
+  {
+   "name": "getrocknete schwarze bohnen",
+   "fdc": "Beans, black, mature seeds, raw",
+   "en": "dried black beans"
+  },
+  {
+   "name": "schwarze bohnen",
+   "fdc": "Beans, black, mature seeds, canned, low sodium",
+   "en": "black beans"
+  },
+  {
+   "name": "getrocknete kidneybohnen",
+   "fdc": "Beans, kidney, red, mature seeds, raw",
+   "en": "dried kidney beans"
+  },
+  {
+   "name": "kidneybohnen",
+   "fdc": "Beans, kidney, red, mature seeds, canned, drained solids",
+   "en": "kidney beans"
+  },
+  {
+   "name": "getrocknete weiße bohnen",
+   "fdc": "Beans, white, mature seeds, raw",
+   "en": "dried white beans"
+  },
+  {
+   "name": "weiße bohnen",
+   "fdc": "Beans, white, mature seeds, canned",
+   "en": "white beans"
+  },
+  {
+   "name": "pintobohnen",
+   "fdc": "Beans, pinto, mature seeds, raw (Includes foods for USDA's Food Distribution Program)",
+   "en": "pintobohnen"
+  },
+  {
+   "name": "augenbohnen",
+   "fdc": "Cowpeas, common (blackeyes, crowder, southern), mature seeds, raw",
+   "en": "watermelons"
+  },
+  {
+   "name": "limabohnen",
+   "fdc": "Lima beans, large, mature seeds, raw",
+   "en": "limabohnen"
+  },
+  {
+   "name": "schälerbsen",
+   "fdc": "Peas, split, mature seeds, cooked, boiled, with salt",
+   "en": "schälerbsen"
+  },
+  {
+   "name": "tofu",
+   "fdc": "Tofu, raw, firm, prepared with calcium sulfate",
+   "en": "tofu"
+  },
+  {
+   "name": "seidentofu",
+   "fdc": "Tofu, soft, prepared with calcium sulfate and magnesium chloride (nigari)",
+   "en": "seidentofu"
+  },
+  {
+   "name": "tempeh",
+   "fdc": "Tempeh",
+   "en": "tempeh"
+  },
+  {
+   "name": "sojamilch",
+   "fdc": "Soymilk, original and vanilla, unfortified",
+   "en": "sojamilch"
+  },
+  {
+   "name": "mandeln",
+   "fdc": "Nuts, almonds",
+   "en": "walnuts"
+  },
+  {
+   "name": "mandelblättchen",
+   "fdc": "Nuts, almonds",
+   "en": "mandelblättchen"
+  },
+  {
+   "name": "gemahlene mandeln",
+   "fdc": "Nuts, almonds",
+   "en": "toasted almonds"
+  },
+  {
+   "name": "walnüsse",
+   "fdc": "Nuts, walnuts, english",
+   "en": "walnuts"
+  },
+  {
+   "name": "pekannüsse",
+   "fdc": "Nuts, pecans",
+   "en": "pekannüsse"
+  },
+  {
+   "name": "haselnüsse",
+   "fdc": "Nuts, hazelnuts or filberts",
+   "en": "hazelnuts"
+  },
+  {
+   "name": "gemahlene haselnüsse",
+   "fdc": "Nuts, hazelnuts or filberts",
+   "en": "matured pine nuts"
+  },
+  {
+   "name": "cashews",
+   "fdc": "Nuts, cashew nuts, raw",
+   "en": "cashews"
+  },
+  {
+   "name": "pistazien",
+   "fdc": "Nuts, pistachio nuts, raw",
+   "en": "pistachios"
+  },
+  {
+   "name": "pinienkerne",
+   "fdc": "Nuts, pine nuts, dried",
+   "en": "pine nuts"
+  },
+  {
+   "name": "macadamianüsse",
+   "fdc": "Nuts, macadamia nuts, raw",
+   "en": "macadamia nuts"
+  },
+  {
+   "name": "erdnüsse",
+   "fdc": "Peanuts, all types, raw",
+   "en": "erdnüsse"
+  },
+  {
+   "name": "maronen",
+   "fdc": "Nuts, chestnuts, european, roasted",
+   "en": "maronens"
+  },
+  {
+   "name": "erdnussbutter",
+   "fdc": "Peanut butter, smooth style, without salt",
+   "en": "peanut butter"
+  },
+  {
+   "name": "mandelmus",
+   "fdc": "Nuts, almond butter, plain, without salt added",
+   "en": "mandelmus"
+  },
+  {
+   "name": "tahini",
+   "fdc": "Seeds, sesame butter, tahini, from roasted and toasted kernels (most common type)",
+   "en": "tahini"
+  },
+  {
+   "name": "sesam",
+   "fdc": "Seeds, sesame seeds, whole, dried",
+   "en": "sesam"
+  },
+  {
+   "name": "sonnenblumenkerne",
+   "fdc": "Seeds, sunflower seed kernels, dried",
+   "en": "sunflower seeds"
+  },
+  {
+   "name": "kürbiskerne",
+   "fdc": "Seeds, pumpkin and squash seed kernels, dried",
+   "en": "pumpkin seeds"
+  },
+  {
+   "name": "leinsamen",
+   "fdc": "Seeds, flaxseed",
+   "en": "flour grains"
+  },
+  {
+   "name": "chiasamen",
+   "fdc": "Seeds, chia seeds, dried",
+   "en": "chiasamen"
+  },
+  {
+   "name": "hanfsamen",
+   "fdc": "Seeds, hemp seed, hulled",
+   "en": "hanfseeds"
+  },
+  {
+   "name": "hähnchenbrust",
+   "fdc": "Chicken, broilers or fryers, breast, meat and skin, raw",
+   "en": "chicken breast"
+  },
+  {
+   "name": "hähnchenschenkel",
+   "fdc": "Chicken, broilers or fryers, dark meat, thigh, meat only, raw",
+   "en": "chicken thighs"
+  },
+  {
+   "name": "hähnchenunterschenkel",
+   "fdc": "Chicken, broilers or fryers, dark meat, drumstick, meat only, raw",
+   "en": "chicken thighs"
+  },
+  {
+   "name": "chicken wings",
+   "fdc": "Chicken, broilers or fryers, wing, meat and skin, raw",
+   "en": "chicken wings"
+  },
+  {
+   "name": "hähnchen",
+   "fdc": "Chicken, broilers or fryers, meat and skin, raw",
+   "en": "chicken"
+  },
+  {
+   "name": "hähnchenhack",
+   "fdc": "Chicken, ground, raw",
+   "en": "chicken pieces"
+  },
+  {
+   "name": "hühnerleber",
+   "fdc": "Chicken, liver, all classes, raw",
+   "en": "chicken liver"
+  },
+  {
+   "name": "rinderhackfleisch",
+   "fdc": "Beef, ground, 80% lean meat / 20% fat, raw",
+   "en": "cattle meat"
+  },
+  {
+   "name": "rindersteak",
+   "fdc": "Beef, top sirloin, steak, separable lean and fat, trimmed to 1/8\" fat, choice, raw",
+   "en": "rindersteak"
+  },
+  {
+   "name": "rindergulasch",
+   "fdc": "Beef, chuck, arm pot roast, separable lean and fat, trimmed to 1/8\" fat, all grades, raw",
+   "en": "rindergulasch"
+  },
+  {
+   "name": "rinderbrust",
+   "fdc": "Beef, brisket, whole, separable lean and fat, trimmed to 1/8\" fat, all grades, raw",
+   "en": "rinderbrust"
+  },
+  {
+   "name": "rinderrippen",
+   "fdc": "Beef, rib, whole (ribs 6-12), separable lean and fat, trimmed to 1/8\" fat, all grades, raw",
+   "en": "rinderrippen"
+  },
+  {
+   "name": "rinderleber",
+   "fdc": "Beef, variety meats and by-products, liver, raw",
+   "en": "rinderleber"
+  },
+  {
+   "name": "schweinehackfleisch",
+   "fdc": "Pork, fresh, ground, raw",
+   "en": "pork meat"
+  },
+  {
+   "name": "gemischtes hackfleisch",
+   "fdc": "Beef, ground, 80% lean meat / 20% fat, raw",
+   "en": "mixed chopped meat"
+  },
+  {
+   "name": "schweinefilet",
+   "fdc": "Pork, fresh, loin, tenderloin, separable lean only, raw",
+   "en": "pork fillet"
+  },
+  {
+   "name": "schweinebauch",
+   "fdc": "Pork, fresh, belly, raw",
+   "en": "swine belly"
+  },
+  {
+   "name": "schweinekoteletts",
+   "fdc": "Pork, fresh, loin, center loin (chops), bone-in, separable lean and fat, raw",
+   "en": "pork cutlets"
+  },
+  {
+   "name": "speck",
+   "fdc": "Pork, cured, bacon, unprepared",
+   "en": "specks"
+  },
+  {
+   "name": "schinken",
+   "fdc": "Ham, sliced, regular (approximately 11% fat)",
+   "en": "ham"
+  },
+  {
+   "name": "würstchen",
+   "fdc": "Pork sausage, link/patty, unprepared",
+   "en": "würstchen"
+  },
+  {
+   "name": "chorizo",
+   "fdc": "Sausage, pork, chorizo, link or ground, raw",
+   "en": "chorizo"
+  },
+  {
+   "name": "bratwurst",
+   "fdc": "Bratwurst, pork, cooked",
+   "en": "bratwurst"
+  },
+  {
+   "name": "wiener würstchen",
+   "fdc": "Frankfurter, beef, heated",
+   "en": "wiener würstchen"
+  },
+  {
+   "name": "salami",
+   "fdc": "Salami, Italian, pork",
+   "en": "salami"
+  },
+  {
+   "name": "lammhackfleisch",
+   "fdc": "Lamb, ground, raw",
+   "en": "lammhackfleisch"
+  },
+  {
+   "name": "putenhackfleisch",
+   "fdc": "Turkey, Ground, raw",
+   "en": "puttenhackfleisch"
+  },
+  {
+   "name": "putenbrust",
+   "fdc": "Turkey, whole, breast, meat only, raw",
+   "en": "putenbrust"
+  },
+  {
+   "name": "ente",
+   "fdc": "Duck, domesticated, meat only, raw",
+   "en": "ente"
+  },
+  {
+   "name": "kalbfleisch",
+   "fdc": "Veal, ground, raw",
+   "en": "kidney meat"
+  },
+  {
+   "name": "lachs",
+   "fdc": "Fish, salmon, Atlantic, farmed, raw",
+   "en": "lachs"
+  },
+  {
+   "name": "räucherlachs",
+   "fdc": "Fish, salmon, chinook, smoked",
+   "en": "räucherlachs"
+  },
+  {
+   "name": "kabeljau",
+   "fdc": "Fish, cod, Atlantic, raw",
+   "en": "cod"
+  },
+  {
+   "name": "schellfisch",
+   "fdc": "Fish, haddock, raw",
+   "en": "schellfisch"
+  },
+  {
+   "name": "heilbutt",
+   "fdc": "Fish, halibut, Atlantic and Pacific, raw",
+   "en": "heilbutt"
+  },
+  {
+   "name": "wolfsbarsch",
+   "fdc": "Fish, sea bass, mixed species, raw",
+   "en": "walleye"
+  },
+  {
+   "name": "tilapia",
+   "fdc": "Fish, tilapia, raw",
+   "en": "tilapia"
+  },
+  {
+   "name": "forelle",
+   "fdc": "Fish, trout, rainbow, farmed, raw",
+   "en": "forelle"
+  },
+  {
+   "name": "makrele",
+   "fdc": "Fish, mackerel, Atlantic, raw",
+   "en": "mussels"
+  },
+  {
+   "name": "hering",
+   "fdc": "Fish, herring, Atlantic, raw",
+   "en": "hering"
+  },
+  {
+   "name": "schwertfisch",
+   "fdc": "Fish, swordfish, raw",
+   "en": "sturgeon"
+  },
+  {
+   "name": "thunfischsteak",
+   "fdc": "Fish, tuna, fresh, yellowfin, raw",
+   "en": "tuna steak"
+  },
+  {
+   "name": "thunfisch",
+   "fdc": "Fish, tuna, light, canned in water, drained solids (Includes foods for USDA's Food Distribution Program)",
+   "en": "tunfisch"
+  },
+  {
+   "name": "sardinen",
+   "fdc": "Fish, sardine, Atlantic, canned in oil, drained solids with bone",
+   "en": "salads"
+  },
+  {
+   "name": "sardellen",
+   "fdc": "Fish, anchovy, european, canned in oil, drained solids",
+   "en": "anchovies"
+  },
+  {
+   "name": "garnelen",
+   "fdc": "Crustaceans, shrimp, raw",
+   "en": "shrimp"
+  },
+  {
+   "name": "krebsfleisch",
+   "fdc": "Crustaceans, crab, blue, raw",
+   "en": "krebsfleisch"
+  },
+  {
+   "name": "hummer",
+   "fdc": "Crustaceans, lobster, northern, raw",
+   "en": "hummer"
+  },
+  {
+   "name": "jakobsmuscheln",
+   "fdc": "Mollusks, scallop, mixed species, raw",
+   "en": "jacob’s sausages"
+  },
+  {
+   "name": "miesmuscheln",
+   "fdc": "Mollusks, mussel, blue, raw",
+   "en": "miesmuscheln"
+  },
+  {
+   "name": "venusmuscheln",
+   "fdc": "Mollusks, clam, mixed species, raw",
+   "en": "venusmuscheln"
+  },
+  {
+   "name": "tintenfisch",
+   "fdc": "Mollusks, squid, mixed species, raw",
+   "en": "turtle"
+  },
+  {
+   "name": "oktopus",
+   "fdc": "Mollusks, octopus, common, raw",
+   "en": "oktopus"
+  },
+  {
+   "name": "sojasauce",
+   "fdc": "Soy sauce made from soy (tamari)",
+   "en": "soy sauce"
+  },
+  {
+   "name": "fischsauce",
+   "fdc": "Sauce, fish, ready-to-serve",
+   "en": "fischsauce"
+  },
+  {
+   "name": "austernsauce",
+   "fdc": "Sauce, oyster, ready-to-serve",
+   "en": "austernsauce"
+  },
+  {
+   "name": "hoisinsauce",
+   "fdc": "Sauce, hoisin, ready-to-serve",
+   "en": "hosinsauce"
+  },
+  {
+   "name": "worcestershiresauce",
+   "fdc": "Sauce, worcestershire",
+   "en": "worcestershire sauce"
+  },
+  {
+   "name": "tabasco",
+   "fdc": "Sauce, ready-to-serve, pepper, TABASCO",
+   "en": "tabasco"
+  },
+  {
+   "name": "sriracha",
+   "fdc": "Sauce, hot chile, sriracha",
+   "en": "sriracha"
+  },
+  {
+   "name": "ketchup",
+   "fdc": "Catsup",
+   "en": "ketchup"
+  },
+  {
+   "name": "senf",
+   "fdc": "Mustard, prepared, yellow",
+   "en": "senf"
+  },
+  {
+   "name": "mayonnaise",
+   "fdc": "Salad dressing, mayonnaise, regular",
+   "en": "mayonnaise"
+  },
+  {
+   "name": "pesto",
+   "fdc": "Sauce, pesto, ready-to-serve, refrigerated",
+   "en": "pesto"
+  },
+  {
+   "name": "salsa",
+   "fdc": "Sauce, salsa, ready-to-serve",
+   "en": "salsa"
+  },
+  {
+   "name": "barbecuesauce",
+   "fdc": "Sauce, barbecue",
+   "en": "barbecue sauce"
+  },
+  {
+   "name": "meerrettich",
+   "fdc": "Horseradish, prepared",
+   "en": "merettich"
+  },
+  {
+   "name": "miso",
+   "fdc": "Miso",
+   "en": "miso"
+  },
+  {
+   "name": "essig",
+   "fdc": "Vinegar, distilled",
+   "en": "vinegar"
+  },
+  {
+   "name": "balsamico",
+   "fdc": "Vinegar, balsamic",
+   "en": "balsamic vinegar"
+  },
+  {
+   "name": "apfelessig",
+   "fdc": "Vinegar, cider",
+   "en": "appleseed"
+  },
+  {
+   "name": "rotweinessig",
+   "fdc": "Vinegar, red wine",
+   "en": "rotweinessig"
+  },
+  {
+   "name": "hühnerbrühe",
+   "fdc": "Soup, stock, chicken, home-prepared",
+   "en": "chicken broth"
+  },
+  {
+   "name": "rinderbrühe",
+   "fdc": "Soup, stock, beef, home-prepared",
+   "en": "rinderbrühe"
+  },
+  {
+   "name": "gemüsebrühe",
+   "fdc": "Soup, vegetable broth, ready to serve",
+   "en": "vegetable broth"
+  },
+  {
+   "name": "fischfond",
+   "fdc": "Soup, stock, fish, home-prepared",
+   "en": "fish stock"
+  },
+  {
+   "name": "brühwürfel",
+   "fdc": "Soup, bouillon cubes and granules, low sodium, dry",
+   "en": "brew würfel"
+  },
+  {
+   "name": "wasser",
+   "fdc": "Beverages, water, tap, drinking",
+   "en": "water"
+  },
+  {
+   "name": "rotwein",
+   "fdc": "Alcoholic beverage, wine, table, red",
+   "en": "rotwein"
+  },
+  {
+   "name": "weißwein",
+   "fdc": "Alcoholic beverage, wine, table, white",
+   "en": "white wine"
+  },
+  {
+   "name": "bier",
+   "fdc": "Alcoholic beverage, beer, regular, all",
+   "en": "bier"
+  },
+  {
+   "name": "rum",
+   "fdc": "Alcoholic beverage, distilled, rum, 80 proof",
+   "en": "rum"
+  },
+  {
+   "name": "brandy",
+   "fdc": "Alcoholic beverage, distilled, all (gin, rum, vodka, whiskey) 80 proof",
+   "en": "brandy"
+  },
+  {
+   "name": "sherry",
+   "fdc": "Alcoholic beverage, wine, dessert, dry",
+   "en": "sherry"
+  },
+  {
+   "name": "portwein",
+   "fdc": "Alcoholic beverage, wine, dessert, sweet",
+   "en": "portwein"
+  },
+  {
+   "name": "sake",
+   "fdc": "Alcoholic beverage, rice (sake)",
+   "en": "sake"
+  },
+  {
+   "name": "kaffee",
+   "fdc": "Beverages, coffee, brewed, prepared with tap water",
+   "en": "coffee"
+  },
+  {
+   "name": "espresso",
+   "fdc": "Beverages, coffee, brewed, espresso, restaurant-prepared",
+   "en": "espresso"
+  },
+  {
+   "name": "tee",
+   "fdc": "Beverages, tea, black, brewed, prepared with tap water",
+   "en": "tee"
+  },
+  {
+   "name": "apfelsaft",
+   "fdc": "Apple juice, canned or bottled, unsweetened, without added ascorbic acid",
+   "en": "apple juice"
+  },
+  {
+   "name": "tomatensaft",
+   "fdc": "Tomato juice, canned, without salt added",
+   "en": "tomato juice"
+  }
+ ]
+}

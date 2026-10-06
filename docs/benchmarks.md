@@ -9,7 +9,7 @@
 
 The 4b misses that matter are wrong foods rather than near names: "Knoblauch" → chive, "poivron vert" → sweet potato, "chapelure" → baking powder, "nubes" (marshmallows) → clouds, "بيض" (egg) → egg white, "김" (laver) → kimchi. Arabic is the weakest. Three of the 164 calls in the es/fr/ar/ko run failed with HTTP 500 and count as misses: `llama-server` grew past the container's 8 GB limit and was OOM-killed, though the model is 3.4 GB.
 
-**Translation models and lookups (#159, #167).** Same entries, names and scoring. The translation models (`MedAIBase/Tencent-HY-MT1.5` 1.8b and 7b, `translategemma:4b`) get one name a call in their own prompt format, and their English is the only term, so a hit is stricter than above: no synonyms, no head. The lookups take the entry an exact match after #157's normalization finds, and its English as the term. Mealie's food seed (580 foods) is AGPL-3.0 and not used.
+**Translation models and lookups (#159, #167).** `scripts/translate-terms.ts` (its translations in `scripts/translations/`) and `scripts/lookups.ts`, OFF at `v2.112.0`. Same entries, names and scoring. The translation models (`MedAIBase/Tencent-HY-MT1.5` 1.8b and 7b, `translategemma:4b`) get one name a call in their own prompt format, and their English is the only term, so a hit is stricter than above: no synonyms, no head. The lookups take the entry an exact match after #157's normalization finds, and its English as the term. Mealie's food seed (580 foods) is AGPL-3.0 and not used.
 
 | Translation alone or lookup | en | de | es | fr | ar | ko | s per name |
 |---|---|---|---|---|---|---|---|
