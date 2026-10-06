@@ -41,6 +41,9 @@ services:
       # SearXNG, by the alias compose.search.yaml declares on
       # recipeat-search-net.
       NUXT_SEARXNG_BASE_URL: "http://recipeat-searxng:8080"
+      # Canonization's local model, by the alias compose.ollama.yaml declares
+      # on Coolify's `coolify` network. Ollama keeps its own 11434 inside.
+      NUXT_OLLAMA_BASE_URL: "http://ollama:11434"
       # Extraction for both the text and photo routes. Billing must be enabled
       # on the Google project: the free tier is not licensed for an API client
       # serving users in the EEA, and its quota would not carry this anyway.
@@ -76,6 +79,7 @@ services:
       - fetch
       - db
       - search
+      - coolify
     logging:
       driver: json-file
       options:
@@ -111,6 +115,11 @@ networks:
   search:
     external: true
     name: recipeat-search-net
+
+  # Coolify's shared network, which Ollama joins. It only ever receives
+  # connections. Outside Coolify: docker network create coolify
+  coolify:
+    external: true
 
 volumes:
   app-data:

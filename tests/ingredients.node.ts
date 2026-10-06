@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { normalizeName } from '../server/ingredients/normalize.ts'
+import { searchTerms } from '../server/ingredients/terms.ts'
 
 // The key alias lookup and alias writes share: spelling noise collapses,
 // what the food is does not.
@@ -77,4 +78,49 @@ test('normalizing a normalized name changes nothing', () => {
     const once = normalizeName(name, lang)!
     assert.equal(normalizeName(once, lang), once, `${lang} ${name}`)
   }
+})
+
+// Step 3a: the model's search terms (#159), against a mocked Ollama.
+
+const ollama = { ollamaBaseUrl: 'http://ollama:11434/', ollamaModel: 'qwen3.5:2b', ollamaThreads: 4 }
+const answering = (items: unknown, extra: object = {}): typeof fetch =>
+  async () => Response.json({ done_reason: 'stop', message: { content: JSON.stringify({ items }) }, ...extra })
+
+test('one call takes all the names with the language and returns terms per name', async () => {
+  let sent: any
+  const fetcher: typeof fetch = async (url, init) => {
+    assert.equal(url, 'http://ollama:11434/api/chat')
+    sent = JSON.parse(String(init!.body))
+    return answering([
+      { name: 'Zuccini', english: 'Zucchini', synonyms: ['courgette'], head: 'zucchini' },
+      { name: 'Kashmiri-Chili', english: 'kashmiri chili', synonyms: ['red chili powder', 'chili pepper'], head: 'Chili ' },
+    ])(url, init)
+  }
+  const result = await searchTerms(['Zuccini', 'Kashmiri-Chili'], 'de-DE', ollama, fetcher)
+  assert.deepEqual(result, [
+    { terms: ['zucchini', 'courgette'], head: 'zucchini' },
+    { terms: ['kashmiri chili', 'red chili powder', 'chili pepper'], head: 'chili' },
+  ])
+  assert.equal(sent.model, 'qwen3.5:2b')
+  assert.equal(sent.format.properties.items.items.properties.synonyms.maxItems, 2)
+  assert.equal(sent.format.properties.items.minItems, 2)
+  assert.equal(sent.format.properties.items.maxItems, 2)
+  assert.deepEqual(JSON.parse(sent.messages[1].content), { language: 'de-DE', names: ['Zuccini', 'Kashmiri-Chili'] })
+})
+
+test('no misses, no call', async () => {
+  assert.deepEqual(await searchTerms([], 'en', ollama, async () => assert.fail('called')), [])
+})
+
+test('down, timing out, truncated or off-schema is an error, never empty terms', async () => {
+  const ask = (fetcher: typeof fetch) => searchTerms(['salt', 'flour'], 'en', ollama, fetcher)
+  const good = { name: 'salt', english: 'salt', synonyms: ['table salt'], head: 'salt' }
+  await assert.rejects(ask(async () => { throw new TypeError('fetch failed') }), /Could not connect/)
+  await assert.rejects(ask(async () => { throw new DOMException('', 'TimeoutError') }), /in time/)
+  await assert.rejects(ask(async () => new Response('busy', { status: 500 })), /HTTP 500/)
+  await assert.rejects(ask(answering([good, good], { done_reason: 'length' })), /before finishing/)
+  await assert.rejects(ask(async () => Response.json({ message: { content: 'Sure! salt, flour' } })), /invalid JSON/)
+  await assert.rejects(ask(answering([good])), /1 of 2/)
+  await assert.rejects(ask(answering([good, { name: 'flour', english: 'flour', synonyms: [], head: 'flour' }])), /outside the schema/)
+  await assert.rejects(ask(answering([good, { name: 'flour', english: 'flour', synonyms: ['wheat flour'], head: ' ' }])), /outside the schema/)
 })

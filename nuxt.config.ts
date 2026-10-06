@@ -2,11 +2,16 @@ import { fileURLToPath } from 'node:url'
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
-  // 8100 is the app; 8103 is the fetcher, the one service it still calls. The
-  // block 8100-8103 stays reserved: 8101 and 8102 were Ollama and the OCR
-  // service, and leaving the gap is cheaper than renumbering a deployment.
+  // 8100 is the app; 8101 is Ollama and 8103 the fetcher, the services it
+  // calls. 8102 was the OCR service and stays reserved.
   devServer: { port: 8100 },
   runtimeConfig: {
+    // Canonization's local model (#154). Must match RECIPEAT_MODEL in
+    // docker/compose.ollama.yaml, which is what that deployment pulls.
+    ollamaBaseUrl: 'http://127.0.0.1:8101',
+    ollamaModel: 'qwen3.5:4b',
+    // The `cpus:` that compose file gives Ollama, sent as `num_thread`.
+    ollamaThreads: 4,
     fetcherBaseUrl: 'http://127.0.0.1:8103',
     // Empty here and supplied as NUXT_DATABASE_URL. Postgres publishes on
     // loopback like the other services, so a checkout points at 127.0.0.1 and
