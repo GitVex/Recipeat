@@ -1,4 +1,5 @@
-// Writes docs/canonization.svg: #154's process for a new ingredient line, and
+// Writes docs/canonization.svg: #154's process for a new ingredient line and
+// #167's enrichment of an OFF-seeded ingredient, and
 // 006_ingredients.sql's tables. Positions are by hand; move a box, check the arrows.
 //
 //   node scripts/canonization-diagram.mjs
@@ -23,7 +24,7 @@ const step = (x, y, w, h, kind, title, ...lines) => {
 
 // ---- Process ----
 text(30, 40, 'Canonization (#154)', { size: 22, weight: 700 })
-text(30, 62, 'A new ingredient line, after its recipe is saved; schema from server/database/migrations/006_ingredients.sql', { size: 12.5, fill: C.muted })
+text(30, 62, 'A new ingredient line after its recipe is saved, and an OFF-seeded ingredient without an FDC link; schema from server/database/migrations/006_ingredients.sql', { size: 12.5, fill: C.muted })
 text(30, 100, 'PROCESS', { size: 11, weight: 700, fill: C.muted })
 
 const X = 60, W = 340, cx = X + W / 2
@@ -37,16 +38,18 @@ step(X, 542, W, 50, 'model', '3c · Model picks twice (#160)', 'candidates shuff
 for (const [a, b] of [[162, 182], [232, 252], [302, 322], [452, 472], [522, 542]]) path(`M${cx} ${a} V${b - 2}`)
 path(`M${cx} 372 V400`); text(cx + 8, 391, 'miss', { size: 11, fill: C.muted })
 
-// Hit, and #167's seeded aliases beside it.
-step(450, 322, 300, 50, 'db', 'Hit: key the line, done', 'not logged')
+// #167's seed above the hit; the failure path; enrichment entering at 3b.
+step(450, 182, 300, 84, 'plan', 'Planned (#167): OFF seed', 'per OFF release, every entry → an ingredient', "and its names as 'off' aliases; OFF's FDC id", 'kept if 3b returns it, else fdc_id null')
+path('M600 266 V320', { dash: true, stroke: C.plan[1] }); text(608, 297, 'aliases', { size: 11, fill: C.muted })
+step(450, 322, 300, 50, 'db', 'Hit: key the line, done', 'merged_into followed · not logged')
 path(`M${X + W} 347 H448`); text(X + W + 10, 341, 'hit', { size: 11, fill: C.muted })
-step(450, 392, 300, 84, 'plan', 'Planned (#167): OFF names as aliases', 'seeded per OFF release, source \'off\'', 'OFF FDC id accepted if 3b also finds it,', 'else a miss with that id as a candidate')
-path('M600 392 V374', { dash: true, stroke: C.plan[1], arrow: false })
 
-// Failure path.
-step(450, 500, 300, 68, 'fail', 'Ollama down or answer invalid', 'attempts + 1, next_try_at backs off,', 'the recipe stays unkeyed (#162)')
-path(`M${X + W} 427 H425 V534 H448`, { dash: true, stroke: C.fail[1], marker: 'f' })
-path(`M${X + W} 567 H425`, { dash: true, stroke: C.fail[1], arrow: false })
+step(450, 392, 300, 68, 'fail', 'Ollama down or answer invalid', 'in 3a or 3c: attempts + 1, next_try_at', 'backs off, the job waits (#162)')
+path(`M${X + W} 427 H448`, { dash: true, stroke: C.fail[1], marker: 'f' })
+
+step(450, 480, 300, 84, 'plan', 'Planned (#167): enrich an ingredient', 'fdc_id null, queued: used ones first, the', 'rest at low priority · OFF English names', 'stand in for 3a · no alias written')
+path('M750 224 H764 V522 H752', { dash: true, stroke: C.plan[1] })
+path(`M448 510 H${X + W + 2}`, { dash: true, stroke: C.plan[1] })
 
 // Branches of 3c.
 path(`M${cx} 592 V606`, { arrow: false })
@@ -55,16 +58,16 @@ for (const x of [130, 360, 590]) path(`M${x} 606 V626`)
 text(138, 620, 'same pick', { size: 11, fill: C.muted })
 text(368, 620, 'none twice', { size: 11, fill: C.muted })
 text(598, 620, 'disagree', { size: 11, fill: C.muted })
-step(30, 628, 200, 66, 'db', '4 · Link the FDC entry', 'ingredients.fdc_id, fdc_match', 'exact + proxy → proxy')
-step(260, 628, 200, 66, 'db', '5 · Match an existing', 'app ingredient, so "gochujang"', 'stays one row')
-step(260, 728, 200, 66, 'plain', '6 · New ingredient', 'categorical fill from its', 'category, flagged for #155')
-path('M360 694 V726'); text(368, 714, 'no match', { size: 11, fill: C.muted })
-step(490, 628, 200, 66, 'person', 'Review (#156)', 'logged, outcome \'review\';', 'the line stays unkeyed')
+step(30, 628, 200, 84, 'db', '4 · Link the FDC entry', 'exact + proxy → proxy · exact reuses', 'the ingredient with that fdc_id,', 'proxy always gets a new one')
+step(260, 628, 200, 84, 'db', '5 · Match an existing', 'app ingredient, so "gochujang"', 'stays one row · lines only,', 'enrichment goes to 6')
+step(260, 742, 200, 66, 'plain', '6 · New ingredient', 'categorical fill from its category', '(OFF parent), flagged for #155')
+path('M360 712 V740'); text(368, 730, 'no match', { size: 11, fill: C.muted })
+step(490, 628, 200, 84, 'person', 'Review (#156)', "logged, outcome 'review', unkeyed;", 'also an enrichment exact pick', 'already on another ingredient')
 
-step(30, 836, 430, 68, 'db', '7 · Write the alias, key the line (#164)', 'ingredient_aliases (source \'model\') · decision in', 'canonization_decisions · queue row deleted')
-path('M130 694 V834')
-path('M360 794 V834')
-path('M260 661 H245 V834'); text(237, 760, 'match', { size: 11, fill: C.muted, anchor: 'end' })
+step(30, 846, 430, 68, 'db', '7 · Write the alias, key the line (#164)', "ingredient_aliases (source 'model') · decision in", 'canonization_decisions · queue row deleted')
+path('M130 712 V844')
+path('M360 808 V844')
+path('M260 670 H245 V844'); text(237, 780, 'match', { size: 11, fill: C.muted, anchor: 'end' })
 
 // ---- Schema ----
 text(800, 100, 'SCHEMA', { size: 11, weight: 700, fill: C.muted })
@@ -83,10 +86,10 @@ const table = (name, x, y, kind, cols, o = {}) => {
   tables[name] = { x, y, h, row: i => y + head + row * i + 9 }
 }
 table('recipes', 800, 112, 'plain', [['id', 'uuid PK'], ['…', 'existing']], { dash: true })
-table('canonization_queue', 800, 200, 'plain', [['id', 'PK'], ['recipe_id', 'FK UNIQUE'], ['enqueued_at', ''], ['attempts', ''], ['next_try_at', 'indexed'], ['last_error', '']])
-table('canonization_decisions', 800, 360, 'plain', [['id', 'PK'], ['recipe_id', 'FK set null'], ['name_raw', ''], ['name_norm', ''], ['lang', ''], ['search_terms', 'jsonb'], ['candidates', 'jsonb'], ['picks', 'jsonb'], ['outcome', "exact|proxy|none|review"], ['ingredient_id', 'FK'], ['model', ''], ['prompt_version', ''], ['created_at', '']])
-table('ingredient_aliases', 1090, 112, 'db', [['alias_norm', 'PK'], ['lang', 'PK'], ['ingredient_id', 'FK'], ['source', 'off|model|manual (#167)', true], ['confidence', '0..1'], ['created_at', ''], ['off_release', 'planned #167', true]])
-table('ingredients', 1090, 300, 'db', [['id', 'PK'], ['slug', 'UNIQUE'], ['fdc_id', 'FK'], ['fdc_match', 'exact|proxy'], ['category', 'FK'], ['density_g_per_ml', ''], ['merged_into', 'FK self']])
+table('canonization_queue', 800, 200, 'plain', [['id', 'PK'], ['recipe_id', 'FK UNIQUE'], ['ingredient_id', 'FK UNIQUE (#167)', true], ['enqueued_at', ''], ['attempts', ''], ['next_try_at', 'indexed'], ['last_error', '']])
+table('canonization_decisions', 800, 372, 'plain', [['id', 'PK'], ['recipe_id', 'FK set null'], ['name_raw', ''], ['name_norm', ''], ['lang', ''], ['search_terms', 'jsonb'], ['candidates', 'jsonb'], ['picks', 'jsonb'], ['outcome', "exact|proxy|none|review"], ['ingredient_id', 'FK'], ['model', ''], ['prompt_version', ''], ['created_at', '']])
+table('ingredient_aliases', 1090, 112, 'db', [['alias_norm', 'PK'], ['lang', 'PK'], ['ingredient_id', 'FK'], ['source', 'off|model|manual (#167)', true], ['confidence', '0..1'], ['created_at', ''], ['release', 'OFF tag (#167)', true]])
+table('ingredients', 1090, 300, 'db', [['id', 'PK'], ['slug', 'UNIQUE'], ['fdc_id', 'FK, null until linked'], ['fdc_match', 'exact|proxy'], ['category', 'FK'], ['density_g_per_ml', ''], ['merged_into', 'FK self']])
 table('ingredient_portions', 1090, 500, 'db', [['ingredient_id', 'FK'], ['unit', ''], ['modifier', ''], ['grams', ''], ['source', 'fdc|category|community'], ['n_samples', '']])
 table('ingredient_samples', 1090, 676, 'db', [['id', 'PK'], ['ingredient_id', 'FK'], ['owner_sub', ''], ['unit', ''], ['grams', ''], ['created_at', '']])
 table('ingredient_categories', 1370, 112, 'db', [['id', 'PK'], ['name', 'UNIQUE'], ['categorical_modifier', ''], ['categorical_weighttograms', '']])
@@ -99,6 +102,7 @@ const ingId = t.ingredients.row(0)
 path(`M${L} ${t.canonization_queue.row(1)} H786 V${t.recipes.row(0)} H${L - 2}`)
 path(`M${L} ${t.canonization_decisions.row(1)} H778 V${t.recipes.row(0) + 6} H${L - 2}`)
 path(`M${R} ${t.canonization_decisions.row(9)} H1062 V${ingId} H${iL - 2}`)
+path(`M${R} ${t.canonization_queue.row(2)} H1052 V${ingId - 6} H${iL - 2}`, { dash: true, stroke: C.plan[1] })
 path(`M${iL} ${t.ingredient_aliases.row(2)} H1074 V${ingId}`, { arrow: false })
 path(`M${iL} ${t.ingredient_portions.row(0)} H1068 V${ingId}`, { arrow: false })
 path(`M${iL} ${t.ingredient_samples.row(1)} H1056 V${ingId}`, { arrow: false })
@@ -115,16 +119,16 @@ text(1370, 732, 'another ingredient) goes to review.', { size: 11, fill: C.muted
 // Legend.
 const legend = [['db', 'deterministic / database'], ['model', 'local model (Ollama)'], ['plain', 'deterministic, no lookup · FDC tables'], ['person', 'needs a person'], ['plan', 'planned (#167)'], ['fail', 'failure path']]
 legend.forEach(([k, label], i) => {
-  rect(800, 836 + i * 16, 22, 11, C[k], { rx: 3, dash: k === 'plan' || k === 'fail' })
-  text(830, 846 + i * 16, label, { size: 11.5, fill: C.muted })
+  rect(800, 850 + i * 16, 22, 11, C[k], { rx: 3, dash: k === 'plan' || k === 'fail' })
+  text(830, 860 + i * 16, label, { size: 11.5, fill: C.muted })
 })
 
-const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1640" height="930" viewBox="0 0 1640 930" font-family="system-ui,-apple-system,'Segoe UI',sans-serif">
+const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1640" height="950" viewBox="0 0 1640 950" font-family="system-ui,-apple-system,'Segoe UI',sans-serif">
 <defs>
 <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="${C.line}"/></marker>
 <marker id="f" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="${C.fail[1]}"/></marker>
 </defs>
-<rect width="1640" height="930" fill="#ffffff"/>
+<rect width="1640" height="950" fill="#ffffff"/>
 ${out.join('\n')}
 </svg>
 `
