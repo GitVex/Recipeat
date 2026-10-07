@@ -30,6 +30,12 @@ services:
       # One recipe's missed ingredient names and their search terms (#159),
       # a few hundred tokens. The KV cache is allocated in full per request.
       OLLAMA_CONTEXT_LENGTH: "4096"
+      # llama-server's prompt cache, read from the environment because Ollama
+      # passes no --cache-ram (ollama/ollama#18264). Its 8 GiB default keeps
+      # each replaced prompt's KV state, ~115 MiB a call of ten names, and
+      # killed llama-server at the 8g limit about every 40 calls (#159). Off,
+      # it stays flat; a repeated prompt still reuses the live slot's cache.
+      LLAMA_ARG_CACHE_RAM: "0"
       OLLAMA_NO_CLOUD: "1"
       OLLAMA_KEEP_ALIVE: "5m"
       # Not read by Ollama. The model this deployment pulls and reports healthy
