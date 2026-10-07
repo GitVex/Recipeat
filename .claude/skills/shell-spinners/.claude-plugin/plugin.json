@@ -1,0 +1,1 @@
+{ "name": "shell-spinners", "version": "0.1.0", "description": "A sidebar pane with a spinner and title for each background shell while it runs", "types": "./types/index.d.ts" }
