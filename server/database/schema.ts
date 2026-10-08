@@ -90,6 +90,34 @@ export type ImagesTable = {
 
 export type ImageType = 'image/jpeg' | 'image/webp'
 
+// The ingredient store — see 006_ingredients.sql. BIGINT reads back as a
+// string, as NUMERIC does.
+export type IngredientsTable = {
+  id: ColumnType<string, never, never>
+  density_g_per_ml: ColumnType<string | null, number | null, number | null>
+  density_source: 'fdc' | 'searxng' | 'community' | null
+  density_ref: string | null
+  created_by: string | null
+  created_at: Generated<Date>
+}
+
+export type IngredientSourcesTable = {
+  ingredient_id: string
+  source: 'off' | 'fdc'
+  external_id: string
+}
+
+export type IngredientNamesTable = {
+  ingredient_id: string
+  lang: string
+  name: string
+  is_main: Generated<boolean>
+  confirmed: boolean
+  source: 'off' | 'cook' | 'searxng'
+  added_by: string | null
+  created_at: Generated<Date>
+}
+
 export type Database = {
   recipes: RecipesTable
   collections: CollectionsTable
@@ -98,6 +126,9 @@ export type Database = {
   recipe_tags: RecipeTagsTable
   preferences: PreferencesTable
   images: ImagesTable
+  ingredients: IngredientsTable
+  ingredient_sources: IngredientSourcesTable
+  ingredient_names: IngredientNamesTable
 }
 
 export type RecipeRow = Selectable<RecipesTable>

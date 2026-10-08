@@ -13,6 +13,7 @@ import { listTags, setTags } from '../server/tags/store.ts'
 import { addPhoto, arrangePhotos, deleteImage, listPhotos, readImage, setSourcePhoto } from '../server/images/store.ts'
 import { readPreferences, writePreferences } from '../server/utils/preferences.ts'
 import { readFilters } from '../shared/utils/recipeFilters.ts'
+import { readPortions, seedIngredients } from '../scripts/seed-ingredients.ts'
 
 // The half of the runner that needs a database. Everything here happens inside
 // a schema of its own, so a development database keeps its own
@@ -31,7 +32,7 @@ const migrations = (...versions: string[]) => versions.map(version => ({
   sql: readFileSync(new URL(`../server/database/migrations/${version}`, import.meta.url), 'utf8'),
 }))
 // What the stores need under them.
-const STORE = ['001_recipes.sql', '002_collections.sql', '003_tags.sql', '004_preferences.sql', '005_images.sql']
+const STORE = ['001_recipes.sql', '002_collections.sql', '003_tags.sql', '004_preferences.sql', '005_images.sql', '006_ingredients.sql']
 
 describe('migration runner', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () => {
   let admin: Sql
@@ -1463,5 +1464,97 @@ describe('images', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () =>
     assert.equal((await deleteRecipe(sql, 'user_a', cake.id))!.photos, 2)
     const [{ n }] = await sql<{ n: number }[]>`SELECT count(*)::int AS n FROM images WHERE owner_sub = 'user_a' AND recipe_id = ${cake.id}`
     assert.equal(n, 0)
+  })
+})
+
+// The ingredient store (#171) and its seed, from a few OFF entries and FDC
+// portions written out here rather than the real files.
+describe('ingredient store', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () => {
+  const SCHEMA = 'ingredients_check'
+  let admin: Sql
+  let sql: Sql
+
+  before(async () => {
+    admin = postgres(url!, { max: 1, onnotice: () => {} })
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin`CREATE SCHEMA ${admin(SCHEMA)}`
+    sql = postgres(url!, { max: 5, onnotice: () => {}, connection: { search_path: SCHEMA } })
+    assert.deepEqual(await applyMigrations(sql, migrations('006_ingredients.sql')), ['006_ingredients.sql'])
+  })
+
+  after(async () => {
+    await sql?.end()
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin?.end()
+  })
+
+  const PORTIONS = [
+    '"id","fdc_id","seq_num","amount","measure_unit_id","portion_description","modifier","gram_weight"',
+    // Flour: the plain tablespoon wins over the cup with a modifier.
+    '"1","100","1","1","9999","","cup, sifted","100"',
+    '"2","100","2","1","9999","","tbsp","7.5"',
+    // Sugar: cup over tablespoon, both plain; and its second FDC id has none.
+    '"3","200","1","1","9999","","tbsp","12.5"',
+    '"4","200","2","1","9999","","cup","200"',
+    // Salt: a teaspoon at 3.6 g/ml, out of range, so no density.
+    '"5","300","1","1","9999","","tsp","17.7"',
+    '"6","300","2","1","9999","","serving","5"',
+  ].join('\n')
+  const TAXONOMY = {
+    'en:flour': { synonyms: { en: ['flour', 'Flour', 'plain flour'], de: ['Mehl', 'Weizenmehl'], xx: ['farina'] }, usda_fdc_code: { en: '100' } },
+    'en:sugar': { synonyms: { en: ['sugar', 'white sugar'], de: ['Zucker'] }, usda_fdc_code: { en: '200, 999' } },
+    'en:salt': { synonyms: { en: ['salt', 'pepper'] }, usda_fdc_code: { en: '300' } },
+    'en:black-pepper': { synonyms: { en: ['black pepper', 'pepper'], de: ['Pfeffer'] }, usda_fdc_code: { en: '400' } },
+    // No FDC id: left out.
+    'en:quark': { synonyms: { en: ['quark'], de: ['Quark'] } },
+  }
+
+  let report: Awaited<ReturnType<typeof seedIngredients>>
+  const byOff = async (offId: string) => (await sql<{ id: string, density_g_per_ml: string | null, density_source: string | null, density_ref: string | null }[]>`
+    SELECT i.* FROM ingredients i JOIN ingredient_sources s ON s.ingredient_id = i.id
+    WHERE s.source = 'off' AND s.external_id = ${offId}`)[0]
+  const names = async (id: string) => (await sql<{ lang: string, name: string, is_main: boolean }[]>`
+    SELECT lang, name, is_main FROM ingredient_names WHERE ingredient_id = ${id} AND confirmed AND source = 'off' AND added_by IS NULL ORDER BY lang, name`)
+    .map(row => `${row.lang}:${row.name}${row.is_main ? '*' : ''}`)
+
+  test('seeds one entry per OFF entry with an FDC id, with its sources and names', async () => {
+    report = await seedIngredients(sql, TAXONOMY, readPortions(PORTIONS))
+    assert.equal(report.ingredients, 4)
+    assert.equal(await byOff('en:quark'), undefined)
+    const sugar = await byOff('en:sugar')
+    const sources = await sql`SELECT source, external_id FROM ingredient_sources WHERE ingredient_id = ${sugar!.id} ORDER BY source, external_id`
+    assert.deepEqual(sources.map(row => `${row.source}:${row.external_id}`), ['fdc:200', 'fdc:999', 'off:en:sugar'])
+    // The first in each language is the main name; a case-only repeat is dropped.
+    assert.deepEqual(await names((await byOff('en:flour'))!.id), ['de:Mehl*', 'de:Weizenmehl', 'en:flour*', 'en:plain flour', 'xx:farina*'])
+  })
+
+  test('density follows the portion rule, with the portion as its ref', async () => {
+    assert.deepEqual(await byOff('en:flour').then(row => [row!.density_g_per_ml, row!.density_source, row!.density_ref]), ['0.5072', 'fdc', '2'])
+    assert.deepEqual(await byOff('en:sugar').then(row => [row!.density_g_per_ml, row!.density_ref]), ['0.8454', '4'])
+    assert.deepEqual(await byOff('en:salt').then(row => [row!.density_g_per_ml, row!.density_source, row!.density_ref]), [null, null, null])
+    assert.equal(report.withDensity, 2)
+  })
+
+  test('a name on two entries in one language is seeded on neither, and reported', async () => {
+    assert.deepEqual(report.duplicates, [{ lang: 'en', name: 'pepper', entries: ['en:salt', 'en:black-pepper'] }])
+    assert.deepEqual(await names((await byOff('en:salt'))!.id), ['en:salt*'])
+    assert.deepEqual(await names((await byOff('en:black-pepper'))!.id), ['de:Pfeffer*', 'en:black pepper*'])
+  })
+
+  test('the seed refuses to run again', async () => {
+    await assert.rejects(() => seedIngredients(sql, TAXONOMY, readPortions(PORTIONS)), /already has entries/)
+    assert.equal((await sql`SELECT count(*)::int AS n FROM ingredients`)[0]!.n, 4)
+  })
+
+  test('names are unique per language regardless of case, and found by trigram', async () => {
+    const flour = (await byOff('en:flour'))!.id
+    await assert.rejects(() => sql`INSERT INTO ingredient_names (ingredient_id, lang, name, confirmed, source) VALUES (${flour}, 'de', 'MEHL', true, 'cook')`, /ingredient_names_lang_name_idx/)
+    await assert.rejects(() => sql`INSERT INTO ingredient_names (ingredient_id, lang, name, is_main, confirmed, source) VALUES (${flour}, 'de', 'Mehlchen', true, false, 'cook')`, /check/)
+    const close = await sql`SELECT name FROM ingredient_names WHERE lower(name) OPERATOR(public.%) 'weizenmehle'`
+    assert.deepEqual(close.map(row => row.name), ['Weizenmehl'])
+  })
+
+  test('a density needs its source', async () => {
+    await assert.rejects(() => sql`INSERT INTO ingredients (density_g_per_ml) VALUES (1)`, /check/)
   })
 })
