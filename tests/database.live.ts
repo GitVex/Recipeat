@@ -1297,15 +1297,15 @@ describe('preferences', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, 
   })
 
   test('nothing saved reads as nothing set', async () => {
-    assert.deepEqual(await readPreferences(db, 'nobody'), { unitSystem: null, portions: null, paperNudge: null })
+    assert.deepEqual(await readPreferences(db, 'nobody'), { unitSystem: null, portions: null, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
   })
 
   test('a save replaces the whole set, per owner', async () => {
-    assert.deepEqual(await writePreferences(db, 'user_a', { unitSystem: 'imperial', portions: 4, paperNudge: null }), { unitSystem: 'imperial', portions: 4, paperNudge: null })
-    await writePreferences(db, 'user_b', { unitSystem: 'metric', portions: null, paperNudge: null })
-    assert.deepEqual(await writePreferences(db, 'user_a', { unitSystem: null, portions: 2, paperNudge: null }), { unitSystem: null, portions: 2, paperNudge: null })
-    assert.deepEqual(await readPreferences(db, 'user_a'), { unitSystem: null, portions: 2, paperNudge: null })
-    assert.deepEqual(await readPreferences(db, 'user_b'), { unitSystem: 'metric', portions: null, paperNudge: null })
+    assert.deepEqual(await writePreferences(db, 'user_a', { unitSystem: 'imperial', portions: 4, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null }), { unitSystem: 'imperial', portions: 4, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
+    await writePreferences(db, 'user_b', { unitSystem: 'metric', portions: null, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
+    assert.deepEqual(await writePreferences(db, 'user_a', { unitSystem: null, portions: 2, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null }), { unitSystem: null, portions: 2, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
+    assert.deepEqual(await readPreferences(db, 'user_a'), { unitSystem: null, portions: 2, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
+    assert.deepEqual(await readPreferences(db, 'user_b'), { unitSystem: 'metric', portions: null, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
     const [{ n }] = await sql<{ n: number }[]>`SELECT count(*)::int AS n FROM preferences WHERE owner_sub = 'user_a'`
     assert.equal(n, 1)
   })
@@ -1318,10 +1318,10 @@ describe('preferences', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, 
   test('stored settings read as the config has them now', async () => {
     // A key it no longer has, and values it would not take: left out, and unset.
     await sql`INSERT INTO preferences (owner_sub, settings) VALUES ('user_d', ${{ stove: 'gas', unitSystem: 'si', portions: 4 }}::jsonb)`
-    assert.deepEqual(await readPreferences(db, 'user_d'), { unitSystem: null, portions: 4, paperNudge: null })
-    await writePreferences(db, 'user_d', { unitSystem: 'metric', portions: 4, paperNudge: null })
+    assert.deepEqual(await readPreferences(db, 'user_d'), { unitSystem: null, portions: 4, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
+    await writePreferences(db, 'user_d', { unitSystem: 'metric', portions: 4, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
     const [{ settings }] = await sql<{ settings: unknown }[]>`SELECT settings FROM preferences WHERE owner_sub = 'user_d'`
-    assert.deepEqual(settings, { unitSystem: 'metric', portions: 4, paperNudge: null })
+    assert.deepEqual(settings, { unitSystem: 'metric', portions: 4, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
   })
 })
 

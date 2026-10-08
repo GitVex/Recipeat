@@ -71,7 +71,7 @@ test('preferences are saved to the account as they change', async ({ page }) => 
   await page.route('**/api/me', route => route.fulfill({ json: me }))
   await page.route('**/api/recipes', route => route.fulfill({ json: { recipes: [] } }))
   await page.route('**/api/preferences', (route) => {
-    if (route.request().method() === 'GET') return route.fulfill({ json: { preferences: { unitSystem: null, portions: null, paperNudge: null } } })
+    if (route.request().method() === 'GET') return route.fulfill({ json: { preferences: { unitSystem: null, portions: null, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null } } })
     const body = route.request().postDataJSON()
     writes.push(body)
     return route.fulfill({ json: { preferences: body } })
@@ -85,7 +85,7 @@ test('preferences are saved to the account as they change', async ({ page }) => 
   await preferences.getByRole('spinbutton', { name: 'Servings' }).fill('4')
   await preferences.getByRole('spinbutton', { name: 'Servings' }).press('Enter')
   await expect.poll(() => writes.length).toBe(2)
-  expect(writes).toEqual([{ unitSystem: 'imperial', portions: null, paperNudge: null }, { unitSystem: 'imperial', portions: 4, paperNudge: null }])
+  expect(writes).toEqual([{ unitSystem: 'imperial', portions: null, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null }, { unitSystem: 'imperial', portions: 4, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null }])
   await page.screenshot({ path: 'test-results/profile-preferences.png', fullPage: true })
 })
 
@@ -93,7 +93,7 @@ test('a preference that does not save says so, and shows what is saved', async (
   await page.route('**/api/me', route => route.fulfill({ json: me }))
   await page.route('**/api/recipes', route => route.fulfill({ json: { recipes: [] } }))
   await page.route('**/api/preferences', route => route.request().method() === 'GET'
-    ? route.fulfill({ json: { preferences: { unitSystem: 'metric', portions: 2, paperNudge: null } } })
+    ? route.fulfill({ json: { preferences: { unitSystem: 'metric', portions: 2, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null } } })
     : route.fulfill({ status: 500, json: {} }))
   await visit(page)
   const preferences = page.getByRole('region', { name: 'Preferences' })
@@ -102,4 +102,111 @@ test('a preference that does not save says so, and shows what is saved', async (
   await expect(preferences.getByRole('status')).toHaveText('That didn’t save. Try again.')
   await expect(preferences.getByRole('radio', { name: 'Metric' })).toBeChecked()
   await expect(preferences.getByRole('spinbutton', { name: 'Servings' })).toHaveValue('2')
+})
+
+// Themes (#87): a whole look, switched with no reload.
+const theme = (page: Page) => page.locator('html').getAttribute('data-theme')
+
+test('a theme chosen on the account changes the look at once and is saved', async ({ page }) => {
+  const writes: unknown[] = []
+  await page.route('**/api/me', route => route.fulfill({ json: me }))
+  await page.route('**/api/recipes', route => route.fulfill({ json: { recipes: [] } }))
+  await page.route('**/api/preferences', (route) => {
+    if (route.request().method() === 'GET') return route.fulfill({ json: { preferences: { unitSystem: null, portions: null, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null } } })
+    writes.push(route.request().postDataJSON())
+    return route.fulfill({ json: { preferences: route.request().postDataJSON() } })
+  })
+  await visit(page)
+  const preferences = page.getByRole('region', { name: 'Preferences' })
+  await expect(preferences.getByRole('radio', { name: 'Kitchen notebook' })).toBeChecked()
+  expect(await theme(page)).toBeNull()
+  const before = await page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor)
+  await preferences.getByRole('radio', { name: 'Crate Label' }).check()
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'crate-label')
+  await expect(page.locator('link[href*="Rokkitt"]')).toHaveCount(1)
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--font-display'))).toContain('Rokkitt')
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor)).not.toBe(before)
+  expect(writes).toEqual([{ unitSystem: null, portions: null, paperNudge: null, theme: 'crate-label', grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null }])
+  await page.screenshot({ path: 'test-results/profile-crate-label.png', fullPage: true })
+
+  await preferences.getByRole('radio', { name: 'Kitchen notebook' }).check()
+  await expect(page.locator('html')).not.toHaveAttribute('data-theme', /./)
+  await expect(page.locator('link[href*="Rokkitt"]')).toHaveCount(0)
+})
+
+test('signed out, a theme is kept in a cookie and rendered by the server', async ({ page }) => {
+  await page.goto('/profile')
+  await page.waitForFunction(() => !!(document.querySelector('#__nuxt') as any)?.__vue_app__)
+  await page.getByRole('radio', { name: 'Crate Label' }).check()
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'crate-label')
+  expect((await page.context().cookies()).find(c => c.name === 'recipeat-theme')?.value).toBe('crate-label')
+
+  // The page arrives themed: no default first.
+  const html = await (await page.request.get('/')).text()
+  expect(html).toMatch(/<html[^>]*data-theme="crate-label"/)
+  expect(html).toContain('Rokkitt')
+  await page.reload()
+  await expect(page.getByRole('radio', { name: 'Crate Label' })).toBeChecked()
+
+  await page.getByRole('radio', { name: 'Kitchen notebook' }).check()
+  await expect(page.locator('html')).not.toHaveAttribute('data-theme', /./)
+  expect(await (await page.request.get('/')).text()).not.toMatch(/data-theme=/)
+})
+
+test('Crate Label is dark on screen, and printing stays ink on white', async ({ page }) => {
+  await page.goto('/profile')
+  await page.waitForFunction(() => !!(document.querySelector('#__nuxt') as any)?.__vue_app__)
+  await page.getByRole('radio', { name: 'Crate Label' }).check()
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'crate-label')
+  const background = () => page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor)
+  expect(await background()).toBe('rgb(20, 27, 46)')
+  await page.emulateMedia({ media: 'print' })
+  expect(await background()).toBe('rgb(255, 255, 255)')
+})
+
+test('Crate Label’s effects each switch off on their own, and only show with it', async ({ page }) => {
+  const writes: unknown[] = []
+  let preferences: Record<string, unknown> = {
+    unitSystem: null, portions: null, paperNudge: null, theme: 'crate-label',
+    grainEffect: 'off', stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null,
+  }
+  await page.route('**/api/me', route => route.fulfill({ json: me }))
+  await page.route('**/api/recipes', route => route.fulfill({ json: { recipes: [] } }))
+  await page.route('**/api/preferences', (route) => {
+    if (route.request().method() === 'PUT') writes.push(preferences = route.request().postDataJSON())
+    return route.fulfill({ json: { preferences } })
+  })
+  await visit(page)
+  const html = page.locator('html')
+  await expect(html).toHaveAttribute('data-plain', 'grain')
+  const panel = page.locator('.profile-card')
+  expect(await panel.evaluate(el => getComputedStyle(el).backgroundImage)).toBe('none')
+
+  // Folded under the Theme row until opened.
+  await expect(page.getByRole('radiogroup', { name: 'Halftone photos' })).toBeHidden()
+  await page.getByText('Crate Label effects').click()
+  const halftone = page.getByRole('radiogroup', { name: 'Halftone photos' })
+  await halftone.getByRole('radio', { name: 'Off' }).check()
+  await expect(html).toHaveAttribute('data-plain', 'grain halftone')
+  expect(writes.at(-1)).toMatchObject({ grainEffect: 'off', halftoneEffect: 'off' })
+
+  await page.getByRole('radiogroup', { name: 'Paper grain' }).getByRole('radio', { name: 'On' }).check()
+  await expect(html).toHaveAttribute('data-plain', 'halftone')
+  expect(await panel.evaluate(el => getComputedStyle(el).backgroundImage)).toContain('data:image/svg+xml')
+
+  // Banners: the notched shape is behind the button, so its focus ring is whole.
+  const signOut = page.getByRole('button', { name: 'Sign out' }).first()
+  const banner = () => signOut.evaluate(el => getComputedStyle(el, '::before').clipPath)
+  expect(await banner()).toContain('polygon')
+  expect(await signOut.evaluate(el => getComputedStyle(el).clipPath)).toBe('none')
+  await page.getByRole('radiogroup', { name: 'Tickets and banners' }).getByRole('radio', { name: 'Off' }).check()
+  await expect(html).toHaveAttribute('data-plain', 'halftone ticket')
+  expect(await banner()).toBe('none')
+
+  // The default theme has none of them, so its form does not show them.
+  await page.getByRole('radio', { name: 'Kitchen notebook' }).check()
+  await expect(html).not.toHaveAttribute('data-theme', /./)
+  await expect(html).not.toHaveAttribute('data-plain', /./)
+  await expect(page.getByText('Crate Label effects')).toHaveCount(0)
+  await expect(page.getByRole('radiogroup', { name: 'Halftone photos' })).toHaveCount(0)
 })

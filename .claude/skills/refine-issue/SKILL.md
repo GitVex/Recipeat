@@ -6,6 +6,8 @@ argument-hint: <issue number>
 
 # Refine issue #$ARGUMENTS
 
+Ask the user at least 4 questions about the plan issue
+
 1. **Read the rules and the issue.**
    - `docs/repo_rules.md`, sections "Waves" and "Issue Types", plus any section that already covers this issue's topic (search for `#$ARGUMENTS`).
    - `.github/ISSUE_TEMPLATE/work.md` for the body shape.

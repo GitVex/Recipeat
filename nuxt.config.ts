@@ -19,6 +19,11 @@ export default defineNuxtConfig({
     // SearXNG, for "Similar recipes elsewhere" (#59). No key: it's ours, on
     // recipeat-search-net. Empty turns the section into a quiet "not set up".
     searxngBaseUrl: 'http://127.0.0.1:8104',
+    public: {
+      // The filter lab (/lab/filters, #87): set NUXT_PUBLIC_LAB=1 in a
+      // checkout's .env to reach it. Unset in any deployment, where it is a 404.
+      lab: false,
+    },
   },
   modules: ['nuxt-oidc-auth'],
   oidc: {
@@ -51,7 +56,7 @@ export default defineNuxtConfig({
     // root silently matches nothing and bundles no migrations.
     serverAssets: [{ baseName: 'migrations', dir: fileURLToPath(new URL('./server/database/migrations', import.meta.url)) }],
   },
-  css: ['~/assets/main.css'],
+  css: ['~/assets/main.css', '~/assets/themes/crate-label.css'],
   app: {
     // One page fades out before the next fades in; the styles are in main.css.
     // Nested pages too, so opening another recipe in the collection crossfades.

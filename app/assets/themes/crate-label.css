@@ -1,0 +1,257 @@
+/* Crate Label (#87): a fruit-crate label at night. Night navy, aged cream,
+   mustard in the --olive-* slots and crate red in the --orange-*; they are
+   roles, not hues. Cobalt is too close to the navy to be text, so it is only
+   ever a surface or a rule.
+
+   Every selector is under :root[data-theme="crate-label"], so the default
+   look never sees any of it. Screen only: a page prints as ink on white. */
+@media screen {
+    :root[data-theme="crate-label"] {
+        color-scheme: dark;
+
+        --paper: #1c2540;
+        --cream: #141b2e;
+        --cream-deep: #182036;
+        --wash: #212b48;
+        --sage-100: #2a3556;
+
+        --line: #2c3654;
+        --line-strong: #3b4669;
+        --line-dashed: #5a6488;
+
+        --ink: #f1e6c8;
+        --ink-soft: #d3c7a6;
+        --muted: #b3a988;
+        --faint: #6f6c66;
+        --on-fill: #141b2e;
+
+        --olive: #e0b34a;
+        --olive-deep: #ecc566;
+        --olive-soft: #8a7440;
+        --olive-black: #05070d;
+        --backdrop: #05070dad;
+
+        --orange: #e3684f;
+        --orange-text: #ec7d63;
+        --orange-deep: #f29478;
+        --orange-soft: #5b2a24;
+        --orange-wash: #2c1d22;
+        --added: #2c3a24;
+
+        --tint-yellow: #3a3220;
+        --tint-yellow-ink: #e8c56a;
+        --tint-peach: #3d2622;
+        --tint-peach-ink: #f0a184;
+        --tint-green: #24321f;
+        --tint-green-ink: #a9c47c;
+        --hand-ink: #d9c9a0;
+        --hand-brown: #c09a5c;
+        --hand-star: #e0b34a;
+
+        /* Printed, not rounded. */
+        --radius-s: 2px;
+        --radius-m: 3px;
+        --radius-l: 4px;
+        --radius-xl: 4px;
+
+        --font-display: "Rokkitt", Georgia, serif;
+        --font-hero: "Rye", Georgia, serif;
+
+        /* Aged paper: a fine grain and a slower mottle, both in cream at a few
+           percent, so no text loses more than a sliver of contrast. */
+        --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='320'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .95 0 0 0 0 .9 0 0 0 0 .78 0 0 0 .045 0'/%3E%3C/filter%3E%3Cfilter id='m'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .95 0 0 0 0 .9 0 0 0 0 .78 0 0 0 .035 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23m)'/%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
+        /* Worn ink: opaque but for speckles where the noise runs high. A mask. */
+        --wear: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cfilter id='w'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.7' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -4 3.2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23w)'/%3E%3C/svg%3E");
+    }
+
+    /* Paper grain: the page and every panel on aged paper, and a printed rule
+       inset in each panel, so its border and the rule read as a label's frame.
+       An outline, so each panel keeps its own shadow; none of them take focus. */
+    :root[data-theme="crate-label"]:not([data-plain~="grain"]) {
+        background-image: var(--grain),
+            radial-gradient(ellipse at 50% 35%, transparent 45%, color-mix(in srgb, var(--olive-black) 55%, transparent));
+        background-attachment: scroll, fixed;
+
+        & :is(.modal, .profile-card, .profile-preferences, .floating-recipe, .source-note, .closing,
+              .collection-pane, .collection-state, .filter-panel, .nav-collections-panel, .lineage-key,
+              .empty-collection, .profile-recipes-state, .picker-state) {
+            background-image: var(--grain);
+            outline: 1px solid color-mix(in srgb, var(--olive) 35%, transparent);
+            outline-offset: -7px;
+        }
+    }
+    /* Stamps: tags inked like rubber stamps, and photos perforated like
+       postage. The stamp's frame is a pseudo-element worn by --wear, so the
+       label's own text and any focus ring are never masked. A perforated
+       frame's buttons were already clipped by its overflow, as before. */
+    :root[data-theme="crate-label"]:not([data-plain~="stamp"]) {
+        & :is(.tag, .history-tag:not(.pinned), .source-chip, .filter-option:not([aria-pressed="true"])) {
+            border-color: transparent;
+            border-radius: 2px;
+            color: var(--orange-text);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-weight: 600;
+            rotate: -2deg;
+        }
+        & :is(.tag, .history-tag:not(.pinned)) {
+            position: relative;
+            background: transparent;
+        }
+        & :is(.tag, .history-tag:not(.pinned)):nth-child(even) {
+            color: var(--olive);
+            rotate: 1.5deg;
+        }
+        & :is(.tag, .history-tag:not(.pinned), .source-chip, .filter-option:not([aria-pressed="true"]))::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border: 1.5px solid currentColor;
+            border-radius: 2px;
+            mask-image: var(--wear);
+            mask-size: 90px;
+            pointer-events: none;
+        }
+        & .filter-option:not([aria-pressed="true"]) {
+            position: relative;
+        }
+
+        /* A cream margin with holes punched along its edge, the photo inside. */
+        & :is(.recipe-thumb:not(.blank), .recipe-image-wrap, .photo-frame) {
+            --hole: 4px;
+            padding: var(--hole);
+            background: var(--ink);
+            border-radius: 0;
+            mask:
+                linear-gradient(#000 0 0) content-box,
+                radial-gradient(circle, #0000 calc(var(--hole) * 0.45), #000 calc(var(--hole) * 0.5))
+                    calc(var(--hole) * -1) calc(var(--hole) * -1) / calc(var(--hole) * 2) calc(var(--hole) * 2) round;
+        }
+        & :is(.recipe-image-wrap, .photo-frame) {
+            --hole: 7px;
+        }
+        & :is(.recipe-thumb, .recipe-image-wrap, .photo-frame) img {
+            border-radius: 0;
+        }
+    }
+
+    /* Misprinted titles: the second ink laid a little off, red behind cream
+       and mustard behind red. Display sizes only. */
+    :root[data-theme="crate-label"]:not([data-plain~="misprint"]) {
+        & :is(h1, h2) {
+            text-shadow: 0.05em 0.04em 0 color-mix(in srgb, var(--orange) 50%, transparent);
+        }
+        & :is(h1, h2) em {
+            text-shadow: 0.05em 0.04em 0 color-mix(in srgb, var(--olive) 50%, transparent);
+        }
+    }
+
+    /* Halftone photos: each photo printed as a riso, four inks in dots on cream
+       paper (HalftoneFilter.vue), the true photo under the pointer or focus. A
+       recipe's source page (.source-photo) is read for its words, so it is
+       never screened. */
+    :root[data-theme="crate-label"]:not([data-plain~="halftone"]) {
+        & :is(.recipe-thumb, .image-open, .photo-frame, .photo-open) img,
+        & .detail-image {
+            filter: url(#crate-halftone) sepia(0.2);
+            /* Each photo on a layer of its own, so scrolling moves the print
+               rather than printing it again: 83 of 149 scroll frames ran long
+               over sixty thumbnails without it, 1 with it.
+               ponytail: a list still pays about 60 ms to print sixty thumbnails
+               when it first appears (about 280 ms at a quarter of the CPU); give
+               thumbnails a lighter filter if that shows on phones. */
+            will-change: transform;
+        }
+        & :is(.recipe-thumb, .photo-frame) img:hover,
+        & :is(.image-open, .photo-open, a):is(:hover, :focus-visible) img,
+        & .detail-image:hover {
+            filter: none;
+        }
+    }
+
+    /* Tickets and banners: notices torn like ticket stubs, buttons cut like a
+       label's banner. The shape is a ::before behind the content, never the
+       element, because a mask or clip-path also cuts away the element's focus
+       ring; the import dialog takes no focus ring and is cut directly. */
+    :root[data-theme="crate-label"]:not([data-plain~="ticket"]) {
+        & :is(.toast, .paper-nudge) {
+            --tooth: 5px;
+            isolation: isolate;
+            background: transparent;
+            box-shadow: none;
+        }
+        & .toast {
+            padding-block: 19px;
+            filter: drop-shadow(0 10px 18px color-mix(in srgb, var(--olive-black) 45%, transparent));
+        }
+        & .paper-nudge {
+            position: relative;
+            margin: 0 0 18px;
+            padding: 14px 18px;
+        }
+        /* The serration: teeth --tooth deep, top and bottom. */
+        & :is(.toast, .paper-nudge)::before,
+        & .import-modal {
+            mask:
+                conic-gradient(from 135deg at top, #0000, #000 1deg 89deg, #0000 90deg) top / calc(2 * var(--tooth)) 51% repeat-x,
+                conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / calc(2 * var(--tooth)) 51% repeat-x;
+        }
+        & :is(.toast, .paper-nudge)::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: -1;
+        }
+        & .toast::before {
+            background: var(--olive);
+        }
+        & .paper-nudge::before {
+            background: var(--wash);
+        }
+
+        & .import-modal {
+            --tooth: 6px;
+            padding-block: 46px;
+        }
+
+        /* A swallowtail at each end, the banner a crate label's name rides on. */
+        & .button {
+            --notch: 9px;
+            position: relative;
+            isolation: isolate;
+            background: transparent;
+            padding-inline: calc(23px + var(--notch));
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-weight: 600;
+        }
+        & .button.small {
+            --notch: 7px;
+            padding-inline: calc(17px + var(--notch));
+        }
+        & .button::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: -1;
+            background: var(--olive);
+            clip-path: polygon(0 0, 100% 0, calc(100% - var(--notch)) 50%, 100% 100%, 0 100%, var(--notch) 50%);
+            transition: background var(--dur-exit);
+        }
+        & .button:hover::before {
+            background: var(--olive-deep);
+        }
+        & .button.destructive::before {
+            background: var(--orange);
+        }
+    }
+
+    /* Over a photo, not a fill: stays light. */
+    :root[data-theme="crate-label"] .photo-caption {
+        color: var(--ink);
+    }
+    /* Rye is wide and already spaced; the default's tight tracking is for Playfair. */
+    :root[data-theme="crate-label"] h1 {
+        letter-spacing: 0;
+    }
+}
