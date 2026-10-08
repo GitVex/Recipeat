@@ -62,6 +62,9 @@ services:
       NUXT_OIDC_SESSION_SECRET: ${NUXT_OIDC_SESSION_SECRET:?required}
       NUXT_OIDC_AUTH_SESSION_SECRET: ${NUXT_OIDC_AUTH_SESSION_SECRET:?required}
       NUXT_OIDC_TOKEN_KEY: ${NUXT_OIDC_TOKEN_KEY:?required}
+      # The filter lab, a development page: 1 in a checkout's .env, and left
+      # unset in a deployment, where /lab/filters is a 404.
+      NUXT_PUBLIC_LAB: ${NUXT_PUBLIC_LAB:-}
     volumes:
       # The OIDC session store. Without it every restart signs everyone out.
       - app-data:/app/.data

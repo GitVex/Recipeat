@@ -4,6 +4,7 @@ import {
   PREFERENCE_KEYS,
   PREFERENCES,
   type PreferenceKey,
+  type PreferenceSpec,
   type Preferences,
 } from "#shared/utils/preferences";
 
@@ -54,6 +55,14 @@ function showSaved() {
 }
 watch(preferences, showSaved, { immediate: true });
 const saving = ref<"saving" | "saved" | "failed" | null>(null);
+// A theme's own switches (#87) sit folded under the Theme row, and only while
+// that theme is the one picked.
+const ENTRIES = Object.entries(PREFERENCES) as [PreferenceKey, PreferenceSpec][];
+const topPreferences = ENTRIES.filter(([, spec]) => !spec.theme);
+const themeEffects = computed(() => ENTRIES.filter(([, spec]) => spec.theme && spec.theme === form.theme));
+const themeName = computed(
+  () => PREFERENCES.theme.options.find((option) => option.value === form.theme)?.label,
+);
 async function savePreferences() {
   // Anything a preference may not hold — an empty or out-of-range number —
   // is unset, as each row's description says.
@@ -77,6 +86,10 @@ async function savePreferences() {
   }
   showSaved();
 }
+
+// Signed out, the theme is the one preference there is, kept in a cookie (#87).
+const { theme, choose: chooseTheme } = useTheme();
+const themeSpec = PREFERENCES.theme;
 
 // The page says "signed out" to a person, and the response says it to
 // everything else.
@@ -104,6 +117,27 @@ useHead(() => ({
       <button class="button" @click="login('zitadel')">
         Sign in <AppIcon name="arrow" />
       </button>
+      <div class="preference-row profile-theme">
+        <div class="preference-key">
+          <span id="preference-theme-label" class="preference-name">{{ themeSpec.label }}</span>
+          <span class="preference-hint">{{ themeSpec.description }}</span>
+        </div>
+        <div class="preference-value preference-options" role="radiogroup" aria-labelledby="preference-theme-label">
+          <label
+            v-for="option in [{ value: null, label: themeSpec.unset }, ...themeSpec.options]"
+            :key="option.label"
+            class="preference-option"
+          >
+            <input
+              type="radio"
+              name="theme"
+              :checked="theme === option.value"
+              @change="chooseTheme(option.value)"
+            />
+            {{ option.label }}
+          </label>
+        </div>
+      </div>
     </div>
 
     <div v-else-if="failure" class="collection-state" role="alert">
@@ -138,54 +172,20 @@ useHead(() => ({
         <h2 id="profile-preferences-heading">Preferences</h2>
         <form @submit.prevent>
           <fieldset class="preference-list" :disabled="!preferences">
-            <div v-for="(spec, key) in PREFERENCES" :key="key" class="preference-row">
-              <div class="preference-key">
-                <label
-                  :id="`preference-${key}-label`"
-                  :for="spec.kind === 'number' ? `preference-${key}` : undefined"
-                  class="preference-name"
-                  >{{ spec.label }}</label
-                >
-                <span :id="`preference-${key}-hint`" class="preference-hint">{{
-                  spec.description
-                }}</span>
-              </div>
-              <div
-                v-if="spec.kind === 'choice'"
-                class="preference-value preference-options"
-                role="radiogroup"
-                :aria-labelledby="`preference-${key}-label`"
-                :aria-describedby="`preference-${key}-hint`"
-              >
-                <label
-                  v-for="option in [{ value: '', label: spec.unset }, ...spec.options]"
-                  :key="option.value"
-                  class="preference-option"
-                >
-                  <input
-                    v-model="form[key]"
-                    type="radio"
-                    :name="key"
-                    :value="option.value"
-                    @change="savePreferences"
-                  />
-                  {{ option.label }}
-                </label>
-              </div>
-              <div v-else class="preference-value">
-                <input
-                  :id="`preference-${key}`"
-                  v-model="form[key]"
-                  type="number"
-                  :min="spec.min"
-                  :max="spec.max"
-                  step="1"
-                  :placeholder="spec.unset"
-                  :aria-describedby="`preference-${key}-hint`"
+            <template v-for="[key, spec] in topPreferences" :key="key">
+              <PreferenceRow v-model="form[key]" :name="key" :spec="spec" @change="savePreferences" />
+              <details v-if="key === 'theme' && themeEffects.length" class="preference-effects">
+                <summary>{{ themeName }} effects</summary>
+                <PreferenceRow
+                  v-for="[effect, effectSpec] in themeEffects"
+                  :key="effect"
+                  v-model="form[effect]"
+                  :name="effect"
+                  :spec="effectSpec"
                   @change="savePreferences"
                 />
-              </div>
-            </div>
+              </details>
+            </template>
           </fieldset>
           <p class="preference-status" role="status">
             <template v-if="preferencesRequest.error.value">Preferences aren’t available on this server.</template>

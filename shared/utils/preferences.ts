@@ -3,7 +3,7 @@
 // follow from this. Null is always allowed, and is `unset`.
 //
 // Read them anywhere with usePreferences().
-type Common = { label: string; description: string; unset: string };
+type Common = { label: string; description: string; unset: string; theme?: string };
 export type PreferenceSpec =
   | (Common & { kind: "choice"; options: readonly { value: string; label: string }[] })
   | (Common & { kind: "number"; min: number; max: number });
@@ -35,6 +35,56 @@ export const PREFERENCES = {
     description: "After a new version, a line suggesting it may deserve a page in your notebook.",
     unset: "Suggest it",
     options: [{ value: "off", label: "Don’t suggest it" }],
+  },
+  // A whole look (#87): app/assets/themes/<value>.css. Unset is the default.
+  theme: {
+    kind: "choice",
+    label: "Theme",
+    description: "How Recipeat looks.",
+    unset: "Kitchen notebook",
+    options: [{ value: "crate-label", label: "Crate Label" }],
+  },
+  // Crate Label's print effects (#87), each one its own switch. Unset is on.
+  // `theme` is the theme they belong to: the profile shows them only with it.
+  grainEffect: {
+    kind: "choice",
+    theme: "crate-label",
+    label: "Paper grain",
+    description: "Aged paper behind the page, and a printed rule inside each panel.",
+    unset: "On",
+    options: [{ value: "off", label: "Off" }],
+  },
+  stampEffect: {
+    kind: "choice",
+    theme: "crate-label",
+    label: "Stamps",
+    description: "Tags inked like rubber stamps, photos perforated like postage.",
+    unset: "On",
+    options: [{ value: "off", label: "Off" }],
+  },
+  misprintEffect: {
+    kind: "choice",
+    theme: "crate-label",
+    label: "Misprinted titles",
+    description: "A second ink a little off behind the large titles.",
+    unset: "On",
+    options: [{ value: "off", label: "Off" }],
+  },
+  halftoneEffect: {
+    kind: "choice",
+    theme: "crate-label",
+    label: "Halftone photos",
+    description: "Photos printed like a riso, four inks in dots, true colour under the pointer. Source pages are never touched.",
+    unset: "On",
+    options: [{ value: "off", label: "Off" }],
+  },
+  ticketEffect: {
+    kind: "choice",
+    theme: "crate-label",
+    label: "Tickets and banners",
+    description: "Notices torn like ticket stubs, buttons cut like label banners.",
+    unset: "On",
+    options: [{ value: "off", label: "Off" }],
   },
 } as const satisfies Record<string, PreferenceSpec>;
 

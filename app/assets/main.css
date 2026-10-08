@@ -83,7 +83,13 @@
     --hand-brown: #9a835d;
     --hand-star: #ad784b;
 
-    font-family: "DM Sans", sans-serif;
+    /* Families. A theme's own fonts load only when it is chosen (useTheme). */
+    --font-body: "DM Sans", sans-serif;
+    --font-display: "Playfair Display", Georgia, serif;
+    /* The landing page's one big heading. */
+    --font-hero: var(--font-display);
+
+    font-family: var(--font-body);
     color: var(--ink);
     background: var(--cream);
     font-synthesis: none;
@@ -120,7 +126,8 @@ button {
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
-textarea:focus-visible {
+textarea:focus-visible,
+summary:focus-visible {
     outline: 3px solid var(--orange);
     outline-offset: 5px;
 }
@@ -255,7 +262,7 @@ li.nav-collections-more {
 .nav-collection-name {
     flex: 1;
     min-width: 0;
-    font-family: "Playfair Display", Georgia, serif;
+    font-family: var(--font-display);
     font-size: var(--text-ui);
     color: var(--ink);
     overflow: hidden;
@@ -351,7 +358,7 @@ h3 {
 h1,
 h2,
 .floating-recipe h3 {
-    font-family: "Playfair Display", Georgia, serif;
+    font-family: var(--font-display);
     font-weight: 400;
 }
 h1 {
@@ -361,6 +368,9 @@ h1 {
     margin: 22px 0;
     position: relative;
     width: max-content;
+}
+.hero h1 {
+    font-family: var(--font-hero);
 }
 h1 em,
 h2 em {
@@ -583,7 +593,7 @@ h2 em {
     position: absolute;
     right: 8px;
     top: 477px;
-    font-family: "Playfair Display", Georgia, serif;
+    font-family: var(--font-display);
     font-style: italic;
     font-size: var(--text-ui);
     color: var(--hand-ink);
@@ -700,7 +710,7 @@ h2 {
     color: var(--tint-yellow-ink);
 }
 .step-number {
-    font-family: "Playfair Display", serif;
+    font-family: var(--font-display);
     font-size: var(--title-l);
     color: var(--line-strong);
 }
@@ -800,7 +810,7 @@ h2 {
 }
 .recipe-title {
     display: block;
-    font-family: "Playfair Display", serif;
+    font-family: var(--font-display);
     font-size: var(--title-m);
     letter-spacing: -0.4px;
     padding: 0;
@@ -2351,7 +2361,7 @@ input.editable-input {
     min-width: 0;
 }
 .entry-title {
-    font-family: "Playfair Display", Georgia, serif;
+    font-family: var(--font-display);
     font-size: var(--title-s);
     letter-spacing: -0.3px;
     overflow: hidden;
@@ -2516,7 +2526,7 @@ input.editable-input {
 }
 .filter-heading {
     margin: 0 0 8px;
-    font-family: "DM Sans", sans-serif;
+    font-family: var(--font-body);
     font-size: var(--text-eyebrow);
     font-weight: 500;
     letter-spacing: 1.7px;
@@ -2611,7 +2621,7 @@ input.editable-input {
     object-fit: cover;
 }
 .thumb-initial {
-    font-family: "Playfair Display", Georgia, serif;
+    font-family: var(--font-display);
     font-size: var(--title-m);
     text-transform: uppercase;
 }
@@ -2759,13 +2769,13 @@ input.editable-input {
     align-items: center;
     gap: 4px 14px;
     margin: -6px 0 18px;
-    font-family: "Playfair Display", Georgia, serif;
+    font-family: var(--font-display);
     font-style: italic;
     font-size: var(--text-ui);
     color: var(--hand-ink);
 }
 .paper-nudge .text-button {
-    font-family: "DM Sans", sans-serif;
+    font-family: var(--font-body);
     font-style: normal;
     font-size: var(--text-small);
     padding-bottom: 2px;
@@ -2943,7 +2953,7 @@ input.editable-input {
     border-radius: var(--radius-s);
     background: var(--paper);
     color: var(--ink);
-    font-family: "Playfair Display", Georgia, serif;
+    font-family: var(--font-display);
     font-size: var(--title-s);
     margin-bottom: 8px;
 }
@@ -3481,7 +3491,7 @@ input.editable-input {
     color: var(--muted);
 }
 .history-title {
-    font-family: "Playfair Display", Georgia, serif;
+    font-family: var(--font-display);
     font-size: var(--text-ui);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -3605,7 +3615,7 @@ a.history-title:hover {
     border-radius: 50%;
     background: var(--olive);
     color: var(--on-fill);
-    font-family: "Playfair Display", Georgia, serif;
+    font-family: var(--font-display);
     font-size: var(--title-l);
 }
 .profile-card .eyebrow {
@@ -3650,7 +3660,7 @@ a.history-title:hover {
     font-size: var(--title-m);
 }
 .profile-recipes-heading h2 .count {
-    font-family: "DM Sans", sans-serif;
+    font-family: var(--font-body);
 }
 .profile-recipes-state {
     padding: 30px 20px;
@@ -3698,6 +3708,155 @@ a.history-title:hover {
 .preference-row + .preference-row {
     border-top: 1px solid var(--line);
 }
+/* Holds the halftone's SVG filters (#87); takes no room. */
+.halftone-filters {
+    position: absolute;
+}
+/* The filter lab (/lab/filters, #87): development only. */
+.lab {
+    padding: 40px 0 80px;
+}
+.lab-title {
+    font-size: var(--title-l);
+    width: auto;
+}
+.lab-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
+    gap: 32px;
+    align-items: start;
+}
+.lab-controls {
+    display: grid;
+    gap: 16px;
+    position: sticky;
+    top: 20px;
+}
+.lab-field {
+    display: grid;
+    gap: 6px;
+    font-size: var(--text-small);
+    color: var(--muted);
+}
+.lab-field :is(input, select, textarea) {
+    padding: 9px 11px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-s);
+    background: var(--paper);
+    color: var(--ink);
+    font-size: var(--text-small);
+}
+.lab-field span {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+}
+.lab-field output {
+    color: var(--ink);
+}
+.lab-field input[type="range"] {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    accent-color: var(--olive);
+}
+.lab-riso {
+    display: grid;
+    gap: 14px;
+    margin: 0;
+    padding: 16px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-m);
+}
+.lab-riso legend {
+    padding: 0 6px;
+    font-size: var(--text-small);
+    color: var(--olive);
+}
+.lab-riso .text-button {
+    justify-self: start;
+}
+.lab-inks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+}
+.lab-ink {
+    display: grid;
+    justify-items: center;
+    gap: 4px;
+    font-size: var(--text-meta);
+    color: var(--muted);
+    text-transform: capitalize;
+}
+.lab-ink input {
+    width: 40px;
+    height: 32px;
+    padding: 2px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-s);
+    background: var(--paper);
+}
+.lab-source {
+    font-family: ui-monospace, monospace;
+    font-size: var(--text-meta);
+    line-height: 1.5;
+    resize: vertical;
+}
+.lab-applied {
+    font-size: var(--text-meta);
+    color: var(--muted);
+    overflow-wrap: anywhere;
+}
+.lab-previews {
+    display: grid;
+    gap: 28px;
+    min-width: 0;
+}
+.lab-preview {
+    margin: 0;
+}
+.lab-preview figcaption {
+    margin-bottom: 8px;
+    font-size: var(--text-eyebrow);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+.lab-pair {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 16px;
+    border-radius: var(--radius-m);
+}
+.lab-pair img {
+    max-width: 100%;
+    object-fit: cover;
+    display: block;
+}
+@media (max-width: 800px) {
+    .lab-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .lab-controls {
+        position: static;
+    }
+}
+/* A theme's own switches, folded under the Theme row. */
+.preference-effects {
+    border-top: 1px solid var(--line);
+    padding-left: 18px;
+}
+.preference-effects summary {
+    padding: 14px 0;
+    cursor: pointer;
+    font-size: var(--text-small);
+    color: var(--olive);
+}
+.preference-effects .preference-row:first-of-type {
+    border-top: 1px solid var(--line);
+}
 .preference-key {
     display: grid;
     gap: 3px;
@@ -3716,6 +3875,13 @@ a.history-title:hover {
 }
 .preference-value {
     justify-self: end;
+}
+/* Signed out, the theme alone, under the sign-in. */
+.profile-theme {
+    max-width: 480px;
+    margin: 36px auto 0;
+    border-top: 1px solid var(--line-strong);
+    text-align: left;
 }
 .preference-options {
     display: flex;
@@ -3876,7 +4042,7 @@ a.history-title:hover {
     color: var(--muted);
 }
 .lineage-title {
-    font-family: "Playfair Display", Georgia, serif;
+    font-family: var(--font-display);
     font-size: var(--title-s);
     line-height: 1.3;
     overflow-wrap: anywhere;

@@ -56,6 +56,12 @@ function signInToAdd(recipe: ExtractedRecipe) {
   stashRecipe(recipe);
   login("zitadel");
 }
+
+const { theme, plain, font } = useTheme();
+useHead(() => ({
+  htmlAttrs: { "data-theme": theme.value ?? undefined, "data-plain": plain.value ?? undefined },
+  link: font.value ? [{ rel: "stylesheet", href: font.value }] : [],
+}));
 </script>
 
 <template>
@@ -65,6 +71,7 @@ function signInToAdd(recipe: ExtractedRecipe) {
       <NuxtPage />
     </main>
     <SiteFooter />
+    <HalftoneFilter v-if="theme === 'crate-label' && !plain?.split(' ').includes('halftone')" />
     <Transition name="toast">
       <div v-if="toast" class="toast" role="status">
         <AppIcon name="check" :size="18" />{{ toast }}
