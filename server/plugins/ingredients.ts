@@ -1,11 +1,15 @@
 import { drainQueue } from '../ingredients/match.ts'
+import { lookUpDue } from '../ingredients/lookup.ts'
 
 // Matches saved recipes' lines against the ingredient store (#172), off the
 // request path. A save queues its recipe and notifies; this wakes on that, and
 // on an interval for a notify that was missed, a pass that failed, or a
-// database that was away.
+// database that was away. After each round, entries cooks made get their
+// names and density looked up (#174), on their own so a slow search never
+// holds up matching.
 export default defineNitroPlugin((nitroApp) => {
-  const { ingredientWorkers, ingredientScanMinutes } = useRuntimeConfig()
+  const config = useRuntimeConfig()
+  const { ingredientWorkers, ingredientScanMinutes } = config
   if (!ingredientWorkers) return
   let timer: ReturnType<typeof setInterval> | undefined
   let unlisten: (() => Promise<void>) | undefined
@@ -27,7 +31,21 @@ export default defineNitroPlugin((nitroApp) => {
         const results = await Promise.allSettled(Array.from({ length: ingredientWorkers }, () => drainQueue(sql)))
         for (const result of results) if (result.status === 'rejected') console.error('[ingredients] matching failed', result.reason)
       } while (again && !closed)
+      lookUp()
     })().finally(() => { running = undefined })
+  }
+
+  // Tries due since the last lookups ran; at start, since a scan ago, so
+  // what was made while the app restarted isn't missed.
+  let since = new Date(Date.now() - ingredientScanMinutes * 60_000)
+  let looking = false
+  const lookUp = () => {
+    if (looking || closed) return
+    looking = true
+    lookUpDue(useDatabase(), since, config)
+      .then((now) => { since = now })
+      .catch(error => console.error('[ingredients] lookups failed', error))
+      .finally(() => { looking = false })
   }
 
   migrated.then(async (ready) => {

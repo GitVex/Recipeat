@@ -113,7 +113,7 @@ export type IngredientNamesTable = {
   name: string
   is_main: Generated<boolean>
   confirmed: boolean
-  source: 'off' | 'cook' | 'searxng'
+  source: 'off' | 'cook' | 'searxng' | 'wikidata'
   added_by: string | null
   created_at: Generated<Date>
 }

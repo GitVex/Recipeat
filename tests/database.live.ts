@@ -16,6 +16,7 @@ import { readFilters } from '../shared/utils/recipeFilters.ts'
 import { readPortions, seedIngredients } from '../scripts/seed-ingredients.ts'
 import { drainQueue, MATCHED, matchNext } from '../server/ingredients/match.ts'
 import { answerQuestion, readQuestions } from '../server/ingredients/answer.ts'
+import { lookUpDue } from '../server/ingredients/lookup.ts'
 
 // The half of the runner that needs a database. Everything here happens inside
 // a schema of its own, so a development database keeps its own
@@ -1874,5 +1875,145 @@ describe('ingredient matching', { skip: url ? false : 'NUXT_DATABASE_URL is not 
     } finally {
       await unlisten()
     }
+  })
+})
+
+describe('ingredient lookups', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () => {
+  const SCHEMA = 'lookup_check'
+  let admin: Sql
+  let sql: Sql
+  const config = { searxngBaseUrl: 'http://searx.test', ingredientLookupBaseMinutes: 5 }
+
+  before(async () => {
+    admin = postgres(url!, { max: 1, onnotice: () => {} })
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin`CREATE SCHEMA ${admin(SCHEMA)}`
+    sql = postgres(url!, { max: 4, onnotice: () => {}, connection: { search_path: SCHEMA } })
+    await applyMigrations(sql, migrations(...STORE))
+  })
+
+  after(async () => {
+    await sql?.end()
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin?.end()
+  })
+
+  // An entry a cook made `minutes` ago under `name`, as matching makes one;
+  // `by` null is a seeded one.
+  async function made(name: string, minutes: number, by: string | null = 'user_a') {
+    const [{ id }] = await sql<{ id: string }[]>`
+      INSERT INTO ingredients (created_by, created_at) VALUES (${by}, now() - ${minutes} * interval '1 minute') RETURNING id`
+    await sql`INSERT INTO ingredient_names (ingredient_id, lang, name, is_main, confirmed, source, added_by)
+      VALUES (${id}, 'en', ${name}, true, true, ${by ? 'cook' : 'off'}, ${by})`
+    return id
+  }
+  const ago = async (minutes: number) => (await sql<{ t: Date }[]>`SELECT now() - ${minutes} * interval '1 minute' AS t`)[0]!.t
+  // Wikidata and SearXNG answering as given; null is down. Counts the calls.
+  function sources(names: Record<string, string> | null, snippet: string | null) {
+    const calls = { wikidata: 0, searxng: 0 }
+    const fetcher = (async (input: URL) => {
+      if (input.host === 'www.wikidata.org') {
+        calls.wikidata++
+        if (!names) return new Response('', { status: 503 })
+        return new Response(JSON.stringify(input.searchParams.get('action') === 'wbsearchentities'
+          ? { search: [{ id: 'Q1' }] }
+          : { entities: { Q1: { labels: Object.fromEntries(Object.entries(names).map(([language, value]) => [language, { language, value }])) } } }))
+      }
+      calls.searxng++
+      if (snippet === null) throw new Error('connection refused')
+      return new Response(JSON.stringify({ results: [
+        { url: 'https://a.com/', title: 'Something', content: 'No figure.' },
+        { url: 'https://b.com/density', title: 'Density', content: snippet },
+      ] }))
+    }) as typeof fetch
+    return { calls, fetcher }
+  }
+  const namesOf = (id: string) => sql`SELECT lang, name, is_main, confirmed, source FROM ingredient_names WHERE ingredient_id = ${id} ORDER BY lang`
+  const densityOf = async (id: string) => ({ ...(await sql`SELECT density_g_per_ml::float AS value, density_source, density_ref FROM ingredients WHERE id = ${id}`)[0] })
+  const none = { value: null, density_source: null, density_ref: null }
+
+  test('a new entry gets unconfirmed names in other languages and a density with its address', async () => {
+    const since = await ago(1)
+    const id = await made('nutmeg', 0)
+    await lookUpDue(sql, since, config, sources({ en: 'nutmeg', de: 'Muskatnuss', fr: 'noix de muscade' }, 'Ground nutmeg: 0.47 g/ml.').fetcher)
+    assert.deepEqual([...await namesOf(id)].map(row => ({ ...row })), [
+      { lang: 'de', name: 'Muskatnuss', is_main: false, confirmed: false, source: 'wikidata' },
+      { lang: 'en', name: 'nutmeg', is_main: true, confirmed: true, source: 'cook' },
+      { lang: 'fr', name: 'noix de muscade', is_main: false, confirmed: false, source: 'wikidata' },
+    ])
+    assert.deepEqual(await densityOf(id), { value: 0.47, density_source: 'searxng', density_ref: 'https://b.com/density' })
+    // Found both: not looked up again, whatever is due.
+    const again = sources({ de: 'x' }, '1 g/ml')
+    await lookUpDue(sql, await ago(60 * 24 * 8), config, again.fetcher)
+    assert.deepEqual(again.calls, { wikidata: 0, searxng: 0 })
+  })
+
+  test('an unconfirmed name makes a candidate, never a link', async () => {
+    const since = await ago(1)
+    await made('mace', 0)
+    await lookUpDue(sql, since, config, sources({ de: 'Macis' }, null).fetcher)
+    await sql`INSERT INTO preferences (owner_sub, settings) VALUES ('user_in', ${sql.json({ ingredientMatching: 'on' })})`
+    const db = new Kysely<Database>({ dialect: new PostgresJSDialect({ postgres: sql }) })
+    const saved = await insertRecipe(db, 'user_in', normalizeRecipe(parseExtraction(
+      { title: 'Test', source_lang: 'de', ingredients: [{ originalText: 'Macis', quantity: null, name: 'Macis' }], steps: ['Kochen.'] },
+      { type: 'text', originalText: 'Macis' })))
+    await drainQueue(sql)
+    assert.equal((await sql`SELECT 1 FROM ingredient_links WHERE recipe_id = ${saved.id}`).length, 0)
+    assert.deepEqual((await sql`SELECT matched_name FROM ingredient_candidates WHERE recipe_id = ${saved.id}`).map(row => row.matched_name), ['Macis'])
+  })
+
+  test('no figure, or a source down: that part stays missing, and the other is kept', async () => {
+    // Each case alone, so an earlier entry still due doesn't take its names.
+    await sql`DELETE FROM ingredients`
+    const noFigure = await made('sumac', 0)
+    await lookUpDue(sql, await ago(1), config, sources({ de: 'Sumach' }, 'Sumac is a spice.').fetcher)
+    assert.deepEqual(await densityOf(noFigure), none)
+    assert.equal((await namesOf(noFigure)).length, 2)
+
+    await sql`DELETE FROM ingredients`
+    const down = await made('zaatar', 0)
+    await lookUpDue(sql, await ago(1), config, sources(null, null).fetcher)
+    assert.equal((await namesOf(down)).length, 1)
+    assert.deepEqual(await densityOf(down), none)
+
+    // SearXNG unconfigured: names still come, the density waits.
+    await sql`DELETE FROM ingredients`
+    const unconfigured = await made('ajwain', 0)
+    await lookUpDue(sql, await ago(1), { ...config, searxngBaseUrl: '' }, sources({ de: 'Königskümmel' }, '1 g/ml').fetcher)
+    assert.equal((await namesOf(unconfigured)).length, 2)
+    assert.deepEqual(await densityOf(unconfigured), none)
+  })
+
+  test('tries fall at base·k² after creation, for a week, for entries cooks made', async () => {
+    await sql`DELETE FROM ingredients`
+    // Since two minutes ago, base 5: the try at 20 min (k=2) is due for an
+    // entry 21 minutes old; none falls in the last two for one 19 minutes old.
+    await made('caraway', 21)
+    await made('fenugreek', 19)
+    // k=44 falls at 9680 min, inside the week; 7 days and 5 minutes is past it.
+    await made('mahlab', 9681)
+    await made('nigella', 60 * 24 * 7 + 5)
+    // Seeded: never looked up.
+    await made('cumin', 21, null)
+    const { calls, fetcher } = sources({}, null)
+    const next = await lookUpDue(sql, await ago(2), config, fetcher)
+    // Each due entry: Wikidata's search and its (empty) labels, one web search.
+    assert.deepEqual(calls, { wikidata: 4, searxng: 2 })
+    // The answer is the next call's since: nothing is due again at once.
+    await lookUpDue(sql, next, config, fetcher)
+    assert.deepEqual(calls, { wikidata: 4, searxng: 2 })
+  })
+
+  test('an entry another lookup holds is skipped, not waited for', async () => {
+    await sql`DELETE FROM ingredients`
+    const held = await made('anise', 0)
+    await made('cardamom', 0)
+    const { calls, fetcher } = sources({}, null)
+    const since = await ago(1)
+    await sql.begin(async (tx) => {
+      await tx`SELECT 1 FROM ingredients WHERE id = ${held} FOR NO KEY UPDATE`
+      await lookUpDue(sql, since, config, fetcher)
+    })
+    assert.deepEqual(calls, { wikidata: 2, searxng: 1 })
   })
 })
