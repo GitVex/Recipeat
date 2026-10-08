@@ -36,6 +36,15 @@ export const PREFERENCES = {
     unset: "Suggest it",
     options: [{ value: "off", label: "Don’t suggest it" }],
   },
+  // The ingredient store (#173): asked which entry a close match is, and
+  // answers go into the store everyone shares. Unset is no.
+  ingredientMatching: {
+    kind: "choice",
+    label: "Contribute to the ingredient store",
+    description: "On a recipe, you're asked which ingredient a line means when it's close to one we know. Your answers name ingredients for everyone.",
+    unset: "No",
+    options: [{ value: "on", label: "Yes" }],
+  },
   // A whole look (#87): app/assets/themes/<value>.css. Unset is the default.
   theme: {
     kind: "choice",

@@ -2784,6 +2784,76 @@ input.editable-input {
     color: var(--muted);
 }
 
+/* Which ingredient a close match is (#173): a small mark after the line,
+   and a bubble under it with the answers. The line is what it hangs from. */
+li:has(> .ingredient-check) {
+    position: relative;
+}
+.ingredient-mark {
+    display: inline-grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    margin-left: 4px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: var(--orange-soft);
+    color: var(--orange-deep);
+    font: 700 var(--text-small) / 1 var(--font-body);
+    vertical-align: 1px;
+    cursor: pointer;
+}
+.ingredient-mark:hover,
+.ingredient-mark[aria-expanded="true"] {
+    background: var(--orange);
+    color: var(--on-fill);
+}
+.ingredient-bubble {
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 0;
+    z-index: 20;
+    display: grid;
+    justify-items: start;
+    gap: 6px;
+    width: min(340px, 100%);
+    padding: 12px 14px;
+    background: var(--paper);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-m);
+    box-shadow: var(--shadow-raised);
+    font-size: var(--text-ui);
+    color: var(--ink);
+}
+/* The tail, pointing up at the mark. */
+.ingredient-bubble::before {
+    content: "";
+    position: absolute;
+    top: -6px;
+    left: clamp(12px, calc(var(--tail) - 5px), calc(100% - 22px));
+    width: 10px;
+    height: 10px;
+    background: inherit;
+    border: inherit;
+    border-width: 1px 0 0 1px;
+    rotate: 45deg;
+}
+.ingredient-bubble-title {
+    font-family: var(--font-display);
+    font-style: italic;
+    color: var(--hand-ink);
+}
+.ingredient-candidate {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 12px;
+}
+.ingredient-bubble .text-button {
+    font-size: var(--text-small);
+}
+
 /* The collections page (#71): quiet — a heading, a search bar, and cards on
    the page's own cream. A card is its first four recipes as a 2×2 mosaic,
    then its name. */
@@ -4413,6 +4483,7 @@ a.history-title:hover {
     .tag-editor,
     .earlier-version,
     .paper-nudge,
+    .ingredient-check,
     .recipe-actions,
     .edit-bar,
     .recipe-photos,

@@ -71,7 +71,7 @@ test('preferences are saved to the account as they change', async ({ page }) => 
   await page.route('**/api/me', route => route.fulfill({ json: me }))
   await page.route('**/api/recipes', route => route.fulfill({ json: { recipes: [] } }))
   await page.route('**/api/preferences', (route) => {
-    if (route.request().method() === 'GET') return route.fulfill({ json: { preferences: { unitSystem: null, portions: null, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null } } })
+    if (route.request().method() === 'GET') return route.fulfill({ json: { preferences: { unitSystem: null, portions: null, paperNudge: null, ingredientMatching: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null } } })
     const body = route.request().postDataJSON()
     writes.push(body)
     return route.fulfill({ json: { preferences: body } })
@@ -85,7 +85,7 @@ test('preferences are saved to the account as they change', async ({ page }) => 
   await preferences.getByRole('spinbutton', { name: 'Servings' }).fill('4')
   await preferences.getByRole('spinbutton', { name: 'Servings' }).press('Enter')
   await expect.poll(() => writes.length).toBe(2)
-  expect(writes).toEqual([{ unitSystem: 'imperial', portions: null, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null }, { unitSystem: 'imperial', portions: 4, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null }])
+  expect(writes).toEqual([{ unitSystem: 'imperial', portions: null, paperNudge: null, ingredientMatching: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null }, { unitSystem: 'imperial', portions: 4, paperNudge: null, ingredientMatching: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null }])
   await page.screenshot({ path: 'test-results/profile-preferences.png', fullPage: true })
 })
 
@@ -93,7 +93,7 @@ test('a preference that does not save says so, and shows what is saved', async (
   await page.route('**/api/me', route => route.fulfill({ json: me }))
   await page.route('**/api/recipes', route => route.fulfill({ json: { recipes: [] } }))
   await page.route('**/api/preferences', route => route.request().method() === 'GET'
-    ? route.fulfill({ json: { preferences: { unitSystem: 'metric', portions: 2, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null } } })
+    ? route.fulfill({ json: { preferences: { unitSystem: 'metric', portions: 2, paperNudge: null, ingredientMatching: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null } } })
     : route.fulfill({ status: 500, json: {} }))
   await visit(page)
   const preferences = page.getByRole('region', { name: 'Preferences' })
@@ -112,7 +112,7 @@ test('a theme chosen on the account changes the look at once and is saved', asyn
   await page.route('**/api/me', route => route.fulfill({ json: me }))
   await page.route('**/api/recipes', route => route.fulfill({ json: { recipes: [] } }))
   await page.route('**/api/preferences', (route) => {
-    if (route.request().method() === 'GET') return route.fulfill({ json: { preferences: { unitSystem: null, portions: null, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null } } })
+    if (route.request().method() === 'GET') return route.fulfill({ json: { preferences: { unitSystem: null, portions: null, paperNudge: null, ingredientMatching: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null } } })
     writes.push(route.request().postDataJSON())
     return route.fulfill({ json: { preferences: route.request().postDataJSON() } })
   })
@@ -126,7 +126,7 @@ test('a theme chosen on the account changes the look at once and is saved', asyn
   await expect(page.locator('link[href*="Rokkitt"]')).toHaveCount(1)
   expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--font-display'))).toContain('Rokkitt')
   expect(await page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor)).not.toBe(before)
-  expect(writes).toEqual([{ unitSystem: null, portions: null, paperNudge: null, theme: 'crate-label', grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null }])
+  expect(writes).toEqual([{ unitSystem: null, portions: null, paperNudge: null, ingredientMatching: null, theme: 'crate-label', grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null }])
   await page.screenshot({ path: 'test-results/profile-crate-label.png', fullPage: true })
 
   await preferences.getByRole('radio', { name: 'Kitchen notebook' }).check()
@@ -167,7 +167,7 @@ test('Crate Label is dark on screen, and printing stays ink on white', async ({ 
 test('Crate Label’s effects each switch off on their own, and only show with it', async ({ page }) => {
   const writes: unknown[] = []
   let preferences: Record<string, unknown> = {
-    unitSystem: null, portions: null, paperNudge: null, theme: 'crate-label',
+    unitSystem: null, portions: null, paperNudge: null, ingredientMatching: null, theme: 'crate-label',
     grainEffect: 'off', stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null,
   }
   await page.route('**/api/me', route => route.fulfill({ json: me }))
