@@ -71,7 +71,7 @@ test('preferences are saved to the account as they change', async ({ page }) => 
   await page.route('**/api/me', route => route.fulfill({ json: me }))
   await page.route('**/api/recipes', route => route.fulfill({ json: { recipes: [] } }))
   await page.route('**/api/preferences', (route) => {
-    if (route.request().method() === 'GET') return route.fulfill({ json: { preferences: { unitSystem: null, portions: null, paperNudge: null, ingredientMatching: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null } } })
+    if (route.request().method() === 'GET') return route.fulfill({ json: { preferences: { unitSystem: null, portions: null, paperNudge: null, ingredientMatching: null, ingredientBackfill: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null } } })
     const body = route.request().postDataJSON()
     writes.push(body)
     return route.fulfill({ json: { preferences: body } })
@@ -85,7 +85,7 @@ test('preferences are saved to the account as they change', async ({ page }) => 
   await preferences.getByRole('spinbutton', { name: 'Servings' }).fill('4')
   await preferences.getByRole('spinbutton', { name: 'Servings' }).press('Enter')
   await expect.poll(() => writes.length).toBe(2)
-  expect(writes).toEqual([{ unitSystem: 'imperial', portions: null, paperNudge: null, ingredientMatching: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null }, { unitSystem: 'imperial', portions: 4, paperNudge: null, ingredientMatching: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null }])
+  expect(writes).toEqual([{ unitSystem: 'imperial', portions: null, paperNudge: null, ingredientMatching: null, ingredientBackfill: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null }, { unitSystem: 'imperial', portions: 4, paperNudge: null, ingredientMatching: null, ingredientBackfill: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null }])
   await page.screenshot({ path: 'test-results/profile-preferences.png', fullPage: true })
 })
 
@@ -93,7 +93,7 @@ test('a preference that does not save says so, and shows what is saved', async (
   await page.route('**/api/me', route => route.fulfill({ json: me }))
   await page.route('**/api/recipes', route => route.fulfill({ json: { recipes: [] } }))
   await page.route('**/api/preferences', route => route.request().method() === 'GET'
-    ? route.fulfill({ json: { preferences: { unitSystem: 'metric', portions: 2, paperNudge: null, ingredientMatching: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null } } })
+    ? route.fulfill({ json: { preferences: { unitSystem: 'metric', portions: 2, paperNudge: null, ingredientMatching: null, ingredientBackfill: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null } } })
     : route.fulfill({ status: 500, json: {} }))
   await visit(page)
   const preferences = page.getByRole('region', { name: 'Preferences' })
@@ -104,6 +104,73 @@ test('a preference that does not save says so, and shows what is saved', async (
   await expect(preferences.getByRole('spinbutton', { name: 'Servings' })).toHaveValue('2')
 })
 
+// Opting in to the ingredient store (#180): a dialog first, with the count.
+const none = { unitSystem: null, portions: null, paperNudge: null, ingredientMatching: null, ingredientBackfill: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null }
+async function optInPage(page: Page, questions: number) {
+  const writes: Record<string, unknown>[] = []
+  let preferences: Record<string, unknown> = none
+  let release!: () => void
+  const counted = new Promise<void>(resolve => (release = resolve))
+  await page.route('**/api/me', route => route.fulfill({ json: me }))
+  await page.route('**/api/recipes', route => route.fulfill({ json: { recipes: [] } }))
+  await page.route('**/api/preferences', (route) => {
+    if (route.request().method() === 'PUT') writes.push(preferences = route.request().postDataJSON())
+    return route.fulfill({ json: { preferences } })
+  })
+  await page.route('**/api/ingredients/preview', async (route) => {
+    await counted
+    return route.fulfill({ json: { questions, batch: { size: 10, hours: 24 } } })
+  })
+  await page.route('**/api/ingredients/waiting', route => route.fulfill({ json: { waiting: 3 } }))
+  await visit(page)
+  const contribute = page.getByRole('radiogroup', { name: 'Contribute to the ingredient store' })
+  return { writes, release, contribute }
+}
+
+test('opting in asks first: the count, then all at once or a batch at a time', async ({ page }) => {
+  const { writes, release, contribute } = await optInPage(page, 7)
+  // Set by the dialog only, never a row of its own.
+  await expect(page.getByRole('radiogroup', { name: 'Existing recipes' })).toHaveCount(0)
+  await contribute.getByRole('radio', { name: 'Yes' }).check()
+  const dialog = page.getByRole('dialog', { name: 'Help name ingredients' })
+  await expect(dialog.getByLabel('counting')).toBeVisible()
+  expect(writes).toEqual([])
+  release()
+  await expect(dialog).toContainText('7 ingredients you could help name')
+  await dialog.getByRole('radio', { name: '10 recipes a day' }).check()
+  await page.screenshot({ path: 'test-results/profile-opt-in.png' })
+  await dialog.getByRole('button', { name: 'Start contributing' }).click()
+  await expect(dialog).toHaveCount(0)
+  expect(writes).toEqual([{ ...none, ingredientMatching: 'on', ingredientBackfill: 'batched' }])
+  await expect(page.getByText('3 questions waiting on your recipes.')).toBeVisible()
+
+  // Another preference carries the choice through; opting out saves at once.
+  await page.getByRole('radio', { name: 'Imperial' }).check()
+  await expect.poll(() => writes.length).toBe(2)
+  expect(writes[1]).toMatchObject({ ingredientMatching: 'on', ingredientBackfill: 'batched' })
+  await contribute.getByRole('radio', { name: 'No' }).check()
+  await expect.poll(() => writes.length).toBe(3)
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page.getByText(/questions waiting/)).toHaveCount(0)
+})
+
+test('not now leaves the opt-in off; with nothing to ask there is no choice to make', async ({ page }) => {
+  const { writes, release, contribute } = await optInPage(page, 0)
+  release()
+  await contribute.getByRole('radio', { name: 'Yes' }).check()
+  const dialog = page.getByRole('dialog', { name: 'Help name ingredients' })
+  await expect(dialog).toContainText('Questions will show up on your recipes')
+  await expect(dialog.getByRole('radio')).toHaveCount(0)
+  await dialog.getByRole('button', { name: 'Not now' }).last().click()
+  await expect(dialog).toHaveCount(0)
+  await expect(contribute.getByRole('radio', { name: 'No' })).toBeChecked()
+  expect(writes).toEqual([])
+
+  await contribute.getByRole('radio', { name: 'Yes' }).check()
+  await dialog.getByRole('button', { name: 'Start contributing' }).click()
+  await expect.poll(() => writes).toEqual([{ ...none, ingredientMatching: 'on' }])
+})
+
 // Themes (#87): a whole look, switched with no reload.
 const theme = (page: Page) => page.locator('html').getAttribute('data-theme')
 
@@ -112,7 +179,7 @@ test('a theme chosen on the account changes the look at once and is saved', asyn
   await page.route('**/api/me', route => route.fulfill({ json: me }))
   await page.route('**/api/recipes', route => route.fulfill({ json: { recipes: [] } }))
   await page.route('**/api/preferences', (route) => {
-    if (route.request().method() === 'GET') return route.fulfill({ json: { preferences: { unitSystem: null, portions: null, paperNudge: null, ingredientMatching: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null } } })
+    if (route.request().method() === 'GET') return route.fulfill({ json: { preferences: { unitSystem: null, portions: null, paperNudge: null, ingredientMatching: null, ingredientBackfill: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null } } })
     writes.push(route.request().postDataJSON())
     return route.fulfill({ json: { preferences: route.request().postDataJSON() } })
   })
@@ -126,7 +193,7 @@ test('a theme chosen on the account changes the look at once and is saved', asyn
   await expect(page.locator('link[href*="Rokkitt"]')).toHaveCount(1)
   expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--font-display'))).toContain('Rokkitt')
   expect(await page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor)).not.toBe(before)
-  expect(writes).toEqual([{ unitSystem: null, portions: null, paperNudge: null, ingredientMatching: null, theme: 'crate-label', grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null }])
+  expect(writes).toEqual([{ unitSystem: null, portions: null, paperNudge: null, ingredientMatching: null, ingredientBackfill: null, theme: 'crate-label', grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null }])
   await page.screenshot({ path: 'test-results/profile-crate-label.png', fullPage: true })
 
   await preferences.getByRole('radio', { name: 'Kitchen notebook' }).check()
@@ -167,7 +234,7 @@ test('Crate Label is dark on screen, and printing stays ink on white', async ({ 
 test('Crate Label’s effects each switch off on their own, and only show with it', async ({ page }) => {
   const writes: unknown[] = []
   let preferences: Record<string, unknown> = {
-    unitSystem: null, portions: null, paperNudge: null, ingredientMatching: null, theme: 'crate-label',
+    unitSystem: null, portions: null, paperNudge: null, ingredientMatching: null, ingredientBackfill: null, theme: 'crate-label',
     grainEffect: 'off', stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null,
   }
   await page.route('**/api/me', route => route.fulfill({ json: me }))

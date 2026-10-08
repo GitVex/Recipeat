@@ -70,3 +70,36 @@ INSERT INTO ingredient_queue (recipe_id) SELECT id FROM recipes;
 -- Names a lookup found in Wikidata for an entry a cook made (#174).
 ALTER TABLE ingredient_names DROP CONSTRAINT ingredient_names_source_check,
     ADD CONSTRAINT ingredient_names_source_check CHECK (source IN ('off', 'cook', 'searxng', 'wikidata'));
+
+-- Opting in (#180) queues every recipe the cook owns, so the ones saved while
+-- they were out get their questions too; newest updated_at first. A cook who
+-- chose 'batched' in the opt-in dialog gets them a batch at a time: each
+-- batch's not_before is one spacing after the last. Size and spacing come
+-- from the app's runtime config through the pool's connection settings, with
+-- these defaults for any other client. A recipe already queued keeps its
+-- place, so it is matched once.
+CREATE FUNCTION ingredient_queue_owner() RETURNS trigger AS $$
+DECLARE
+    batched BOOLEAN := NEW.settings->>'ingredientBackfill' = 'batched';
+    size INT := coalesce(nullif(current_setting('recipeat.ingredient_backfill_batch', true), ''), '10')::int;
+    spacing INTERVAL := coalesce(nullif(current_setting('recipeat.ingredient_backfill_hours', true), ''), '24')::numeric * interval '1 hour';
+BEGIN
+    IF NEW.settings->>'ingredientMatching' IS DISTINCT FROM 'on'
+        OR (TG_OP = 'UPDATE' AND OLD.settings->>'ingredientMatching' = 'on') THEN
+        RETURN NULL;
+    END IF;
+    -- queued_at a microsecond apart, so the queue's order is this one.
+    INSERT INTO ingredient_queue (recipe_id, queued_at, not_before)
+    SELECT id, now() + n * interval '1 microsecond',
+           now() + CASE WHEN batched THEN (n / greatest(size, 1)) * spacing ELSE interval '0' END
+    FROM (SELECT id, row_number() OVER (ORDER BY updated_at DESC, id) - 1 AS n
+          FROM recipes WHERE owner_sub = NEW.owner_sub) mine
+    ON CONFLICT (recipe_id) DO NOTHING;
+    PERFORM pg_notify('ingredient_queue', '');
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER ingredient_queue_owner
+    AFTER INSERT OR UPDATE OF settings ON preferences
+    FOR EACH ROW EXECUTE FUNCTION ingredient_queue_owner();

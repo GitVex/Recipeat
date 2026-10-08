@@ -3,7 +3,7 @@
 // follow from this. Null is always allowed, and is `unset`.
 //
 // Read them anywhere with usePreferences().
-type Common = { label: string; description: string; unset: string; theme?: string };
+type Common = { label: string; description: string; unset: string; theme?: string; hidden?: true };
 export type PreferenceSpec =
   | (Common & { kind: "choice"; options: readonly { value: string; label: string }[] })
   | (Common & { kind: "number"; min: number; max: number });
@@ -44,6 +44,17 @@ export const PREFERENCES = {
     description: "On a recipe, you're asked which ingredient a line means when it's close to one we know. Your answers name ingredients for everyone.",
     unset: "No",
     options: [{ value: "on", label: "Yes" }],
+  },
+  // How opting in goes through the recipes already saved (#180): read by the
+  // trigger in 007_ingredient_matching.sql. `hidden`: the opt-in dialog sets
+  // it, not a row of its own, and every opt-in asks again. Unset is all at once.
+  ingredientBackfill: {
+    kind: "choice",
+    hidden: true,
+    label: "Existing recipes",
+    description: "How your saved recipes are gone through when you start contributing.",
+    unset: "All at once",
+    options: [{ value: "batched", label: "A batch at a time" }],
   },
   // A whole look (#87): app/assets/themes/<value>.css. Unset is the default.
   theme: {
