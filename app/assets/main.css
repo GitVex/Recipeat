@@ -3946,6 +3946,38 @@ a.history-title:hover {
 .preference-value {
     justify-self: end;
 }
+/* The opt-in to the ingredient store (#180). */
+.opt-in-pace {
+    display: grid;
+    gap: 10px;
+    border: 0;
+    padding: 0;
+    margin: 0 0 24px;
+}
+.opt-in-spinner {
+    display: inline-block;
+    width: 0.9em;
+    height: 0.9em;
+    vertical-align: -0.1em;
+    border: 2px solid var(--line-strong);
+    border-top-color: var(--ink);
+    border-radius: 50%;
+    animation: opt-in-spin 0.8s linear infinite;
+}
+@keyframes opt-in-spin {
+    to {
+        transform: rotate(1turn);
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .opt-in-spinner {
+        animation-duration: 3s;
+    }
+}
+.preference-waiting {
+    font-size: var(--text-meta);
+    color: var(--muted);
+}
 /* Signed out, the theme alone, under the sign-in. */
 .profile-theme {
     max-width: 480px;

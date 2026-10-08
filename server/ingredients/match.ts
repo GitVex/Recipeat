@@ -76,12 +76,7 @@ async function matchRecipe(tx: TransactionSql, recipeId: string) {
     SELECT line_id FROM ingredient_links WHERE recipe_id = ${recipeId}`).map(row => row.line_id))
 
   const lang = primaryLanguage(recipe.source_lang)
-  // An 'und' recipe is matched against every language; any other against its
-  // own, and the names OFF gives every language ('xx').
-  const inLanguage = () => lang === 'und' ? tx`true` : tx`lang IN (${lang}, 'xx')`
-  // The operator below finds what the index can; the threshold sits a hair
-  // under CLOSE so the explicit comparison decides the boundary.
-  await tx`SELECT set_config('pg_trgm.similarity_threshold', ${String(CLOSE - 0.01)}, true)`
+  await closeThreshold(tx)
 
   const link = (lineId: string, name: string, ingredientId: string) =>
     linkLine(tx, recipeId, recipe.owner_sub, lineId, name, ingredientId)
@@ -89,9 +84,7 @@ async function matchRecipe(tx: TransactionSql, recipeId: string) {
   for (const line of lines) {
     if (linked.has(line.id)) continue
 
-    const exact = await tx<{ ingredient_id: string }[]>`
-      SELECT DISTINCT ingredient_id FROM ingredient_names
-      WHERE confirmed AND lower(name) = lower(${line.name}) AND ${inLanguage()}`
+    const exact = await exactMatches(tx, line.name, lang)
     if (exact.length === 1) {
       await link(line.id, line.name, exact[0]!.ingredient_id)
       continue
@@ -100,17 +93,7 @@ async function matchRecipe(tx: TransactionSql, recipeId: string) {
     // unambiguous, so it is a question rather than a link.
     if (!recipe.opted_in) continue
 
-    const close = await tx<{ ingredient_id: string, matched_name: string, similarity: number }[]>`
-      SELECT ingredient_id, matched_name, similarity FROM (
-        SELECT DISTINCT ON (ingredient_id) ingredient_id, name AS matched_name,
-               public.similarity(lower(name), lower(${line.name})) AS similarity
-        FROM ingredient_names
-        WHERE lower(name) OPERATOR(public.%) lower(${line.name}) AND ${inLanguage()}
-        ORDER BY ingredient_id, similarity DESC, is_main DESC, name
-      ) best
-      WHERE similarity >= ${CLOSE}
-      ORDER BY similarity DESC, ingredient_id
-      LIMIT ${CANDIDATES}`
+    const close = await closeMatches(tx, line.name, lang)
     await tx`DELETE FROM ingredient_candidates WHERE recipe_id = ${recipeId} AND line_id = ${line.id}`
     if (close.length) {
       await tx`INSERT INTO ingredient_candidates ${tx(close.map(candidate => ({
@@ -124,6 +107,63 @@ async function matchRecipe(tx: TransactionSql, recipeId: string) {
     await link(line.id, line.name, await createEntry(tx, recipe.owner_sub, lang, line.name))
   }
   await tx`SELECT pg_notify(${MATCHED}, ${recipeId})`
+}
+
+// An 'und' recipe is matched against every language; any other against its
+// own, and the names OFF gives every language ('xx').
+const inLanguage = (tx: TransactionSql, lang: string) => lang === 'und' ? tx`true` : tx`lang IN (${lang}, 'xx')`
+
+// The operator closeMatches uses finds what the index can; the threshold sits
+// a hair under CLOSE so the explicit comparison decides the boundary. For the
+// rest of the transaction.
+const closeThreshold = (tx: TransactionSql) =>
+  tx`SELECT set_config('pg_trgm.similarity_threshold', ${String(CLOSE - 0.01)}, true)`
+
+// The entries whose confirmed name a line's name is. One is a link; more is
+// ambiguous, and asked like a close match.
+const exactMatches = (tx: TransactionSql, name: string, lang: string) => tx<{ ingredient_id: string }[]>`
+  SELECT DISTINCT ingredient_id FROM ingredient_names
+  WHERE confirmed AND lower(name) = lower(${name}) AND ${inLanguage(tx, lang)}`
+
+// The entries a line comes close to, best first: what its owner is asked.
+// Needs closeThreshold earlier in the transaction.
+const closeMatches = (tx: TransactionSql, name: string, lang: string) => tx<{ ingredient_id: string, matched_name: string, similarity: number }[]>`
+  SELECT ingredient_id, matched_name, similarity FROM (
+    SELECT DISTINCT ON (ingredient_id) ingredient_id, name AS matched_name,
+           public.similarity(lower(name), lower(${name})) AS similarity
+    FROM ingredient_names
+    WHERE lower(name) OPERATOR(public.%) lower(${name}) AND ${inLanguage(tx, lang)}
+    ORDER BY ingredient_id, similarity DESC, is_main DESC, name
+  ) best
+  WHERE similarity >= ${CLOSE}
+  ORDER BY similarity DESC, ingredient_id
+  LIMIT ${CANDIDATES}`
+
+/**
+ * How many of a cook's lines a pass would ask about if they opted in (#180):
+ * the opt-in dialog's count. The same steps as matchRecipe for an opted-in
+ * owner, without writing anything. A question stored from an earlier opt-in
+ * is counted when the pass would still ask it.
+ */
+export async function previewQuestions(sql: Sql, ownerSub: string): Promise<number> {
+  return sql.begin('read only', async (tx) => {
+    await closeThreshold(tx)
+    const lines = await tx<{ name: string, lang: string }[]>`
+      SELECT trim(line.value->>'name') AS name, r.source_lang AS lang
+      FROM recipes r CROSS JOIN LATERAL jsonb_array_elements(r.ingredients) AS line(value)
+      WHERE r.owner_sub = ${ownerSub} AND trim(line.value->>'name') <> ''
+        AND NOT EXISTS (SELECT 1 FROM ingredient_links l
+                        WHERE l.recipe_id = r.id AND l.line_id = line.value->>'id' AND l.name = trim(line.value->>'name'))`
+    // ponytail: two queries a line, fine for a household's recipes; one
+    // set-based query if a cook with thousands makes the spinner linger.
+    let asked = 0
+    for (const line of lines) {
+      const lang = primaryLanguage(line.lang)
+      if ((await exactMatches(tx, line.name, lang)).length === 1) continue
+      if ((await closeMatches(tx, line.name, lang)).length) asked++
+    }
+    return asked
+  })
 }
 
 /** Links a line to an entry, which settles its question. */

@@ -34,6 +34,17 @@ const open = (sql: Sql | TransactionSql, recipeId: string) => sql<{ line_id: str
   WHERE r.id = ${recipeId}
   ORDER BY line.n, c.similarity DESC, c.ingredient_id`
 
+/** How many lines across a cook's recipes have a question open: the profile's count (#180). */
+export async function countWaiting(sql: Sql, ownerSub: string): Promise<number> {
+  const [{ waiting }] = await sql<{ waiting: number }[]>`
+    SELECT count(DISTINCT (r.id, c.line_id))::int AS waiting
+    FROM recipes r
+    CROSS JOIN LATERAL jsonb_array_elements(r.ingredients) AS line(value)
+    JOIN ingredient_candidates c ON c.recipe_id = r.id AND c.line_id = line.value->>'id' AND c.name = trim(line.value->>'name')
+    WHERE r.owner_sub = ${ownerSub}`
+  return waiting
+}
+
 /**
  * What the owner is asked about this recipe: nothing unless they opted in.
  * Null means no such recipe, or not theirs.

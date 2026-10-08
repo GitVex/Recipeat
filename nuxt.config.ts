@@ -27,6 +27,10 @@ export default defineNuxtConfig({
     // Names and density for an entry a cook made (#174) are tried again at
     // base · k² minutes after it was made, for a week.
     ingredientLookupBaseMinutes: 5,
+    // A cook who opts in and picks "a batch at a time" (#180) has their
+    // recipes matched this many at once, this many hours apart.
+    ingredientBackfillBatch: 10,
+    ingredientBackfillHours: 24,
     public: {
       // The filter lab (/lab/filters, #87): set NUXT_PUBLIC_LAB=1 in a
       // checkout's .env to reach it. Unset in any deployment, where it is a 404.
