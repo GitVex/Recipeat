@@ -77,6 +77,13 @@ export function requireKysely(): Kysely<Database> {
   return useKysely()
 }
 
+// Settles once startup migrations are done: true when there is a schema to
+// work on. Set by plugins/database.ts, and waited on by work that no request
+// starts, so it doesn't matter which plugin Nitro runs first.
+let markMigrated!: (ready: boolean) => void
+export const migrated = new Promise<boolean>((resolve) => { markMigrated = resolve })
+export { markMigrated }
+
 export async function closeDatabase(): Promise<void> {
   const open = pool
   const open_queries = queries

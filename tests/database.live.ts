@@ -14,6 +14,7 @@ import { addPhoto, arrangePhotos, deleteImage, listPhotos, readImage, setSourceP
 import { readPreferences, writePreferences } from '../server/utils/preferences.ts'
 import { readFilters } from '../shared/utils/recipeFilters.ts'
 import { readPortions, seedIngredients } from '../scripts/seed-ingredients.ts'
+import { drainQueue, matchNext } from '../server/ingredients/match.ts'
 
 // The half of the runner that needs a database. Everything here happens inside
 // a schema of its own, so a development database keeps its own
@@ -32,7 +33,7 @@ const migrations = (...versions: string[]) => versions.map(version => ({
   sql: readFileSync(new URL(`../server/database/migrations/${version}`, import.meta.url), 'utf8'),
 }))
 // What the stores need under them.
-const STORE = ['001_recipes.sql', '002_collections.sql', '003_tags.sql', '004_preferences.sql', '005_images.sql', '006_ingredients.sql']
+const STORE = ['001_recipes.sql', '002_collections.sql', '003_tags.sql', '004_preferences.sql', '005_images.sql', '006_ingredients.sql', '007_ingredient_matching.sql']
 
 describe('migration runner', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () => {
   let admin: Sql
@@ -1556,5 +1557,233 @@ describe('ingredient store', { skip: url ? false : 'NUXT_DATABASE_URL is not set
 
   test('a density needs its source', async () => {
     await assert.rejects(() => sql`INSERT INTO ingredients (density_g_per_ml) VALUES (1)`, /check/)
+  })
+})
+
+// Matching lines against the store after save (#172): the queue the save
+// trigger fills, and what a pass over a recipe leaves behind.
+describe('ingredient matching', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () => {
+  const SCHEMA = 'matching_check'
+  let admin: Sql
+  let sql: Sql
+  let db: Kysely<Database>
+  const entry: Record<string, string> = {}
+  let oldRecipe: string
+
+  before(async () => {
+    admin = postgres(url!, { max: 1, onnotice: () => {} })
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin`CREATE SCHEMA ${admin(SCHEMA)}`
+    sql = postgres(url!, { max: 10, onnotice: () => {}, connection: { search_path: SCHEMA } })
+    db = new Kysely<Database>({ dialect: new PostgresJSDialect({ postgres: sql }) })
+    // Up to the store, then a recipe saved before matching existed, then 007.
+    await applyMigrations(sql, migrations(...STORE.slice(0, 6)))
+    oldRecipe = (await insertRecipe(db, 'user_old', recipe('en', 'flour'))).id
+    await applyMigrations(sql, migrations(...STORE))
+
+    // A small store: each entry's confirmed and unconfirmed names, as lang:name.
+    const store: [string, string[], string[]][] = [
+      ['flour', ['en:flour', 'en:plain flour', 'de:Mehl', 'xx:farina'], []],
+      ['sugar', ['en:sugar', 'de:Zucker'], []],
+      ['laurel', ['en:laurel'], ['en:bay leaves']],
+      ['gift', ['en:gift'], []],
+      ['poison', ['de:Gift'], []],
+      ['tomato', ['en:tomato'], []],
+      ['tomatillo', ['en:tomatillo'], []],
+    ]
+    for (const [key, confirmed, unconfirmed] of store) {
+      const [{ id }] = await sql<{ id: string }[]>`INSERT INTO ingredients DEFAULT VALUES RETURNING id`
+      entry[key] = id
+      const mains = new Set<string>()
+      const rows = [...confirmed.map(n => [n, true] as const), ...unconfirmed.map(n => [n, false] as const)].map(([tagged, isConfirmed]) => {
+        const [lang, name] = tagged.split(':') as [string, string]
+        const is_main = isConfirmed && !mains.has(lang)
+        mains.add(lang)
+        return { ingredient_id: id, lang, name, is_main, confirmed: isConfirmed, source: isConfirmed ? 'off' : 'searxng' }
+      })
+      await sql`INSERT INTO ingredient_names ${sql(rows)}`
+    }
+    await sql`INSERT INTO preferences (owner_sub, settings) VALUES ('user_in', ${sql.json({ ingredientMatching: 'on' })})`
+  })
+
+  after(async () => {
+    await sql?.end()
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin?.end()
+  })
+
+  function recipe(lang: string, ...names: string[]) {
+    return normalizeRecipe(parseExtraction({
+      title: 'Test',
+      source_lang: lang,
+      ingredients: names.map(name => ({ originalText: name, quantity: null, name })),
+      steps: ['Cook.'],
+    }, { type: 'text', originalText: names.join('\n') }))
+  }
+  const save = async (owner: string, lang: string, ...names: string[]) => {
+    const saved = await insertRecipe(db, owner, recipe(lang, ...names))
+    await drainQueue(sql)
+    return saved
+  }
+  // line id → the entry it links to, read as readers will: only while the
+  // line still carries the name it was linked for.
+  const links = async (recipeId: string) => Object.fromEntries((await sql<{ line_id: string, ingredient_id: string }[]>`
+    SELECT l.line_id, l.ingredient_id FROM ingredient_links l
+    JOIN recipes r ON r.id = l.recipe_id
+    JOIN LATERAL jsonb_array_elements(r.ingredients) AS line ON line->>'id' = l.line_id AND trim(line->>'name') = l.name
+    WHERE l.recipe_id = ${recipeId}`).map(row => [row.line_id, row.ingredient_id]))
+  const candidates = async (recipeId: string) => [...await sql<{ line_id: string, ingredient_id: string, matched_name: string, similarity: number }[]>`
+    SELECT line_id, ingredient_id, matched_name, similarity FROM ingredient_candidates WHERE recipe_id = ${recipeId}
+    ORDER BY line_id, similarity DESC`]
+  const queued = async () => (await sql<{ recipe_id: string }[]>`SELECT recipe_id FROM ingredient_queue`).map(row => row.recipe_id)
+  const count = async (query: Promise<{ n: number }[]>) => (await query)[0]!.n
+
+  test('recipes saved before matching are queued by the migration, and saves queue theirs', async () => {
+    assert.deepEqual(await queued(), [oldRecipe])
+    await drainQueue(sql)
+    assert.deepEqual(await links(oldRecipe), { ingredient_1: entry.flour })
+    const fresh = await insertRecipe(db, 'user_a', recipe('en', 'sugar'))
+    assert.deepEqual(await queued(), [fresh.id])
+    await drainQueue(sql)
+    assert.deepEqual(await queued(), [])
+  })
+
+  test('languages: by primary subtag, xx names everywhere, und against all only when unambiguous', async () => {
+    const german = await save('user_a', 'de-DE', 'Mehl', 'zucker')
+    assert.deepEqual(await links(german.id), { ingredient_1: entry.flour, ingredient_2: entry.sugar })
+    // Same food, other language: the same entry; 'farina' is every language's.
+    const english = await save('user_a', 'en', 'flour', 'farina')
+    assert.deepEqual(await links(english.id), { ingredient_1: entry.flour, ingredient_2: entry.flour })
+    // A German name in an English recipe is no exact match.
+    assert.deepEqual(await links((await save('user_a', 'en', 'Zucker')).id), {})
+    // 'und' finds 'Zucker' in German; 'gift' is two entries across languages.
+    const unknown = await save('user_a', 'und', 'Zucker', 'gift')
+    assert.deepEqual(await links(unknown.id), { ingredient_1: entry.sugar })
+  })
+
+  test("an exact match links for every cook, and the line's text is untouched", async () => {
+    const out = await save('user_out', 'en', 'Plain Flour')
+    assert.deepEqual(await links(out.id), { ingredient_1: entry.flour })
+    assert.deepEqual((await findRecipe(sql, 'user_out', out.id))!.ingredients, out.ingredients)
+  })
+
+  test('close matches become up to three candidates for an opted-in cook, unconfirmed names included', async () => {
+    const opted = await save('user_in', 'en', 'tomatos', 'bay leaves')
+    assert.deepEqual(await links(opted.id), {})
+    const found = await candidates(opted.id)
+    const tomatos = found.filter(c => c.line_id === 'ingredient_1')
+    assert.ok(tomatos.length >= 1 && tomatos.length <= 3)
+    assert.equal(tomatos[0]!.ingredient_id, entry.tomato)
+    assert.ok(tomatos.every(c => c.similarity >= 0.4))
+    // An unconfirmed name: a candidate at 1.0, never a link.
+    assert.deepEqual(found.filter(c => c.line_id === 'ingredient_2').map(c => [c.ingredient_id, c.matched_name, c.similarity]), [[entry.laurel, 'bay leaves', 1]])
+    // An opted-out cook is asked nothing.
+    assert.deepEqual(await candidates((await save('user_out', 'en', 'tomatos')).id), [])
+  })
+
+  test("no match: an opted-in cook's line makes a new entry, an opted-out cook's stays unlinked", async () => {
+    const id = (await links((await save('user_in', 'en', 'Szechuan pepper')).id)).ingredient_1
+    assert.ok(id)
+    const [made] = await sql`SELECT i.created_by, n.lang, n.name, n.is_main, n.confirmed, n.source, n.added_by
+      FROM ingredients i JOIN ingredient_names n ON n.ingredient_id = i.id WHERE i.id = ${id}`
+    assert.deepEqual({ ...made }, { created_by: 'user_in', lang: 'en', name: 'Szechuan pepper', is_main: true, confirmed: true, source: 'cook', added_by: 'user_in' })
+    const entries = await count(sql`SELECT count(*)::int AS n FROM ingredients`)
+    assert.deepEqual(await links((await save('user_out', 'en', 'grains of paradise')).id), {})
+    assert.equal(await count(sql`SELECT count(*)::int AS n FROM ingredients`), entries)
+    // The next cook's line links to the entry the first one made.
+    assert.deepEqual(await links((await save('user_out', 'en', 'szechuan pepper')).id), { ingredient_1: id })
+  })
+
+  test('linking adds no version and leaves updated_at alone', async () => {
+    const saved = await save('user_a', 'en', 'sugar')
+    assert.deepEqual(await links(saved.id), { ingredient_1: entry.sugar })
+    const rows = await sql`SELECT updated_at FROM recipes WHERE line_id = ${saved.lineId}`
+    assert.deepEqual(rows.map(row => row.updated_at.toISOString()), [saved.updatedAt])
+  })
+
+  test('an edited or removed line loses its link and candidates, and an edited one is matched again', async () => {
+    const saved = await save('user_in', 'en', 'flour', 'tomatos', 'sugar')
+    assert.equal(Object.keys(await links(saved.id)).length, 2)
+    assert.ok((await candidates(saved.id)).length)
+    // Line 1 renamed; line 2, with its candidates, removed, so line 3 moves up.
+    await updateRecipe(sql, 'user_in', saved.id, recipe('en', 'saffron threads', 'sugar'))
+    // Before the pass, nothing reads as linked under the old names.
+    assert.deepEqual(await links(saved.id), {})
+    await drainQueue(sql)
+    assert.deepEqual(await candidates(saved.id), [])
+    const after = await links(saved.id)
+    assert.equal(after.ingredient_2, entry.sugar)
+    assert.ok(after.ingredient_1 && after.ingredient_1 !== entry.flour)
+    const stored = await sql`SELECT name FROM ingredient_links WHERE recipe_id = ${saved.id} ORDER BY line_id`
+    assert.deepEqual(stored.map(row => row.name), ['saffron threads', 'sugar'])
+  })
+
+  test('a save during a pass waits for it, then queues the recipe again', async () => {
+    const saved = await insertRecipe(db, 'user_a', recipe('en', 'flour'))
+    let release!: () => void
+    const held = new Promise<void>(resolve => { release = resolve })
+    // A pass holding its claim, as a slow worker would.
+    const pass = sql.begin(async (tx) => {
+      await tx`DELETE FROM ingredient_queue WHERE recipe_id = ${saved.id}`
+      await held
+    })
+    await new Promise(resolve => setTimeout(resolve, 100))
+    const edit = updateRecipe(sql, 'user_a', saved.id, recipe('en', 'sugar'))
+    await new Promise(resolve => setTimeout(resolve, 200))
+    release()
+    await Promise.all([pass, edit])
+    assert.deepEqual(await queued(), [saved.id])
+    await drainQueue(sql)
+    assert.deepEqual(await links(saved.id), { ingredient_1: entry.sugar })
+  })
+
+  test('two recipes creating the same new name at once end with one entry', async () => {
+    const one = await insertRecipe(db, 'user_in', recipe('en', 'Kala namak'))
+    const two = await insertRecipe(db, 'user_in', recipe('en', 'kala namak'))
+    await Promise.all([matchNext(sql), matchNext(sql)])
+    const [a, b] = [await links(one.id), await links(two.id)]
+    assert.ok(a.ingredient_1)
+    assert.equal(a.ingredient_1, b.ingredient_1)
+    assert.equal(await count(sql`SELECT count(*)::int AS n FROM ingredient_names WHERE lower(name) = 'kala namak'`), 1)
+    // The loser's entry was dropped, not left nameless.
+    assert.equal(await count(sql`SELECT count(*)::int AS n FROM ingredients WHERE id NOT IN (SELECT ingredient_id FROM ingredient_names)`), 0)
+  })
+
+  test('with the database unreachable the recipe stays queued, and a later pass matches it', async () => {
+    const saved = await insertRecipe(db, 'user_a', recipe('en', 'sugar'))
+    const away = postgres('postgres://nobody:nothing@127.0.0.1:1/none', { max: 1, connect_timeout: 1, onnotice: () => {} })
+    await assert.rejects(() => matchNext(away))
+    await away.end()
+    assert.deepEqual(await queued(), [saved.id])
+    assert.deepEqual(await links(saved.id), {})
+    await drainQueue(sql)
+    assert.deepEqual(await links(saved.id), { ingredient_1: entry.sugar })
+  })
+
+  test('a pass that fails rolls back, and holds the recipe back until a retry', async () => {
+    const saved = await insertRecipe(db, 'user_a', recipe('en', 'sugar'))
+    await sql`ALTER TABLE ingredient_links ADD CONSTRAINT fail_now CHECK (false) NOT VALID`
+    try {
+      await assert.rejects(() => matchNext(sql), /fail_now/)
+    } finally {
+      await sql`ALTER TABLE ingredient_links DROP CONSTRAINT fail_now`
+    }
+    assert.equal((await sql`SELECT not_before > now() AS held FROM ingredient_queue WHERE recipe_id = ${saved.id}`)[0]!.held, true)
+    // Held back, so there is nothing to claim; the next save readies it.
+    assert.equal(await matchNext(sql), false)
+    await updateRecipe(sql, 'user_a', saved.id, recipe('en', 'sugar'))
+    await drainQueue(sql)
+    assert.deepEqual(await links(saved.id), { ingredient_1: entry.sugar })
+  })
+
+  test('workers side by side never take the same recipe', async () => {
+    const saved = await Promise.all(Array.from({ length: 12 }, () => insertRecipe(db, 'user_a', recipe('en', 'flour', 'sugar'))))
+    const passes = await Promise.all(Array.from({ length: 4 }, async () => {
+      let mine = 0
+      while (await matchNext(sql)) mine++
+      return mine
+    }))
+    assert.equal(passes.reduce((a, b) => a + b), 12)
+    for (const { id } of saved) assert.deepEqual(await links(id), { ingredient_1: entry.flour, ingredient_2: entry.sugar })
   })
 })

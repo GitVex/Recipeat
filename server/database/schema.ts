@@ -118,6 +118,34 @@ export type IngredientNamesTable = {
   created_at: Generated<Date>
 }
 
+// A line's entry and its open question, beside the recipe — see
+// 007_ingredient_matching.sql. `name` is the line's name when the row was
+// made; a line renamed since doesn't own it any more.
+export type IngredientLinksTable = {
+  recipe_id: string
+  owner_sub: string
+  line_id: string
+  name: string
+  ingredient_id: string
+  linked_at: Generated<Date>
+}
+
+export type IngredientCandidatesTable = {
+  recipe_id: string
+  owner_sub: string
+  line_id: string
+  name: string
+  ingredient_id: string
+  matched_name: string
+  similarity: number
+}
+
+export type IngredientQueueTable = {
+  recipe_id: string
+  queued_at: Generated<Date>
+  not_before: Generated<Date>
+}
+
 export type Database = {
   recipes: RecipesTable
   collections: CollectionsTable
@@ -129,6 +157,9 @@ export type Database = {
   ingredients: IngredientsTable
   ingredient_sources: IngredientSourcesTable
   ingredient_names: IngredientNamesTable
+  ingredient_links: IngredientLinksTable
+  ingredient_candidates: IngredientCandidatesTable
+  ingredient_queue: IngredientQueueTable
 }
 
 export type RecipeRow = Selectable<RecipesTable>

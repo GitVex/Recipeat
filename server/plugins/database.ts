@@ -1,4 +1,4 @@
-import { applyMigrations, closeDatabase, hasDatabase, migrationOrder, useDatabase, waitForDatabase, type Migration } from '../utils/database.ts'
+import { applyMigrations, closeDatabase, hasDatabase, markMigrated, migrationOrder, useDatabase, waitForDatabase, type Migration } from '../utils/database.ts'
 
 // Migrations run once, at startup, because Coolify rebuilds and restarts a
 // resource and gives nothing a per-deploy command to hang a one-shot runner
@@ -18,6 +18,8 @@ export default defineNitroPlugin((nitroApp) => {
     // request says why instead.
     if (!import.meta.dev) process.exit(1)
   })
+  // Background work (plugins/ingredients.ts) waits here instead of on a request.
+  ready.then(() => markMigrated(!failure && hasDatabase()))
 
   nitroApp.hooks.hook('request', async () => {
     await ready
