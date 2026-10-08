@@ -66,3 +66,7 @@ CREATE TRIGGER ingredient_queue_recipe
 
 -- Recipes saved before matching existed.
 INSERT INTO ingredient_queue (recipe_id) SELECT id FROM recipes;
+
+-- Names a lookup found in Wikidata for an entry a cook made (#174).
+ALTER TABLE ingredient_names DROP CONSTRAINT ingredient_names_source_check,
+    ADD CONSTRAINT ingredient_names_source_check CHECK (source IN ('off', 'cook', 'searxng', 'wikidata'));
