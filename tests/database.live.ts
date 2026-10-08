@@ -14,7 +14,8 @@ import { addPhoto, arrangePhotos, deleteImage, listPhotos, readImage, setSourceP
 import { readPreferences, writePreferences } from '../server/utils/preferences.ts'
 import { readFilters } from '../shared/utils/recipeFilters.ts'
 import { readPortions, seedIngredients } from '../scripts/seed-ingredients.ts'
-import { drainQueue, matchNext } from '../server/ingredients/match.ts'
+import { drainQueue, MATCHED, matchNext } from '../server/ingredients/match.ts'
+import { answerQuestion, readQuestions } from '../server/ingredients/answer.ts'
 
 // The half of the runner that needs a database. Everything here happens inside
 // a schema of its own, so a development database keeps its own
@@ -1299,15 +1300,15 @@ describe('preferences', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, 
   })
 
   test('nothing saved reads as nothing set', async () => {
-    assert.deepEqual(await readPreferences(db, 'nobody'), { unitSystem: null, portions: null, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
+    assert.deepEqual(await readPreferences(db, 'nobody'), { unitSystem: null, portions: null, paperNudge: null, ingredientMatching: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
   })
 
   test('a save replaces the whole set, per owner', async () => {
-    assert.deepEqual(await writePreferences(db, 'user_a', { unitSystem: 'imperial', portions: 4, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null }), { unitSystem: 'imperial', portions: 4, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
-    await writePreferences(db, 'user_b', { unitSystem: 'metric', portions: null, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
-    assert.deepEqual(await writePreferences(db, 'user_a', { unitSystem: null, portions: 2, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null }), { unitSystem: null, portions: 2, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
-    assert.deepEqual(await readPreferences(db, 'user_a'), { unitSystem: null, portions: 2, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
-    assert.deepEqual(await readPreferences(db, 'user_b'), { unitSystem: 'metric', portions: null, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
+    assert.deepEqual(await writePreferences(db, 'user_a', { unitSystem: 'imperial', portions: 4, paperNudge: null, ingredientMatching: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null }), { unitSystem: 'imperial', portions: 4, paperNudge: null, ingredientMatching: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
+    await writePreferences(db, 'user_b', { unitSystem: 'metric', portions: null, paperNudge: null, ingredientMatching: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
+    assert.deepEqual(await writePreferences(db, 'user_a', { unitSystem: null, portions: 2, paperNudge: null, ingredientMatching: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null }), { unitSystem: null, portions: 2, paperNudge: null, ingredientMatching: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
+    assert.deepEqual(await readPreferences(db, 'user_a'), { unitSystem: null, portions: 2, paperNudge: null, ingredientMatching: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
+    assert.deepEqual(await readPreferences(db, 'user_b'), { unitSystem: 'metric', portions: null, paperNudge: null, ingredientMatching: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
     const [{ n }] = await sql<{ n: number }[]>`SELECT count(*)::int AS n FROM preferences WHERE owner_sub = 'user_a'`
     assert.equal(n, 1)
   })
@@ -1320,10 +1321,10 @@ describe('preferences', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, 
   test('stored settings read as the config has them now', async () => {
     // A key it no longer has, and values it would not take: left out, and unset.
     await sql`INSERT INTO preferences (owner_sub, settings) VALUES ('user_d', ${{ stove: 'gas', unitSystem: 'si', portions: 4 }}::jsonb)`
-    assert.deepEqual(await readPreferences(db, 'user_d'), { unitSystem: null, portions: 4, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
-    await writePreferences(db, 'user_d', { unitSystem: 'metric', portions: 4, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
+    assert.deepEqual(await readPreferences(db, 'user_d'), { unitSystem: null, portions: 4, paperNudge: null, ingredientMatching: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
+    await writePreferences(db, 'user_d', { unitSystem: 'metric', portions: 4, paperNudge: null, ingredientMatching: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
     const [{ settings }] = await sql<{ settings: unknown }[]>`SELECT settings FROM preferences WHERE owner_sub = 'user_d'`
-    assert.deepEqual(settings, { unitSystem: 'metric', portions: 4, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
+    assert.deepEqual(settings, { unitSystem: 'metric', portions: 4, paperNudge: null, ingredientMatching: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
   })
 })
 
@@ -1785,5 +1786,93 @@ describe('ingredient matching', { skip: url ? false : 'NUXT_DATABASE_URL is not 
     }))
     assert.equal(passes.reduce((a, b) => a + b), 12)
     for (const { id } of saved) assert.deepEqual(await links(id), { ingredient_1: entry.flour, ingredient_2: entry.sugar })
+  })
+  // The owner's answers (#173).
+  const nameRows = (name: string) => sql`SELECT ingredient_id, lang, name, is_main, confirmed, source, added_by FROM ingredient_names WHERE lower(name) = lower(${name})`
+  const asked = async (owner: string, recipeId: string) => (await readQuestions(sql, owner, recipeId))!.questions
+    .map(q => [q.lineId, q.name, q.candidates.map(c => c.ingredientId)])
+
+  test('"same thing, my name" adds a confirmed alias in the recipe’s language, and links the line', async () => {
+    const other = await save('user_out', 'en', 'tomatoes')
+    const mine = await save('user_in', 'en-GB', 'tomatoes')
+    assert.ok((await asked('user_in', mine.id)).some(([, , ids]) => (ids as string[]).includes(entry.tomato!)))
+    assert.equal(await answerQuestion(sql, 'user_in', mine.id, 'ingredient_1', 'alias', entry.tomato!), true)
+    assert.deepEqual([...await nameRows('tomatoes')].map(row => ({ ...row })), [{ ingredient_id: entry.tomato, lang: 'en', name: 'tomatoes', is_main: false, confirmed: true, source: 'cook', added_by: 'user_in' }])
+    assert.deepEqual(await links(mine.id), { ingredient_1: entry.tomato })
+    assert.deepEqual(await candidates(mine.id), [])
+    assert.deepEqual(await asked('user_in', mine.id), [])
+    // In the shared store at once: the next cook's line is an exact match.
+    // The cook who saved before is untouched until their own next pass.
+    assert.deepEqual(await links(other.id), {})
+    assert.deepEqual((await findRecipe(sql, 'user_out', other.id))!.ingredients, other.ingredients)
+    assert.deepEqual(await links((await save('user_out', 'en', 'Tomatoes')).id), { ingredient_1: entry.tomato })
+  })
+
+  test('"typo" takes the matched name and links it; originalText stays and the misspelling is not stored', async () => {
+    const mine = await save('user_in', 'en', 'tomatto')
+    assert.equal(await answerQuestion(sql, 'user_in', mine.id, 'ingredient_1', 'typo', entry.tomato!), true)
+    const line = (await findRecipe(sql, 'user_in', mine.id))!.ingredients[0]!
+    assert.equal(line.name, 'tomato')
+    assert.equal(line.originalText, 'tomatto')
+    assert.equal((await nameRows('tomatto')).length, 0)
+    assert.deepEqual(await links(mine.id), { ingredient_1: entry.tomato })
+    // The rename queued the recipe; its pass keeps the link.
+    await drainQueue(sql)
+    assert.deepEqual(await links(mine.id), { ingredient_1: entry.tomato })
+  })
+
+  test('"none of these" makes a new entry under the line’s name, and links it', async () => {
+    const mine = await save('user_in', 'en', 'tomatillos verdes')
+    assert.ok((await candidates(mine.id)).length)
+    assert.equal(await answerQuestion(sql, 'user_in', mine.id, 'ingredient_1', 'none', null), true)
+    const [made] = await nameRows('tomatillos verdes')
+    assert.deepEqual({ ...made, ingredient_id: undefined }, { ingredient_id: undefined, lang: 'en', name: 'tomatillos verdes', is_main: true, confirmed: true, source: 'cook', added_by: 'user_in' })
+    assert.deepEqual(await links(mine.id), { ingredient_1: made!.ingredient_id })
+  })
+
+  test('picking an unconfirmed name confirms it', async () => {
+    const mine = await save('user_in', 'en', 'bay leaf')
+    assert.equal(await answerQuestion(sql, 'user_in', mine.id, 'ingredient_1', 'typo', entry.laurel!), true)
+    assert.equal((await findRecipe(sql, 'user_in', mine.id))!.ingredients[0]!.name, 'bay leaves')
+    assert.deepEqual([...await nameRows('bay leaves')].map(row => [row.ingredient_id, row.confirmed, row.is_main]), [[entry.laurel, true, false]])
+    // Now an exact match for anyone.
+    assert.deepEqual(await links((await save('user_out', 'en', 'bay leaves')).id), { ingredient_1: entry.laurel })
+  })
+
+  test('no question to answer: another cook’s recipe, opted out, a changed line, or a candidate not offered', async () => {
+    const mine = await save('user_in', 'en', 'tomattos')
+    assert.equal(await readQuestions(sql, 'user_out', mine.id), null)
+    assert.equal(await answerQuestion(sql, 'user_out', mine.id, 'ingredient_1', 'typo', entry.tomato!), null)
+    assert.equal(await answerQuestion(sql, 'user_in', mine.id, 'ingredient_1', 'typo', entry.sugar!), null)
+    assert.equal(await answerQuestion(sql, 'user_in', mine.id, 'ingredient_9', 'none', null), null)
+    // Renamed under the same id: the question was about the old name.
+    await updateRecipe(sql, 'user_in', mine.id, recipe('en', 'sugar'))
+    assert.equal(await answerQuestion(sql, 'user_in', mine.id, 'ingredient_1', 'typo', entry.tomato!), null)
+    // Opted out since: nothing is asked, and nothing can be answered.
+    const again = await save('user_in', 'en', 'tomattos')
+    await sql`UPDATE preferences SET settings = '{}' WHERE owner_sub = 'user_in'`
+    try {
+      assert.deepEqual(await asked('user_in', again.id), [])
+      assert.equal(await answerQuestion(sql, 'user_in', again.id, 'ingredient_1', 'typo', entry.tomato!), null)
+    } finally {
+      await sql`UPDATE preferences SET settings = ${sql.json({ ingredientMatching: 'on' })} WHERE owner_sub = 'user_in'`
+    }
+    // A recipe of unknown language files nothing under one; a typo is fine.
+    const unknown = await save('user_in', 'und', 'tomattos')
+    assert.equal(await answerQuestion(sql, 'user_in', unknown.id, 'ingredient_1', 'alias', entry.tomato!), 'und')
+    assert.equal(await answerQuestion(sql, 'user_in', unknown.id, 'ingredient_1', 'typo', entry.tomato!), true)
+  })
+  test('a pass and an answer each tell listeners the recipe’s id', async () => {
+    const heard: string[] = []
+    const { unlisten } = await sql.listen(MATCHED, payload => heard.push(payload))
+    try {
+      const mine = await save('user_in', 'en', 'tomatoe')
+      await answerQuestion(sql, 'user_in', mine.id, 'ingredient_1', 'typo', entry.tomato!)
+      for (let i = 0; i < 50 && heard.filter(heardId => heardId === mine.id).length < 2; i++) await new Promise(resolve => setTimeout(resolve, 20))
+      // The channel is the database's; listeners pick out their recipe.
+      assert.deepEqual(heard.filter(heardId => heardId === mine.id), [mine.id, mine.id])
+    } finally {
+      await unlisten()
+    }
   })
 })

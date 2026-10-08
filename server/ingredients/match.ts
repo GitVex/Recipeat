@@ -11,9 +11,11 @@ const CANDIDATES = 3
 // How long a recipe whose pass failed waits before it is tried again.
 const RETRY_AFTER = '5 minutes'
 
-// The opt-in is #173's preference; until it exists nobody has it, and every
-// cook gets exact matches only.
-const OPT_IN = { key: 'ingredientMatching', value: 'on' }
+// The opt-in, #173's preference. Anything else, or no row, is opted out.
+export const OPT_IN = { key: 'ingredientMatching', value: 'on' }
+// Told the recipe's id once a pass or an answer has changed its lines'
+// links or questions; the recipe page listens (#173).
+export const MATCHED = 'ingredient_matched'
 
 /**
  * Claims the next queued recipe, matches its lines and takes it off the
@@ -81,13 +83,8 @@ async function matchRecipe(tx: TransactionSql, recipeId: string) {
   // under CLOSE so the explicit comparison decides the boundary.
   await tx`SELECT set_config('pg_trgm.similarity_threshold', ${String(CLOSE - 0.01)}, true)`
 
-  const link = async (lineId: string, name: string, ingredientId: string) => {
-    await tx`
-      INSERT INTO ingredient_links (recipe_id, owner_sub, line_id, name, ingredient_id)
-      VALUES (${recipeId}, ${recipe.owner_sub}, ${lineId}, ${name}, ${ingredientId})
-      ON CONFLICT (recipe_id, line_id) DO UPDATE SET name = EXCLUDED.name, ingredient_id = EXCLUDED.ingredient_id, linked_at = now()`
-    await tx`DELETE FROM ingredient_candidates WHERE recipe_id = ${recipeId} AND line_id = ${lineId}`
-  }
+  const link = (lineId: string, name: string, ingredientId: string) =>
+    linkLine(tx, recipeId, recipe.owner_sub, lineId, name, ingredientId)
 
   for (const line of lines) {
     if (linked.has(line.id)) continue
@@ -126,12 +123,22 @@ async function matchRecipe(tx: TransactionSql, recipeId: string) {
     if (lang === 'und') continue
     await link(line.id, line.name, await createEntry(tx, recipe.owner_sub, lang, line.name))
   }
+  await tx`SELECT pg_notify(${MATCHED}, ${recipeId})`
+}
+
+/** Links a line to an entry, which settles its question. */
+export async function linkLine(tx: TransactionSql, recipeId: string, ownerSub: string, lineId: string, name: string, ingredientId: string) {
+  await tx`
+    INSERT INTO ingredient_links (recipe_id, owner_sub, line_id, name, ingredient_id)
+    VALUES (${recipeId}, ${ownerSub}, ${lineId}, ${name}, ${ingredientId})
+    ON CONFLICT (recipe_id, line_id) DO UPDATE SET name = EXCLUDED.name, ingredient_id = EXCLUDED.ingredient_id, linked_at = now()`
+  await tx`DELETE FROM ingredient_candidates WHERE recipe_id = ${recipeId} AND line_id = ${lineId}`
 }
 
 // A new entry with `name` as its main name. Another pass creating the same
 // name at the same moment waits on the unique index and then finds nothing to
 // insert; this one's entry is dropped and the line takes theirs.
-async function createEntry(tx: TransactionSql, ownerSub: string, lang: string, name: string): Promise<string> {
+export async function createEntry(tx: TransactionSql, ownerSub: string, lang: string, name: string): Promise<string> {
   const [{ id }] = await tx<{ id: string }[]>`INSERT INTO ingredients (created_by) VALUES (${ownerSub}) RETURNING id`
   const [named] = await tx`
     INSERT INTO ingredient_names (ingredient_id, lang, name, is_main, confirmed, source, added_by)

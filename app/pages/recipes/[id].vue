@@ -21,6 +21,9 @@ const request = useFetch<{ recipe: SavedRecipe }>(
   },
 );
 const { data, error, status, refresh } = request;
+// A recipe changed somewhere other than the editor, shown as it is now.
+const show = (stored: SavedRecipe) => (data.value = { recipe: stored });
+const ingredientQuestions = useIngredientQuestions(id, show);
 const recipe = computed(() => data.value?.recipe ?? null);
 watch(recipe, (value) => {
   if (value) cache.value = { ...cache.value, [value.id]: value };
@@ -72,7 +75,7 @@ const choice = ref<SaveAction>("progression");
 const writes = useRecipeWrites(
   id,
   editor,
-  (stored) => (data.value = { recipe: stored }),
+  show,
   async (path) => {
     leaving = true;
     await navigateTo(path);
@@ -171,6 +174,17 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", warnBeforeUnloa
         <!-- Changed in place rather than replaced: a new recipe object is a
              new edit, and an unsaved one would be lost to a tag. -->
         <template #controls><WakeLockToggle /></template>
+        <!-- Not while editing: a typo answer changes the recipe under the edit. -->
+        <template #ingredient="{ lineId }">
+          <IngredientCheck
+            v-if="!edited && ingredientQuestions.questions.value.has(lineId)"
+            :question="ingredientQuestions.questions.value.get(lineId)!"
+            :known-language="ingredientQuestions.knownLanguage.value"
+            :answering="!!ingredientQuestions.answering.value"
+            :failed="ingredientQuestions.failed.value === lineId"
+            @answer="(answer, ingredientId) => ingredientQuestions.answer(lineId, answer, ingredientId)"
+          />
+        </template>
         <PaperNudge :recipe-id="id" />
         <TagEditor :recipe="recipe" @change="(tags) => (recipe!.tags = tags)" />
         <!-- Reached by going back down the line. Saying so here, before
