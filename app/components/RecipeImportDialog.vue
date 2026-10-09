@@ -26,6 +26,8 @@ const file = ref<File | null>(null);
 // Off unless asked for: not keeping the photo is how it has always been.
 const keepPhoto = ref(false);
 const error = ref("");
+// For the shortcut hint (#136): the prefix address on this Recipeat.
+const { origin } = useRequestURL();
 
 // The hosts with a scraper of their own, asked for the first time the Website
 // tab is shown. Until they arrive, or if they never do, no hint is given:
@@ -99,11 +101,19 @@ onMounted(() => {
   emit("resume");
 });
 
+// A prefix link (#136) arrives as the dialog opens: on the Website tab, filled
+// in and not sent. Signed out, it is kept for the sign-in like anything typed.
+const { prefill } = useDialogs();
 watch(
   () => props.open,
   (open) => {
-    if (open) error.value = "";
-    else cancel();
+    if (!open) return cancel();
+    error.value = "";
+    if (!prefill.value) return;
+    switchTo("website");
+    input.value = prefill.value.url;
+    error.value = prefill.value.error;
+    prefill.value = null;
   },
 );
 
@@ -246,6 +256,11 @@ const WAIT: Record<ExtractionSource, string> = {
             support ? "See the list" : "See which sites are supported"
           }}</NuxtLink>
         </p>
+        <p v-if="mode === 'website' && !input" class="site-hint import-shortcut">
+          Next time, skip the copy and paste: put <code>{{ origin }}/get/</code> in front of a
+          recipe’s address, or use the
+          <NuxtLink to="/profile#send" @click="emit('close')">bookmarklet on your profile</NuxtLink>.
+        </p>
         <p v-if="error" role="alert" class="error">{{ error }}</p>
         <div
           v-else-if="failure"
@@ -287,6 +302,7 @@ const WAIT: Record<ExtractionSource, string> = {
         know whose it is. Sign in, and you can bring recipes in from websites,
         photos and your own notes.
       </p>
+      <p v-if="error" role="alert" class="error">{{ error }}</p>
       <button class="button full-width" @click="signIn">
         Sign in to continue<AppIcon name="arrow" :size="17" />
       </button>

@@ -297,6 +297,31 @@ test('an extraction opens the recipe it returned, after a busy answer is retried
   expect(bodies).toEqual([{ url: 'https://example.com/pancakes' }, { url: 'https://example.com/pancakes' }])
 })
 
+// A prefix link (#136): filled in on the Website tab and left there, since any
+// page can make a browser load it. Only the person's click sends it.
+test('a prefix link fills in the import and sends nothing until asked', async ({ page }) => {
+  const bodies: unknown[] = []
+  await page.route('**/api/extract/website', route => { bodies.push(route.request().postDataJSON()); return route.fulfill(answer(200)) })
+  await signIn(page)
+  const url = 'https://example.com/pancakes?serves=4'
+  await page.goto(`/get/${url}`)
+  await expect(page).toHaveURL(/\/recipes$/)
+  await expect(page.getByRole('tab', { name: 'Website' })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByLabel('Recipe URL')).toHaveValue(url)
+  await page.waitForTimeout(500)
+  expect(bodies).toEqual([])
+  await page.getByRole('button', { name: 'Bring it in' }).click()
+  await expect(page.getByRole('dialog')).toContainText('Playwright pancakes')
+  expect(bodies).toEqual([{ url }])
+})
+
+test('signed out, a prefix link comes back from the sign-in with its address', async ({ page }) => {
+  await page.goto('/get/https://example.com/pancakes')
+  await page.getByRole('button', { name: 'Sign in to continue' }).click()
+  await expect(page.getByText('Test Cook', { exact: true })).toBeVisible()
+  await expect(page.getByLabel('Recipe URL')).toHaveValue('https://example.com/pancakes')
+})
+
 test('one request at a time, and closing or switching tabs drops it for good', async ({ page }) => {
   let calls = 0
   const held: (() => Promise<void>)[] = []
@@ -444,9 +469,15 @@ test('a link says whether its site is supported, and an unlisted page with no re
   const hint = page.locator('#site-hint')
   await expect(hint).toHaveText('See which sites are supported')
   await expect(hint.getByRole('link')).toHaveAttribute('href', '/sites')
+  // An empty field also points to the shortcuts (#136); typing hides it.
+  const shortcut = page.locator('.import-shortcut')
+  await expect(shortcut).toContainText('http://localhost:3100/get/')
+  await expect(shortcut.getByRole('link', { name: 'bookmarklet on your profile' })).toHaveAttribute('href', '/profile#send')
+  await page.screenshot({ path: 'test-results/import-shortcut.png' })
 
   await field.fill('https://www.bbcgoodfood.com/recipes/pancakes')
   await expect(hint).toContainText('Supported')
+  await expect(shortcut).toHaveCount(0)
   await field.fill('https://nytimes.com/recipes/1')
   await expect(hint).toContainText('Not on the supported list, so we’ll try reading the page’s recipe markup.')
   // Not a URL the dialog would send, so it is not a site either.
