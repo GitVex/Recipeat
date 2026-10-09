@@ -120,6 +120,53 @@ export const PREFERENCES = {
     unset: "On",
     options: [{ value: "off", label: "Off" }],
   },
+  // The one stove a person cooks on (#108), so a recipe's "medium-high heat"
+  // can say which of its settings that is (#52). Medium and high start where
+  // the cook moved them, or unset, where #54's default for the kind puts them.
+  stove: {
+    kind: "group",
+    label: "Stove",
+    description: "What your hob's dial goes from and to, so heat levels in recipes show as its settings.",
+    keys: {
+      stoveKind: {
+        kind: "choice",
+        label: "Kind",
+        description: "Induction runs hotter than the same setting on other hobs.",
+        unset: "Not set up",
+        options: [
+          { value: "induction", label: "Induction" },
+          { value: "ceramic", label: "Ceramic or radiant" },
+          { value: "coil", label: "Electric coil" },
+          { value: "gas", label: "Gas" },
+        ],
+      },
+      stoveLowest: { kind: "number", label: "Lowest setting", description: "The first number on the dial, past off.", unset: "Not set", min: 0, max: 20 },
+      stoveHighest: { kind: "number", label: "Highest setting", description: "The last number, before any boost.", unset: "Not set", min: 0, max: 20 },
+      stoveBoost: {
+        kind: "choice",
+        label: "Boost",
+        description: "A setting past the highest, often P. Never suggested for a heat level.",
+        unset: "None",
+        options: [{ value: "yes", label: "Has one" }],
+      },
+      stoveMediumFrom: { kind: "number", label: "Medium starts at", description: "The first setting that is medium heat.", unset: "Default", min: 0, max: 20 },
+      stoveHighFrom: { kind: "number", label: "High starts at", description: "The first setting that is high heat.", unset: "Default", min: 0, max: 20 },
+    },
+    // Only what is set is compared, so the stove can be filled in a key at a time.
+    check: ({ stoveLowest: low, stoveHighest: high, stoveMediumFrom: medium, stoveHighFrom: hot }) => {
+      const set = (value: unknown): value is number => typeof value === "number";
+      if (set(low) && set(high) && high - low < 2)
+        return "The stove’s range needs at least three settings, its lowest below its highest.";
+      // Lowest, then where medium starts, then where high starts, up to the
+      // highest: each area holds at least one setting.
+      const order: [unknown, unknown, boolean][] = [
+        [low, medium, true], [low, hot, true], [medium, hot, true], [medium, high, true], [hot, high, false],
+      ];
+      return order.every(([a, b, strict]) => !set(a) || !set(b) || (strict ? a < b : a <= b))
+        ? null
+        : "Medium has to start above the lowest setting, and high above medium, up to the highest.";
+    },
+  },
 } as const satisfies Record<string, PreferenceEntry>;
 
 // Every key, groups opened up: what is stored, sent and checked.
