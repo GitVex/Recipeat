@@ -9,18 +9,18 @@ async function draftAfterSignIn(page: import('@playwright/test').Page) {
   // A stand-in for the provider, on this origin, so the draft can be read.
   await page.route('**/auth/zitadel/login**', route => route.fulfill({ contentType: 'text/html', body: 'signing in' }))
   await page.getByRole('button', { name: 'Sign in to continue' }).click()
-  await expect.poll(() => page.evaluate(key => sessionStorage.getItem(key), DRAFT)).not.toBeNull()
+  await page.waitForURL(/\/auth\/zitadel\/login/)
   return JSON.parse((await page.evaluate(key => sessionStorage.getItem(key), DRAFT))!)
 }
 
 test('a prefix link opens the import over the shelf, and keeps the address through a sign-in', async ({ page }) => {
   let extractions = 0
   await page.route('**/api/extract/**', route => { extractions++; return route.abort() })
-  await page.goto('/get/https://itsnotaboutnutrition.com/teriyaki/?print=1&servings=4#recipe')
+  await page.goto('/get/https://itsnotaboutnutrition.com/teriyaki/?print=1&note=a%20b&servings=4#recipe')
   await expect(page).toHaveURL(/\/recipes$/)
   await expect(page.getByRole('dialog')).toContainText('Sign in, and you can bring recipes in')
   await expect(page.getByRole('dialog').getByRole('alert')).toHaveCount(0)
-  expect(await draftAfterSignIn(page)).toEqual({ mode: 'website', input: 'https://itsnotaboutnutrition.com/teriyaki/?print=1&servings=4#recipe' })
+  expect(await draftAfterSignIn(page)).toEqual({ mode: 'website', input: 'https://itsnotaboutnutrition.com/teriyaki/?print=1&note=a%20b&servings=4#recipe' })
   expect(extractions).toBe(0)
 })
 
