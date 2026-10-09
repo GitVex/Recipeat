@@ -4,8 +4,9 @@ import { findRecipe, isRecipeId, requireOwnerSub } from '../../../utils/recipes.
 
 // An answer to one line's question (#173): `{ lineId, answer, ingredientId }`,
 // where answer is "alias" (same thing, my name), "typo" or "none", and
-// ingredientId the candidate meant (not for "none"). Answers with the recipe,
-// which a typo changes, and the questions left.
+// ingredientId the candidate meant (not for "none"); or "liquid" or "solid"
+// for its entry (#181). Answers with the recipe, whose lines' entries and
+// amounts an answer can change, and the questions left.
 export default defineEventHandler(async (event) => {
   setHeader(event, 'Cache-Control', 'no-store')
   const ownerSub = await requireOwnerSub(event)
@@ -18,7 +19,7 @@ export default defineEventHandler(async (event) => {
   if (typeof lineId !== 'string' || !ANSWERS.includes(answer as Answer)) {
     throw createError({ statusCode: 400, message: `"lineId" has to be a line's id, and "answer" one of ${ANSWERS.join(', ')}.` })
   }
-  if (answer !== 'none' && (typeof ingredientId !== 'string' || !/^\d+$/.test(ingredientId))) {
+  if ((answer === 'alias' || answer === 'typo') && (typeof ingredientId !== 'string' || !/^\d+$/.test(ingredientId))) {
     throw createError({ statusCode: 400, message: '"ingredientId" has to be the candidate meant.' })
   }
 

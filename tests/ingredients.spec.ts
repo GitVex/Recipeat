@@ -20,12 +20,12 @@ const preferences = (ingredientMatching: 'on' | null) => ({
 const bayLeaves = { lineId: 'ingredient_1', name: 'bay leafs', candidates: [{ ingredientId: '7', name: 'bay leaves' }, { ingredientId: '8', name: 'bay laurel' }] }
 const tomato = { lineId: 'ingredient_2', name: 'tomatto', candidates: [{ ingredientId: '9', name: 'tomato' }] }
 
-async function open(page: Page, { optedIn = true, questions = [bayLeaves, tomato] as object[], later = null as object[] | null } = {}) {
+async function open(page: Page, { optedIn = true, questions = [bayLeaves, tomato] as object[], later = null as object[] | null, base = recipe as typeof recipe } = {}) {
   const asked: unknown[] = []
   const answers: unknown[] = []
-  let current = { recipe, lang: 'en', questions }
+  let current = { recipe: base, lang: 'en', questions }
   await page.route('**/api/preferences', route => route.fulfill({ json: { preferences: preferences(optedIn ? 'on' : null) } }))
-  await page.route('**/api/recipes', route => route.fulfill({ json: { recipes: [{ ...recipe, ingredientCount: 2, stepCount: 1 }] } }))
+  await page.route('**/api/recipes', route => route.fulfill({ json: { recipes: [{ ...base, ingredientCount: 2, stepCount: 1 }] } }))
   await page.route('**/api/recipes/*', route => route.fulfill({ json: { recipe: current.recipe } }))
   await page.route('**/api/recipes/*/ingredients', (route) => {
     if (route.request().method() === 'GET') {
@@ -37,7 +37,9 @@ async function open(page: Page, { optedIn = true, questions = [bayLeaves, tomato
     const left = current.questions.filter(q => (q as { lineId: string }).lineId !== body.lineId)
     const changed = body.answer === 'typo'
       ? { ...current.recipe, ingredients: current.recipe.ingredients.map(l => l.id === body.lineId ? { ...l, name: 'tomato' } : l) }
-      : current.recipe
+      : body.answer === 'liquid' || body.answer === 'solid'
+        ? { ...current.recipe, ingredients: current.recipe.ingredients.map(l => l.ingredient ? { ...l, ingredient: { ...l.ingredient, isLiquid: body.answer === 'liquid' } } : l) }
+        : current.recipe
     current = { ...current, recipe: changed, questions: left }
     return route.fulfill({ json: { recipe: changed, lang: 'en', questions: left } })
   })
@@ -118,4 +120,28 @@ test('a question matching finds later appears without a reload', async ({ page }
   const { asked } = await open(page, { questions: [], later: [tomato] })
   await expect(mark(page, 'tomatto')).toBeVisible()
   expect(asked.length).toBeGreaterThanOrEqual(2)
+})
+
+// Whether an entry is a liquid (#181): a cup of flour, weighed by its density
+// until someone says it isn't dry, asked beside the close matches.
+test('a cup of something dry shows in grams, and the owner is asked whether it is a liquid', async ({ page }) => {
+  const entry = { id: '3', name: 'flour', densityGPerMl: 0.53, isLiquid: null as boolean | null }
+  const cup = (n: number, name: string, ingredient: typeof entry | null) =>
+    ({ ...line(n, name), quantityText: '1 cup', quantity: { value: 1, maxValue: null, unit: 'cup' }, ingredient })
+  const base = { ...recipe, ingredients: [cup(1, 'flour', entry), cup(2, 'milk', { ...entry, id: '4', name: 'milk', densityGPerMl: 1.03 })] } as unknown as typeof recipe
+  const { answers } = await open(page, { base, questions: [{ kind: 'about', lineId: 'ingredient_1', name: 'flour', ingredientId: '3' }] })
+  const ingredients = page.getByRole('heading', { name: /Ingredients/ }).locator('xpath=../following-sibling::ul')
+  await expect(ingredients).toContainText('1 cup')
+  await page.getByRole('switch', { name: 'Metric units' }).click()
+  await expect(ingredients.locator('li', { hasText: 'flour' })).toContainText('125 g')
+  await expect(ingredients.locator('li', { hasText: 'milk' })).toContainText('235 ml')
+
+  const asked = await question(page, 'flour')
+  await expect(asked).toContainText('may be off')
+  await page.screenshot({ path: 'test-results/ingredient-liquid.png' })
+  await asked.getByRole('button', { name: 'Liquid' }).click()
+  await expect(mark(page, 'flour')).toHaveCount(0)
+  expect(answers).toEqual([{ lineId: 'ingredient_1', answer: 'liquid' }])
+  // The answer stands over the density: the flour is now measured as a liquid.
+  await expect(ingredients.locator('li', { hasText: 'flour' })).toContainText('235 ml')
 })

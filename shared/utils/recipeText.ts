@@ -1,4 +1,4 @@
-import type { ExtractedRecipe, Ingredient, Quantity, Step, StepPart, Unit } from '../types/recipe.ts'
+import type { ExtractedRecipe, Ingredient, IngredientEntry, Quantity, Step, StepPart, Unit } from '../types/recipe.ts'
 import { kitchen, metric, scaleQuantity, stepScaling, UNSCALED, type Scale } from './recipeScale.ts'
 
 // How a stored recipe's structure reads as text: amounts from their parsed
@@ -78,6 +78,22 @@ const BASE: Partial<Record<Unit, number>> = {
   mm: 1, cm: 10, inch: 25.4,
 }
 
+// The volumes a dry ingredient is weighed in when shown in metric: the ones
+// native to US and imperial measure. Spoons, like counts, are the same in
+// every system and stay as written. Ambiguous ones included, as stored.
+export const WEIGHED = new Set<Unit>(['cup', 'cup_us', 'cup_metric', 'fl_oz', 'fl_oz_us', 'fl_oz_imperial'])
+
+/** Whether an entry is a liquid: the cooks' answer, else a density close to water's (#181). */
+export const isLiquid = (entry: IngredientEntry) =>
+  entry.isLiquid ?? (entry.densityGPerMl !== null && entry.densityGPerMl >= 0.95 && entry.densityGPerMl <= 1.1)
+
+// Grams a millilitre, when a cup of this shows as grams: in metric, for a dry
+// entry with a density.
+function weighedAt(unit: Unit, system: UnitSystem, entry: IngredientEntry | null | undefined): number | null {
+  if (system !== 'metric' || !entry?.densityGPerMl || !WEIGHED.has(unit)) return null
+  return isLiquid(entry) ? null : entry.densityGPerMl
+}
+
 // Rounded the way a kitchen measures (recipeScale.ts): grams to 5 g, cups to
 // thirds and quarters, spoons to eighths.
 
@@ -103,12 +119,17 @@ function temperature(value: number, to: Unit): number {
   return converted >= 100 ? Math.round(converted / 5) * 5 : Math.round(converted)
 }
 
-/** The same amount in the other system, or unchanged if it is already in this one or belongs to neither. */
-export function convertQuantity(quantity: Quantity, lang: string, system: UnitSystem): Quantity {
+/**
+ * The same amount in the other system, or unchanged if it is already in this
+ * one or belongs to neither. Given the line's entry, a cup or spoon of a dry
+ * one is weighed in metric.
+ */
+export function convertQuantity(quantity: Quantity, lang: string, system: UnitSystem, entry?: IngredientEntry | null): Quantity {
   if (!quantity.unit) return quantity
   const unit = resolveUnit(quantity.unit, lang)
   const from = SYSTEM[unit]
-  if (!from || from === system) return { ...quantity, unit }
+  const density = weighedAt(unit, system, entry)
+  if (!density && (!from || from === system)) return { ...quantity, unit }
 
   if (unit === 'fahrenheit' || unit === 'celsius') {
     const to = target(0, unit, system)
@@ -116,8 +137,8 @@ export function convertQuantity(quantity: Quantity, lang: string, system: UnitSy
     return { value: temperature(quantity.value, to), maxValue, unit: to }
   }
 
-  const factor = BASE[unit]!
-  const to = target((quantity.maxValue ?? quantity.value) * factor, unit, system)
+  const factor = BASE[unit]! * (density ?? 1)
+  const to = target((quantity.maxValue ?? quantity.value) * factor, density ? 'g' : unit, system)
   const round = (value: number) => {
     const converted = value * factor / BASE[to]!
     return system === 'metric' ? metric(converted, to) : kitchen(converted, to)
@@ -215,13 +236,13 @@ const LEADING_AMOUNT = /^\s*(?:\d+(?:[.,]\d+)?(?:\s+\d+\s*\/\s*\d+)?|\d+\s*\/\s*
  * An amount as shown: scaled, then in the chosen system. The line the reader
  * set as the anchor shows what they typed, not a rounding of it.
  */
-function amountOf(quantity: Quantity, lang: string, system: UnitSystem, scale: Scale, anchored: boolean): string {
+function amountOf(quantity: Quantity, lang: string, system: UnitSystem, scale: Scale, anchored: boolean, entry?: IngredientEntry | null): string {
   if (anchored && scale.value !== null) {
-    const shown = convertQuantity(quantity, lang, system)
+    const shown = convertQuantity(quantity, lang, system, entry)
     const maxValue = shown.maxValue === null ? null : Math.round(shown.maxValue * scale.factor * 100) / 100
     return formatQuantity({ ...shown, value: scale.value, maxValue }, lang)
   }
-  return formatQuantity(convertQuantity(scaleQuantity(quantity, scale.factor), lang, system), lang)
+  return formatQuantity(convertQuantity(scaleQuantity(quantity, scale.factor), lang, system, entry), lang)
 }
 
 export function ingredientText(ingredient: Ingredient, lang: string, system: UnitSystem, scale: Scale = UNSCALED): IngredientText {
@@ -237,10 +258,10 @@ export function ingredientText(ingredient: Ingredient, lang: string, system: Uni
     const number = LEADING_AMOUNT.exec(quantityText)
     if (!number) return { ...line, amount: quantityText, unscaled: true }
     const anchored = scale.anchor === ingredient.id
-    const amount = amountOf(quantity, lang, system, scale, anchored)
+    const amount = amountOf(quantity, lang, system, scale, anchored, ingredient.ingredient)
     return { ...line, amount: `${amount}${quantityText.slice(number[0].length)}`, unscaled: false }
   }
-  return { ...line, amount: amountOf(quantity, lang, system, scale, scale.anchor === ingredient.id), unscaled: false }
+  return { ...line, amount: amountOf(quantity, lang, system, scale, scale.anchor === ingredient.id, ingredient.ingredient), unscaled: false }
 }
 
 /**
@@ -256,7 +277,7 @@ export function anchorOf(ingredient: Ingredient, lang: string, system: UnitSyste
     if (quantityText && !number) return null
     return { value: quantity.value, unit: quantityText && number ? quantityText.slice(number[0].length).trim() : '' }
   }
-  const shown = convertQuantity(quantity, lang, system)
+  const shown = convertQuantity(quantity, lang, system, ingredient.ingredient)
   const unit = shown.unit ? resolveUnit(shown.unit, lang) : null
   const [one, many] = unit ? LABEL[unit] : ['', '']
   return { value: shown.value, unit: shown.value > 1 ? many : one }
@@ -324,11 +345,12 @@ export function partText(
 ): PartText {
   if (part.type === 'text') return { text: part.value, amount: false, unscaled: false }
   if (part.type === 'ingredientQuantity') {
-    const quantity = ingredients.get(part.ingredientId)?.quantity
+    const ingredient = ingredients.get(part.ingredientId)
+    const quantity = ingredient?.quantity
     // A reference to nothing is a stored recipe that was edited around; the
     // amount is lost either way, and an empty string does not break the sentence.
     if (!quantity) return { text: '', amount: false, unscaled: false }
-    return { text: amountOf(quantity, lang, system, scale, scale.anchor === part.ingredientId), amount: true, unscaled: false }
+    return { text: amountOf(quantity, lang, system, scale, scale.anchor === part.ingredientId, ingredient?.ingredient), amount: true, unscaled: false }
   }
   const quantity = step.quantities[part.quantity]
   if (!quantity) return { text: '', amount: false, unscaled: false }

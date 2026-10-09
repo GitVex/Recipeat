@@ -2,10 +2,10 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { normalizeRecipe, parseExtraction } from '../server/utils/extraction.ts'
 import {
-  convertQuantity, formatQuantity, hasConvertible, ingredientText, partText, recipeSystem, resolveUnit, stepTexts,
+  anchorOf, convertQuantity, formatQuantity, hasConvertible, ingredientText, isLiquid, partText, recipeSystem, resolveUnit, stepTexts,
   type UnitSystem,
 } from '../shared/utils/recipeText.ts'
-import type { Ingredient, Quantity, Step } from '../shared/types/recipe.ts'
+import type { Ingredient, IngredientEntry, Quantity, Step } from '../shared/types/recipe.ts'
 
 // What the recipe page prints, from recipes built the way extraction builds
 // them: a draft through parseExtraction and normalizeRecipe.
@@ -162,4 +162,56 @@ test('a step that is only its number, or a reference to nothing, does not break'
   const step: Step = { id: 'step_1', originalText: '1.', parts: [{ type: 'text', value: '1.' }], quantities: {} }
   assert.deepEqual(stepTexts([step]), [{ number: 1, parts: [] }])
   assert.equal(partText({ type: 'ingredientQuantity', ingredientId: 'ingredient_9' }, step, new Map(), 'en', 'metric').text, '')
+})
+
+// The store's entry for a line (#181): a density, and the cooks' answer.
+const entry = (densityGPerMl: number | null, answer: boolean | null = null): IngredientEntry => ({ id: '1', name: 'x', densityGPerMl, isLiquid: answer })
+const weighed = (quantity: Quantity, lang: string, system: UnitSystem, of: IngredientEntry | null) => formatQuantity(convertQuantity(quantity, lang, system, of), lang)
+
+test('in metric, a cup of something dry is weighed by its density; liquids stay in ml, spoons as written', () => {
+  const flour = entry(0.53)
+  assert.equal(weighed(q(1, 'cup'), 'en', 'metric', flour), '125 g')
+  assert.equal(weighed(q(1, 'cup', 2), 'en', 'metric', flour), '125–250 g')
+  assert.equal(weighed(q(10, 'cup'), 'en', 'metric', flour), '1.25 kg')
+  assert.equal(weighed(q(4, 'fl_oz'), 'en', 'metric', flour), '63 g')
+  // A spoon or a count is the same everywhere.
+  assert.equal(weighed(q(2, 'tbsp'), 'en', 'metric', entry(0.85)), '2 tbsp')
+  assert.equal(weighed(q(2, 'tsp'), 'de', 'metric', entry(0.85)), '2 tsp')
+  assert.equal(weighed(q(2, 'count'), 'en', 'metric', flour), '2')
+  // Milk is about as dense as water, so it reads as a liquid; nothing to weigh by, nothing changes.
+  assert.equal(weighed(q(1, 'cup'), 'en', 'metric', entry(1.03)), '235 ml')
+  assert.equal(weighed(q(1, 'cup'), 'en', 'metric', entry(null)), '235 ml')
+  assert.equal(weighed(q(1, 'cup'), 'en', 'metric', null), '235 ml')
+  // Millilitres are what the source measured; imperial is as it was.
+  assert.equal(weighed(q(250, 'ml'), 'de', 'metric', flour), '250 ml')
+  assert.equal(weighed(q(1, 'cup'), 'en', 'imperial', flour), '1 cup')
+  assert.equal(weighed(q(250, 'ml'), 'de', 'imperial', flour), '1 cup')
+})
+
+test('the cooks’ answer decides what is liquid; until then the density guesses', () => {
+  assert.deepEqual([0.94, 0.95, 1, 1.1, 1.11].map(d => isLiquid(entry(d))), [false, true, true, true, false])
+  assert.equal(isLiquid(entry(null)), false)
+  assert.equal(isLiquid(entry(0.53, true)), true)
+  assert.equal(isLiquid(entry(1.03, false)), false)
+  assert.equal(weighed(q(1, 'cup'), 'en', 'metric', entry(0.53, true)), '235 ml')
+  assert.equal(weighed(q(1, 'cup'), 'en', 'metric', entry(1.03, false)), '245 g')
+})
+
+test('a weighed line scales, anchors in grams, and its step restates it the same', () => {
+  const recipe = build({
+    ingredients: [{ originalText: '1 cup flour', quantity: '1 cup', name: 'flour' }],
+    steps: ['Sift 1 cup flour.'],
+  })
+  const flour = recipe.ingredients[0]!
+  flour.ingredient = entry(0.53)
+  assert.equal(ingredientText(flour, 'en', 'metric').amount, '125 g')
+  assert.equal(stepText(recipe, 0, 'metric').text, 'Sift 125 g flour.')
+  assert.equal(ingredientText(flour, 'en', 'metric', { factor: 2, anchor: 'portions', value: null }).amount, '250 g')
+  assert.deepEqual(anchorOf(flour, 'en', 'metric'), { value: 125, unit: 'g' })
+  assert.deepEqual(anchorOf(flour, 'en', 'imperial'), { value: 1, unit: 'cup' })
+  // Typed as 200 g: the line says so, and the step follows it.
+  const scale = { factor: 200 / 125, anchor: flour.id, value: 200 }
+  assert.equal(ingredientText(flour, 'en', 'metric', scale).amount, '200 g')
+  const step = recipe.steps[0]!
+  assert.equal(step.parts.map(part => partText(part, step, new Map([[flour.id, flour]]), 'en', 'metric', scale).text).join(''), 'Sift 200 g flour.')
 })

@@ -103,3 +103,8 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER ingredient_queue_owner
     AFTER INSERT OR UPDATE OF settings ON preferences
     FOR EACH ROW EXECUTE FUNCTION ingredient_queue_owner();
+
+-- Whether an entry is a liquid (#181), as cooks answer it: a dry one measured
+-- in cups shows in grams, a liquid in ml. Null until someone answers, and the
+-- density guesses meanwhile (shared/utils/recipeText.ts). The first answer stands.
+ALTER TABLE ingredients ADD COLUMN is_liquid BOOLEAN;

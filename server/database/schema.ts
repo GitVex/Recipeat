@@ -97,6 +97,7 @@ export type IngredientsTable = {
   density_g_per_ml: ColumnType<string | null, number | null, number | null>
   density_source: 'fdc' | 'searxng' | 'community' | null
   density_ref: string | null
+  is_liquid: boolean | null
   created_by: string | null
   created_at: Generated<Date>
 }

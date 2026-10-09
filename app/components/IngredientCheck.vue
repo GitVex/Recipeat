@@ -3,7 +3,8 @@ import type { IngredientAnswer, IngredientQuestion } from "~/composables/useIngr
 
 // A line's open question (#173), as a small mark after it. The mark opens a
 // bubble under the line with the candidates and the answers; Escape, or
-// focus leaving it, closes it again.
+// focus leaving it, closes it again. An "about" question (#181) asks after
+// the line's entry instead: whether it is a liquid.
 const props = defineProps<{
   question: IngredientQuestion;
   knownLanguage: boolean;
@@ -61,42 +62,56 @@ function leave(event: FocusEvent) {
       :aria-label="`Your “${question.name}”`"
       :style="{ '--tail': tail }"
     >
-      <span class="ingredient-bubble-title">Does “{{ question.name }}” mean…</span>
-      <span
-        v-for="candidate in question.candidates"
-        :key="candidate.ingredientId"
-        class="ingredient-candidate"
-        role="group"
-        :aria-label="candidate.name"
-      >
-        <strong>{{ candidate.name }}?</strong>
+      <template v-if="question.kind === 'about'">
+        <span class="ingredient-bubble-title">Is “{{ question.name }}” a liquid or a solid?</span>
+        <span>Until someone says, its cups and spoons are converted by a guess, and may be off.</span>
+        <span class="ingredient-candidate">
+          <button type="button" class="text-button" :disabled="answering" @click="emit('answer', 'liquid')">
+            Liquid
+          </button>
+          <button type="button" class="text-button" :disabled="answering" @click="emit('answer', 'solid')">
+            Solid
+          </button>
+        </span>
+      </template>
+      <template v-else>
+        <span class="ingredient-bubble-title">Does “{{ question.name }}” mean…</span>
+        <span
+          v-for="candidate in question.candidates"
+          :key="candidate.ingredientId"
+          class="ingredient-candidate"
+          role="group"
+          :aria-label="candidate.name"
+        >
+          <strong>{{ candidate.name }}?</strong>
+          <button
+            v-if="knownLanguage"
+            type="button"
+            class="text-button"
+            :disabled="answering"
+            @click="emit('answer', 'alias', candidate.ingredientId)"
+          >
+            Same thing, my name
+          </button>
+          <button
+            type="button"
+            class="text-button"
+            :disabled="answering"
+            @click="emit('answer', 'typo', candidate.ingredientId)"
+          >
+            Typo
+          </button>
+        </span>
         <button
           v-if="knownLanguage"
           type="button"
           class="text-button"
           :disabled="answering"
-          @click="emit('answer', 'alias', candidate.ingredientId)"
+          @click="emit('answer', 'none')"
         >
-          Same thing, my name
+          None of these
         </button>
-        <button
-          type="button"
-          class="text-button"
-          :disabled="answering"
-          @click="emit('answer', 'typo', candidate.ingredientId)"
-        >
-          Typo
-        </button>
-      </span>
-      <button
-        v-if="knownLanguage"
-        type="button"
-        class="text-button"
-        :disabled="answering"
-        @click="emit('answer', 'none')"
-      >
-        None of these
-      </button>
+      </template>
       <span v-if="failed" role="alert">That didn’t save. Try again.</span>
     </span>
   </span>
