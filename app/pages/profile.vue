@@ -327,7 +327,7 @@ useHead(() => ({
       </section>
       <IngredientOptInDialog :open="optingIn" @confirm="optIn" @cancel="notNow" />
 
-      <section class="profile-preferences profile-send" aria-labelledby="profile-send-heading">
+      <section id="send" class="profile-preferences profile-send" aria-labelledby="profile-send-heading">
         <h2 id="profile-send-heading">Send a page to Recipeat</h2>
         <div class="preference-row">
           <p class="preference-key">

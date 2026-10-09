@@ -26,6 +26,8 @@ const file = ref<File | null>(null);
 // Off unless asked for: not keeping the photo is how it has always been.
 const keepPhoto = ref(false);
 const error = ref("");
+// For the shortcut hint (#136): the prefix address on this Recipeat.
+const { origin } = useRequestURL();
 
 // The hosts with a scraper of their own, asked for the first time the Website
 // tab is shown. Until they arrive, or if they never do, no hint is given:
@@ -253,6 +255,11 @@ const WAIT: Record<ExtractionSource, string> = {
           ><NuxtLink to="/sites" target="_blank">{{
             support ? "See the list" : "See which sites are supported"
           }}</NuxtLink>
+        </p>
+        <p v-if="mode === 'website' && !input" class="site-hint import-shortcut">
+          Next time, skip the copy and paste: put <code>{{ origin }}/get/</code> in front of a
+          recipe’s address, or use the
+          <NuxtLink to="/profile#send" @click="emit('close')">bookmarklet on your profile</NuxtLink>.
         </p>
         <p v-if="error" role="alert" class="error">{{ error }}</p>
         <div

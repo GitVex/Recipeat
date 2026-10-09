@@ -1017,6 +1017,9 @@ textarea {
     line-height: 1.6;
     color: var(--muted);
 }
+.import-shortcut code {
+    overflow-wrap: anywhere;
+}
 .site-hint.supported {
     color: var(--olive);
 }

@@ -469,9 +469,15 @@ test('a link says whether its site is supported, and an unlisted page with no re
   const hint = page.locator('#site-hint')
   await expect(hint).toHaveText('See which sites are supported')
   await expect(hint.getByRole('link')).toHaveAttribute('href', '/sites')
+  // An empty field also points to the shortcuts (#136); typing hides it.
+  const shortcut = page.locator('.import-shortcut')
+  await expect(shortcut).toContainText('http://localhost:3100/get/')
+  await expect(shortcut.getByRole('link', { name: 'bookmarklet on your profile' })).toHaveAttribute('href', '/profile#send')
+  await page.screenshot({ path: 'test-results/import-shortcut.png' })
 
   await field.fill('https://www.bbcgoodfood.com/recipes/pancakes')
   await expect(hint).toContainText('Supported')
+  await expect(shortcut).toHaveCount(0)
   await field.fill('https://nytimes.com/recipes/1')
   await expect(hint).toContainText('Not on the supported list, so we’ll try reading the page’s recipe markup.')
   // Not a URL the dialog would send, so it is not a site either.
