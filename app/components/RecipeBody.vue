@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ExtractedRecipe, SavedRecipe } from "#shared/types/recipe";
 import { ingredientUntouched, parseMinutes } from "#shared/utils/recipeDraft";
+import { heatSetting, stoveCuts } from "#shared/utils/heat";
 import { LIMITS } from "#shared/utils/recipeLimits";
 import { formatFactor, stepPortions, UNSCALED } from "#shared/utils/recipeScale";
 import {
@@ -84,17 +85,31 @@ const portionsShown = computed(() =>
 const byId = computed(
   () => new Map(props.recipe.ingredients.map((ingredient) => [ingredient.id, ingredient])),
 );
+// A heat level shows its setting on the account's stove beside the words
+// (#110); signed out, or no stove that has one, it reads as written.
+const { preferences } = usePreferences();
 const steps = computed(() =>
   stepTexts(props.recipe.steps).map(({ number, parts }, index) => {
     const step = props.recipe.steps[index]!;
     return {
       id: step.id,
       number,
-      parts: parts.map((part) =>
-        partText(part, step, byId.value, lang.value, system.value, scale.value),
-      ),
+      parts: parts.map((part) => ({
+        ...partText(part, step, byId.value, lang.value, system.value, scale.value),
+        setting: part.type === "heat" ? heatSetting(part.level, preferences.value) : null,
+      })),
     };
   }),
+);
+
+// Heat levels and no stove to show them on: signed in, offered a way to set
+// one up (#109). Gas is a stove set up, with nothing to show.
+const offerStove = computed(
+  () =>
+    !!preferences.value &&
+    preferences.value.stoveKind !== "gas" &&
+    !stoveCuts(preferences.value) &&
+    props.recipe.steps.some((step) => step.parts.some((part) => part.type === "heat")),
 );
 
 // Being edited: a line reads as it did until it is changed, and as it was
@@ -362,11 +377,15 @@ const typedTime = computed(() => {
               ><template v-for="(part, index) in step.parts" :key="index"
                 ><span v-if="part.amount" class="amount">{{ part.text }}</span
                 ><span v-if="part.unscaled" class="unscaled-note">not scaled</span
-                ><template v-if="!part.amount">{{ part.text }}</template></template
+                ><template v-if="!part.amount">{{ part.text }}</template
+                ><span v-if="part.setting" class="heat-setting"> · {{ part.setting }}</span></template
               ></span
             >
           </li>
         </ol>
+        <p v-if="offerStove" class="stove-offer">
+          <NuxtLink to="/profile#stove">Set up your stove</NuxtLink> to see heat levels as its settings.
+        </p>
       </template>
     </template>
   </div>

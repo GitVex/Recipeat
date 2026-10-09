@@ -44,6 +44,11 @@ export type StepPart =
   | { type: 'measurement', quantity: string }
   // Points at an ingredient whose full amount this step restates.
   | { type: 'ingredientQuantity', ingredientId: string }
+  // A heat level the step names (#107), with the words as written: "over
+  // medium-high heat" keeps reading the same, and a stove setting goes beside it.
+  | { type: 'heat', level: HeatLevel, value: string }
+
+export type HeatLevel = 'low' | 'medium-low' | 'medium' | 'medium-high' | 'high'
 
 export type StepQuantity = Quantity & { kind: QuantityKind, scaleWithPortions: boolean | null }
 

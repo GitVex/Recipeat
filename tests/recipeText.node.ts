@@ -215,3 +215,61 @@ test('a weighed line scales, anchors in grams, and its step restates it the same
   const step = recipe.steps[0]!
   assert.equal(step.parts.map(part => partText(part, step, new Map([[flour.id, flour]]), 'en', 'metric', scale).text).join(''), 'Sift 200 g flour.')
 })
+
+// Heat levels (#107): read from the words, kept as written.
+const heats = (steps: string[], source_lang = 'en') =>
+  build({ source_lang, steps }).steps.map(step => step.parts.flatMap(part => (part.type === 'heat' ? [[part.level, part.value]] : [])))
+
+test('a heat level in a step becomes a heat part, and reads as written', () => {
+  const recipe = build({ steps: ['Fry 200 g onions over medium-high heat until soft.'] })
+  assert.deepEqual(recipe.steps[0]!.parts.map(part => part.type), ['text', 'measurement', 'text', 'heat', 'text'])
+  assert.equal(stepText(recipe, 0).text, 'Fry 200 g onions over medium-high heat until soft.')
+  assert.deepEqual(heats([
+    'Cook over low heat.', 'Simmer on a medium-low heat.', 'Sear over High Heat.', 'Use a med-high flame.',
+    'Cook over medium high heat.', 'Over medium to high heat.', 'Over moderate heat.', 'Over moderately high heat.',
+    'Over a gentle heat.', 'Reduce the heat to low, then turn the heat up to medium–high.', 'Over low–medium heat.',
+  ]), [
+    [['low', 'low heat']], [['medium-low', 'medium-low heat']], [['high', 'High Heat']], [['medium-high', 'med-high flame']],
+    [['medium-high', 'medium high heat']], [['medium-high', 'medium to high heat']], [['medium', 'moderate heat']], [['medium-high', 'moderately high heat']],
+    [['low', 'gentle heat']], [['low', 'heat to low'], ['medium-high', 'heat up to medium–high']], [['medium-low', 'low–medium heat']],
+  ])
+})
+
+test('German steps are read with German words', () => {
+  assert.deepEqual(heats([
+    'Bei mittlerer Hitze anbraten.', 'Bei schwacher Hitze köcheln.', 'Bei starker Hitze scharf anbraten.',
+    'Bei mittlerer bis starker Hitze braten.', 'Auf kleiner Flamme ziehen lassen.', 'Bei hoher Hitze.', 'Auf mittlere Stufe stellen.',
+    'Bei großer Hitze.', 'Bei mäßiger Hitze.',
+  ], 'de'), [
+    [['medium', 'mittlerer Hitze']], [['low', 'schwacher Hitze']], [['high', 'starker Hitze']],
+    [['medium-high', 'mittlerer bis starker Hitze']], [['low', 'kleiner Flamme']], [['high', 'hoher Hitze']], [['medium', 'mittlere Stufe']],
+    [['high', 'großer Hitze']], [['medium', 'mäßiger Hitze']],
+  ])
+})
+
+test('states, other words and other languages stay plain text', () => {
+  assert.deepEqual(heats([
+    'Bring to a simmer.', 'Cook until boiling.', 'Heat the oil.', 'Use low-fat milk.', 'Bake on the high shelf.',
+    'Slow heat is best.', 'Over low to high heat.', 'Heat the oven to 200 °C.', 'Keep at a rolling boil.',
+  ]), [[], [], [], [], [], [], [], [], []])
+  // The words are English, the recipe is not: no list, no parts.
+  assert.deepEqual(heats(['Over medium heat.'], 'fr'), [[]])
+  assert.deepEqual(heats(['Over medium heat.'], 'und'), [[]])
+  assert.deepEqual(heats(['Bei mittlerer Hitze.'], 'en'), [[]])
+  // A region on the language still finds it.
+  assert.deepEqual(heats(['Over medium heat.'], 'en-GB'), [[['medium', 'medium heat']]])
+})
+
+test('heat parts are rebuilt from the text, never taken from a client', () => {
+  // A posted step is a string; parts sent beside it are not read.
+  const recipe = normalizeRecipe(parseExtraction({ title: 'T', source_lang: 'en', portions: 2, ingredients: [], steps: ['Stir well.'], parts: [{ type: 'heat', level: 'high', value: 'x' }] }, textSource))
+  assert.deepEqual(recipe.steps[0]!.parts, [{ type: 'text', value: 'Stir well.' }])
+  assert.throws(() => parseExtraction({ title: 'T', source_lang: 'en', portions: 2, ingredients: [], steps: [{ type: 'heat', level: 'high', value: 'high heat' }] }, textSource))
+})
+
+test('scaling leaves a heat part as written', () => {
+  const recipe = build({ steps: ['Fry 200 g onions over high heat.'] })
+  const step = recipe.steps[0]!
+  const heat = step.parts.find(part => part.type === 'heat')!
+  assert.deepEqual(partText(heat, step, new Map(), 'en', 'metric', { factor: 3, anchor: null } as never), { text: 'high heat', amount: false, unscaled: false })
+})

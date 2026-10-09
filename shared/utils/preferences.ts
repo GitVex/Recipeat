@@ -1,3 +1,5 @@
+import { stoveCuts } from "./heat.ts";
+
 // Every preference a person can set (#62), and what each may hold. The one
 // place to add one: the type, the route's check and the profile's form all
 // follow from this. Null is always allowed, and is `unset`.
@@ -19,6 +21,18 @@ export type PreferenceGroup = {
   keys: Record<string, PreferenceSpec>;
   check?: (values: Record<string, string | number | null>) => string | null;
   when?: { key: string; value: string };
+  slider?: PreferenceSlider;
+};
+// Two of a group's number keys as the thumbs of one slider (#109), cutting
+// the span between two others into areas. `thumbs` says where they sit for
+// the set, its own values where set; null is no slider. The thumbs' keys get
+// no rows of their own, and unsetting both goes back to what `thumbs` gives.
+export type PreferenceSlider = {
+  label: string;
+  keys: [string, string];
+  bounds: [string, string];
+  areas: [string, string, string];
+  thumbs: (values: Record<string, string | number | null>) => [number, number] | null;
 };
 type PreferenceEntry = PreferenceSpec | PreferenceGroup;
 
@@ -119,6 +133,62 @@ export const PREFERENCES = {
     description: "Notices torn like ticket stubs, buttons cut like label banners.",
     unset: "On",
     options: [{ value: "off", label: "Off" }],
+  },
+  // The one stove a person cooks on (#108), so a recipe's "medium-high heat"
+  // can say which of its settings that is (#52). Medium and high start where
+  // the cook moved them, or unset, where #54's default for the kind puts them.
+  stove: {
+    kind: "group",
+    label: "Stove",
+    description: "What your hob's dial goes from and to, so heat levels in recipes show as its settings.",
+    keys: {
+      stoveKind: {
+        kind: "choice",
+        label: "Kind",
+        description: "Induction runs hotter than the same setting on other hobs.",
+        unset: "Not set up",
+        options: [
+          { value: "induction", label: "Induction" },
+          { value: "ceramic", label: "Ceramic or radiant" },
+          { value: "coil", label: "Electric coil" },
+          { value: "gas", label: "Gas" },
+        ],
+      },
+      stoveLowest: { kind: "number", label: "Lowest setting", description: "The first number on the dial, past off.", unset: "Not set", min: 0, max: 20 },
+      stoveHighest: { kind: "number", label: "Highest setting", description: "The last number, before any boost.", unset: "Not set", min: 0, max: 20 },
+      stoveBoost: {
+        kind: "choice",
+        label: "Boost",
+        description: "A setting past the highest, often P. Never suggested for a heat level.",
+        unset: "None",
+        options: [{ value: "yes", label: "Has one" }],
+      },
+      stoveMediumFrom: { kind: "number", label: "Medium starts at", description: "The first setting that is medium heat.", unset: "Default", min: 0, max: 20 },
+      stoveHighFrom: { kind: "number", label: "High starts at", description: "The first setting that is high heat.", unset: "Default", min: 0, max: 20 },
+    },
+    // Where medium and high start, dragged rather than typed (#109). No
+    // slider for gas or a stove without its range.
+    slider: {
+      label: "Low, medium and high",
+      keys: ["stoveMediumFrom", "stoveHighFrom"],
+      bounds: ["stoveLowest", "stoveHighest"],
+      areas: ["Low", "Medium", "High"],
+      thumbs: (values) => stoveCuts(values as Parameters<typeof stoveCuts>[0]),
+    },
+    // Only what is set is compared, so the stove can be filled in a key at a time.
+    check: ({ stoveLowest: low, stoveHighest: high, stoveMediumFrom: medium, stoveHighFrom: hot }) => {
+      const set = (value: unknown): value is number => typeof value === "number";
+      if (set(low) && set(high) && high - low < 2)
+        return "The stove’s range needs at least three settings, its lowest below its highest.";
+      // Lowest, then where medium starts, then where high starts, up to the
+      // highest: each area holds at least one setting.
+      const order: [unknown, unknown, boolean][] = [
+        [low, medium, true], [low, hot, true], [medium, hot, true], [medium, high, true], [hot, high, false],
+      ];
+      return order.every(([a, b, strict]) => !set(a) || !set(b) || (strict ? a < b : a <= b))
+        ? null
+        : "Medium has to start above the lowest setting, and high above medium, up to the highest.";
+    },
   },
 } as const satisfies Record<string, PreferenceEntry>;
 

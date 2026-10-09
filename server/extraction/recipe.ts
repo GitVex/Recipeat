@@ -5,7 +5,7 @@ import type { ExtractedRecipe, Ingredient, Quantity, RecipeSource } from '../../
 
 // The recipe types are shared with the app, so they live in shared/; this file
 // keeps the rules that build them, and re-exports them for the server's sake.
-export type { ExtractedRecipe, Ingredient, Quantity, QuantityKind, RecipeSource, Step, StepPart, StepQuantity, Unit } from '../../shared/types/recipe.ts'
+export type { ExtractedRecipe, HeatLevel, Ingredient, Quantity, QuantityKind, RecipeSource, Step, StepPart, StepQuantity, Unit } from '../../shared/types/recipe.ts'
 
 // Storage limits. The response schema cannot express them, so they are
 // applied here, on the way from model output to stored document. They live in

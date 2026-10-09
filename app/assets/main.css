@@ -1515,6 +1515,23 @@ input.editable-input {
     white-space: nowrap;
 }
 
+/* The setting a heat level means on the cook's stove (#110), after its words. */
+.heat-setting {
+    color: var(--muted);
+    white-space: nowrap;
+}
+
+/* Heat levels and no stove to show them on (#109). */
+.stove-offer {
+    margin-top: 14px;
+    font-size: var(--text-meta);
+    color: var(--muted);
+}
+.stove-offer a {
+    color: var(--olive);
+    text-decoration: underline;
+}
+
 /* Unsaved: said at the bottom of the recipe for as long as it is true. */
 .edit-bar {
     position: sticky;
@@ -3924,6 +3941,34 @@ a.history-title:hover {
     font-size: var(--text-small);
     color: var(--olive);
 }
+/* A group's header (#200) reads like a preference of its own: its name and
+   description, lined up with the rows above; its keys stay indented under it. */
+.preference-group summary {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+    margin-left: -18px;
+    padding: 18px 0;
+    color: var(--ink);
+    list-style: none;
+}
+.preference-group summary::-webkit-details-marker {
+    display: none;
+}
+.preference-group summary::after {
+    content: "";
+    align-self: center;
+    margin-left: auto;
+    width: 7px;
+    height: 7px;
+    border-right: 1.5px solid var(--muted);
+    border-bottom: 1.5px solid var(--muted);
+    transform: rotate(-45deg);
+    transition: transform var(--dur-enter);
+}
+.preference-group[open] summary::after {
+    transform: rotate(45deg);
+}
 .preference-effects .preference-row:first-of-type {
     border-top: 1px solid var(--line);
 }
@@ -3945,6 +3990,101 @@ a.history-title:hover {
 }
 .preference-value {
     justify-self: end;
+}
+/* A group's slider (#109): two range inputs on one track, only their thumbs
+   taking the pointer. Everything placed along it sits on the thumbs' path,
+   half a thumb (9px) in from each end, at --at from 0 to 1. */
+.slider {
+    --thumb: 18px;
+    width: 300px;
+}
+.slider-above,
+.slider-below {
+    position: relative;
+    height: 18px;
+    font-size: var(--text-meta);
+    color: var(--muted);
+}
+.slider-above > span,
+.slider-below > span,
+.slider-tick {
+    position: absolute;
+    left: calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--at));
+    transform: translateX(-50%);
+    white-space: nowrap;
+}
+.slider-value {
+    color: var(--ink);
+    font-weight: 600;
+}
+.slider-track {
+    position: relative;
+    height: 24px;
+    background: linear-gradient(
+            to right,
+            var(--line) calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--first)),
+            var(--olive-soft) 0 calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--second)),
+            var(--orange-soft) 0
+        )
+        center / 100% 6px no-repeat;
+    border-radius: 3px;
+}
+.slider-tick {
+    top: 15px;
+    width: 1px;
+    height: 6px;
+    background: var(--line-dashed);
+}
+.slider-track input[type="range"] {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    margin: 0;
+    background: transparent;
+    accent-color: var(--olive);
+    pointer-events: none;
+    appearance: none;
+}
+.slider-track input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    width: var(--thumb);
+    height: var(--thumb);
+    border-radius: 50%;
+    background: var(--olive);
+    border: 2px solid var(--paper);
+    pointer-events: auto;
+    cursor: grab;
+}
+/* Firefox draws the border outside the width. */
+.slider-track input[type="range"]::-moz-range-thumb {
+    width: calc(var(--thumb) - 4px);
+    height: calc(var(--thumb) - 4px);
+    border-radius: 50%;
+    background: var(--olive);
+    border: 2px solid var(--paper);
+    pointer-events: auto;
+    cursor: grab;
+}
+/* Both inputs span the track, so the ring goes on the thumb that has focus. */
+.slider-track input[type="range"]:focus-visible {
+    outline: none;
+}
+.slider-track input[type="range"]:focus-visible::-webkit-slider-thumb {
+    outline: 2px solid var(--orange);
+    outline-offset: 2px;
+}
+.slider-track input[type="range"]:focus-visible::-moz-range-thumb {
+    outline: 2px solid var(--orange);
+    outline-offset: 2px;
+}
+.slider-reset {
+    margin-top: 12px;
+    margin-left: auto;
+}
+@media (max-width: 600px) {
+    .slider {
+        width: 100%;
+    }
 }
 /* The opt-in to the ingredient store (#180). */
 .opt-in-pace {
