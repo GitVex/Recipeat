@@ -28,7 +28,15 @@ export type Ingredient = {
   // "finely diced", "for the sauce" — the rest of the line, for display
   // beside the name. Null where the source segmented nothing out.
   extra: string | null
+  // The store's entry this line links to (#181), joined on read and never
+  // saved: null when it links to none, or was renamed since it was linked.
+  // Absent on a recipe that has not been saved.
+  ingredient?: IngredientEntry | null
 }
+
+// `name` is the entry's main name in the recipe's language. `isLiquid` is the
+// cooks' answer, null until one is given.
+export type IngredientEntry = { id: string, name: string, densityGPerMl: number | null, isLiquid: boolean | null }
 
 export type StepPart =
   | { type: 'text', value: string }

@@ -12,7 +12,8 @@ import { addToCollection, collectionsContaining, createCollection, deleteCollect
 import { listTags, setTags } from '../server/tags/store.ts'
 import { addPhoto, arrangePhotos, deleteImage, listPhotos, readImage, setSourcePhoto } from '../server/images/store.ts'
 import { readPreferences, writePreferences } from '../server/utils/preferences.ts'
-import { readFilters } from '../shared/utils/recipeFilters.ts'
+import { NO_FILTERS, readFilters } from '../shared/utils/recipeFilters.ts'
+import { validateRecipe } from '../server/recipes/validate.ts'
 import { readPortions, seedIngredients } from '../scripts/seed-ingredients.ts'
 import { drainQueue, MATCHED, matchNext, previewQuestions } from '../server/ingredients/match.ts'
 import { answerQuestion, countWaiting, readQuestions } from '../server/ingredients/answer.ts'
@@ -275,8 +276,9 @@ describe('recipes store', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }
     assert.equal(saved.lineId, saved.id)
     assert.equal(saved.pinned, true)
     assert.deepEqual([saved.progressionOf, saved.variantOf], [null, null])
-    // JSONB round-trips whole: the parts and the links normalizeRecipe found.
-    assert.deepEqual(found!.ingredients, recipe('Bread').ingredients)
+    // JSONB round-trips whole: the parts and the links normalizeRecipe found,
+    // and no store entry on any line yet (#181).
+    assert.deepEqual(found!.ingredients, recipe('Bread').ingredients.map(line => ({ ...line, ingredient: null })))
     assert.equal(found!.steps[0]!.parts.some(part => part.type === 'ingredientQuantity'), true)
     // NUMERIC arrives as a string and is read back to what was stored.
     assert.equal(found!.portions, 2)
@@ -1667,7 +1669,9 @@ describe('ingredient matching', { skip: url ? false : 'NUXT_DATABASE_URL is not 
   test("an exact match links for every cook, and the line's text is untouched", async () => {
     const out = await save('user_out', 'en', 'Plain Flour')
     assert.deepEqual(await links(out.id), { ingredient_1: entry.flour })
-    assert.deepEqual((await findRecipe(sql, 'user_out', out.id))!.ingredients, out.ingredients)
+    const read = (await findRecipe(sql, 'user_out', out.id))!.ingredients
+    assert.deepEqual(read.map(line => line.ingredient?.id), [entry.flour])
+    assert.deepEqual(read.map(line => ({ ...line, ingredient: null })), out.ingredients)
   })
 
   test('close matches become up to three candidates for an opted-in cook, unconfirmed names included', async () => {
@@ -1935,6 +1939,89 @@ describe('ingredient matching', { skip: url ? false : 'NUXT_DATABASE_URL is not 
     await setMatching('user_none', true, 'batched')
     assert.deepEqual(await queue(), [])
     assert.equal(await countWaiting(sql, 'user_none'), 0)
+  })
+
+  // The store in recipes (#181): entries joined on read, liquids asked, filters by entry.
+  const measured = async (owner: string, lang: string, ...lines: [amount: string, name: string][]) => {
+    const saved = await insertRecipe(db, owner, normalizeRecipe(parseExtraction({
+      title: 'Measured',
+      source_lang: lang,
+      ingredients: lines.map(([amount, name]) => ({ originalText: `${amount} ${name}`, quantity: amount, name })),
+      steps: ['Cook.'],
+    }, { type: 'text', originalText: 'x' })))
+    await drainQueue(sql)
+    return saved
+  }
+  const entries = async (owner: string, id: string) => (await findRecipe(sql, owner, id))!.ingredients.map(line => line.ingredient)
+
+  test('a recipe reads with each line’s entry, named in its language; a line renamed since, or unlinked, has none', async () => {
+    await sql`UPDATE ingredients SET density_g_per_ml = 0.53, density_source = 'fdc' WHERE id = ${entry.flour!}`
+    const german = await measured('user_a', 'de-DE', ['500 g', 'Mehl'], ['1', 'Ei'])
+    assert.deepEqual(await entries('user_a', german.id), [{ id: entry.flour, name: 'Mehl', densityGPerMl: 0.53, isLiquid: null }, null])
+    const english = await measured('user_a', 'en', ['1 cup', 'farina'])
+    assert.deepEqual((await entries('user_a', english.id))[0]!.name, 'flour')
+
+    // Renamed and saved: the link is stale, and the save's own answer says so.
+    const body = structuredClone(await findRecipe(sql, 'user_a', german.id)) as unknown as Record<string, unknown>
+    ;(body.ingredients as { name: string }[])[0]!.name = 'Dinkelmehl'
+    const { draft, source } = validateRecipe(body)
+    const saved = (await updateRecipe(sql, 'user_a', german.id, normalizeRecipe(parseExtraction(draft, source))))!
+    assert.equal(saved.ingredients[0]!.ingredient, null)
+    assert.equal((await entries('user_a', german.id))[0], null)
+  })
+
+  test('saving a recipe that carries its entries writes none of them', async () => {
+    const mine = await measured('user_a', 'en', ['2 cups', 'flour'])
+    const read = (await findRecipe(sql, 'user_a', mine.id))!
+    assert.ok(read.ingredients[0]!.ingredient)
+    const { draft, source } = validateRecipe({ recipe: read })
+    const saved = (await updateRecipe(sql, 'user_a', mine.id, normalizeRecipe(parseExtraction(draft, source))))!
+    assert.equal(saved.ingredients[0]!.ingredient!.id, entry.flour)
+    const [{ stored }] = await sql<{ stored: number }[]>`
+      SELECT count(*)::int AS stored FROM recipes, jsonb_array_elements(ingredients) AS line
+      WHERE line ? 'ingredient'`
+    assert.equal(stored, 0)
+  })
+
+  test('opted-in owners are asked whether a measured-by-volume entry is a liquid; the first answer is everyone’s', async () => {
+    await sql`UPDATE ingredients SET density_g_per_ml = 0.85, density_source = 'fdc' WHERE id = ${entry.sugar!}`
+    const mine = await measured('user_in', 'en', ['1 cup', 'sugar'], ['100 g', 'flour'], ['1', 'tomato'], ['2 tbsp', 'sugar'])
+    const also = await measured('user_in', 'de', ['1 cup', 'Zucker'])
+    const theirs = await measured('user_out', 'en', ['1 cup', 'sugar'])
+    const abouts = async (owner: string, id: string) => (await readQuestions(sql, owner, id))!.questions.filter(q => q.kind === 'about')
+    // Only the cup: grams need no conversion, the tomato has no density, and
+    // a spoon is a spoon either way.
+    assert.deepEqual(await abouts('user_in', mine.id), [{ kind: 'about', lineId: 'ingredient_1', name: 'sugar', ingredientId: entry.sugar }])
+    assert.equal((await abouts('user_in', also.id)).length, 1)
+    assert.equal(await countWaiting(sql, 'user_in') >= 2, true)
+    // Opted out: never asked, and the answer still reaches them.
+    assert.deepEqual(await abouts('user_out', theirs.id), [])
+    assert.equal(await answerQuestion(sql, 'user_out', theirs.id, 'ingredient_1', 'solid', null), null)
+
+    const told: string[] = []
+    const { unlisten } = await sql.listen(MATCHED, id => told.push(id))
+    assert.equal(await answerQuestion(sql, 'user_in', mine.id, 'ingredient_1', 'solid', null), true)
+    await new Promise(resolve => setTimeout(resolve, 200))
+    await unlisten()
+    assert.ok([mine.id, also.id, theirs.id].every(id => told.includes(id)))
+    assert.deepEqual(await abouts('user_in', mine.id), [])
+    assert.deepEqual(await abouts('user_in', also.id), [])
+    assert.equal((await entries('user_out', theirs.id))[0]!.isLiquid, false)
+
+    // A second answer, to the question left open in another tab, changes nothing.
+    assert.equal(await answerQuestion(sql, 'user_in', also.id, 'ingredient_1', 'liquid', null), null)
+    assert.equal((await sql`SELECT is_liquid FROM ingredients WHERE id = ${entry.sugar!}`)[0]!.is_liquid, false)
+  })
+
+  test('an ingredient filter finds lines by their entry’s names in any language, and by text otherwise', async () => {
+    const german = await measured('user_f', 'de', ['500 g', 'Mehl'])
+    const typed = await measured('user_f', 'en', ['1', 'quinoa'])
+    const found = async (term: string) => (await listRecipes(sql, 'user_f', { ...NO_FILTERS, ingredients: [term] })).map(row => row.id)
+    assert.deepEqual(await found('flour'), [german.id])
+    assert.deepEqual(await found('FARINA'), [german.id])
+    assert.deepEqual(await found('quin'), [typed.id])
+    assert.deepEqual(await found('Mehl'), [german.id])
+    assert.deepEqual(await found('sugar'), [])
   })
 })
 

@@ -3,10 +3,14 @@ import type { SavedRecipe } from "#shared/types/recipe";
 // "Does this recipe mean bay leaves?" (#173): the lines close to entries in
 // the ingredient store, asked of their owner when they contribute to it. Each
 // answer goes into the store everyone shares; only a typo changes the recipe,
-// which is handed to `onRecipe`. Questions appear as matching finds them,
-// told over Server-Sent Events.
-export type IngredientQuestion = { lineId: string; name: string; candidates: { ingredientId: string; name: string }[] };
-export type IngredientAnswer = "alias" | "typo" | "none";
+// which is handed to `onRecipe` with the lines' entries as the answer left
+// them. Questions appear as matching finds them, told over Server-Sent Events.
+// An "about" question (#181) asks whether a linked line's entry is a liquid,
+// for converting its cups to grams; that answer is everyone's.
+export type IngredientQuestion =
+  | { kind: "match"; lineId: string; name: string; candidates: { ingredientId: string; name: string }[] }
+  | { kind: "about"; lineId: string; name: string; ingredientId: string };
+export type IngredientAnswer = "alias" | "typo" | "none" | "liquid" | "solid";
 type Questions = { lang: string; questions: IngredientQuestion[] };
 
 export function useIngredientQuestions(recipeId: string, onRecipe: (recipe: SavedRecipe) => void) {
@@ -54,7 +58,7 @@ export function useIngredientQuestions(recipeId: string, onRecipe: (recipe: Save
         { method: "POST", body: { lineId, answer, ingredientId }, retry: 0 },
       );
       data.value = rest;
-      if (answer === "typo") onRecipe(recipe);
+      onRecipe(recipe);
     } catch {
       failed.value = lineId;
     } finally {
