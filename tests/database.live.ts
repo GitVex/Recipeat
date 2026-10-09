@@ -2023,6 +2023,61 @@ describe('ingredient matching', { skip: url ? false : 'NUXT_DATABASE_URL is not 
     assert.deepEqual(await found('Mehl'), [german.id])
     assert.deepEqual(await found('sugar'), [])
   })
+
+  // One answer settles the same question elsewhere (#194).
+  test('"same thing" re-matches every opted-in cook’s recipes asking about that name; other languages keep asking', async () => {
+    await setMatching('user_in2', true)
+    await setMatching('user_gone', true)
+    const mine = await save('user_in', 'en', 'farinna')
+    const theirs = await save('user_in2', 'en', 'Farinna')
+    const german = await save('user_in2', 'de', 'farinna')
+    const gone = await save('user_gone', 'en', 'farinna')
+    await setMatching('user_gone', false)
+    // Waiting in a batched backfill, a day out.
+    const held = await insertRecipe(db, 'user_in2', recipe('en', 'farinna'))
+    await sql`UPDATE ingredient_queue SET not_before = now() + interval '1 day' WHERE recipe_id = ${held.id}`
+    const [before] = await sql`SELECT queued_at, not_before FROM ingredient_queue WHERE recipe_id = ${held.id}`
+    for (const { id } of [mine, theirs, german, gone]) assert.ok((await candidates(id)).length)
+
+    assert.equal(await answerQuestion(sql, 'user_in', mine.id, 'ingredient_1', 'alias', entry.flour!), true)
+    assert.deepEqual(new Set((await queue()).map(row => row.recipe_id)), new Set([held.id, theirs.id, german.id]))
+    assert.deepEqual((await sql`SELECT queued_at, not_before FROM ingredient_queue WHERE recipe_id = ${held.id}`)[0], before)
+
+    const told: string[] = []
+    const { unlisten } = await sql.listen(MATCHED, id => told.push(id))
+    await drainQueue(sql)
+    await new Promise(resolve => setTimeout(resolve, 200))
+    await unlisten()
+    assert.deepEqual(await links(theirs.id), { ingredient_1: entry.flour })
+    assert.deepEqual(await asked('user_in2', theirs.id), [])
+    assert.ok(told.includes(theirs.id))
+    // Filed under en: the German recipe's line is no exact match, and still asks.
+    assert.deepEqual(await links(german.id), {})
+    assert.equal((await asked('user_in2', german.id)).length, 1)
+    // Opted out: left as it was, and the held recipe still waits its turn.
+    assert.ok((await candidates(gone.id)).length)
+    assert.deepEqual((await queue()).map(row => row.recipe_id), [held.id])
+    await sql`DELETE FROM ingredient_queue`
+  })
+
+  test('"none of these" settles the same name elsewhere; "typo" queues nothing', async () => {
+    const mine = await save('user_in', 'en', 'tomatillos rojos')
+    const theirs = await save('user_in2', 'en', 'tomatillos rojos')
+    assert.ok((await candidates(theirs.id)).length)
+    assert.equal(await answerQuestion(sql, 'user_in', mine.id, 'ingredient_1', 'none', null), true)
+    assert.deepEqual((await queue()).map(row => row.recipe_id), [theirs.id])
+    await drainQueue(sql)
+    assert.deepEqual(await links(theirs.id), await links(mine.id))
+    assert.deepEqual(await asked('user_in2', theirs.id), [])
+
+    const typo = await save('user_in', 'en', 'tomatto')
+    const other = await save('user_in2', 'en', 'tomatto')
+    assert.equal(await answerQuestion(sql, 'user_in', typo.id, 'ingredient_1', 'typo', entry.tomato!), true)
+    // The rename queued the answered recipe itself, and nothing else.
+    assert.deepEqual((await queue()).map(row => row.recipe_id), [typo.id])
+    await drainQueue(sql)
+    assert.equal((await asked('user_in2', other.id)).length, 1)
+  })
 })
 
 describe('ingredient lookups', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () => {

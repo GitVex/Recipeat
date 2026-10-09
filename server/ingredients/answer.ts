@@ -102,6 +102,7 @@ export async function answerQuestion(sql: Sql, ownerSub: string, recipeId: strin
 
     if (answer === 'none') {
       await linkLine(tx, recipeId, ownerSub, lineId, name, await createEntry(tx, ownerSub, lang, name))
+      await requeueAsking(tx, recipeId, name)
     } else {
       const picked = asked.find(row => row.ingredient_id === ingredientId)
       if (!picked) return null
@@ -122,6 +123,7 @@ export async function answerQuestion(sql: Sql, ownerSub: string, recipeId: strin
           ON CONFLICT (lang, lower(name)) DO UPDATE SET confirmed = true
           WHERE ingredient_names.ingredient_id = EXCLUDED.ingredient_id`
         await linkLine(tx, recipeId, ownerSub, lineId, name, picked.ingredient_id)
+        await requeueAsking(tx, recipeId, name)
       } else {
         // A typo: the line takes the store's spelling, and the misspelling
         // goes nowhere. originalText keeps what the source said.
@@ -145,4 +147,19 @@ async function answerAbout(tx: TransactionSql, recipeId: string, lineId: string,
   if (!set) return null
   await tx`SELECT pg_notify(${MATCHED}, recipe_id::text) FROM (SELECT DISTINCT recipe_id FROM ingredient_links WHERE ingredient_id = ${asked.ingredient_id}) used`
   return true
+}
+
+// The name is now in the store, so every opted-in cook's recipe asking about
+// it is matched again (#194): where it is now exact in the recipe's
+// language, the pass links it and the question goes. One already queued
+// keeps its place, so a batched backfill isn't pulled forward. A typo
+// stores nothing, and settles nothing elsewhere.
+async function requeueAsking(tx: TransactionSql, recipeId: string, name: string) {
+  const queued = await tx`
+    INSERT INTO ingredient_queue (recipe_id)
+    SELECT DISTINCT c.recipe_id FROM ingredient_candidates c
+    JOIN preferences p ON p.owner_sub = c.owner_sub AND p.settings->>${OPT_IN.key} = ${OPT_IN.value}
+    WHERE lower(c.name) = lower(${name}) AND c.recipe_id <> ${recipeId}
+    ON CONFLICT (recipe_id) DO NOTHING`
+  if (queued.count) await tx`SELECT pg_notify('ingredient_queue', '')`
 }
