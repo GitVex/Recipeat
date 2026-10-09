@@ -15,6 +15,17 @@ const recipes = useRecipeListCache();
 // filled bookmarks (#128) on the recipe list and page are read again on close.
 let changed = false;
 
+function relist(recipe: { id: string }) {
+  void recipes.relist();
+  void refreshNuxtData(`recipe-collections:${recipe.id}`);
+}
+// A write that lands after its dialog closed missed the read on close, so it
+// reads again itself; otherwise the list keeps the bookmark it had.
+function landed(recipe: { id: string }) {
+  if (target.value === recipe) changed = true;
+  else relist(recipe);
+}
+
 const collections = ref<CollectionSummary[]>([]);
 const ticked = ref(new Set<string>());
 const loading = ref(false);
@@ -53,10 +64,7 @@ async function load() {
 }
 
 watch(target, (value, before) => {
-  if (!value && before && changed) {
-    void recipes.relist();
-    void refreshNuxtData(`recipe-collections:${before.id}`);
-  }
+  if (!value && before && changed) relist(before);
   changed = false;
   newName.value = "";
   pending.value = new Set();
@@ -92,7 +100,7 @@ async function toggle(collection: CollectionSummary, event: Event) {
       method: adding ? "PUT" : "DELETE",
       retry: 0,
     });
-    changed = true;
+    landed(recipe);
     list.forget(collection.id);
     collections.value = (await list.reload()).collections;
   } catch (error) {
@@ -120,7 +128,7 @@ async function create() {
       retry: 0,
     });
     await $fetch(`/api/collections/${collection.id}/recipes/${recipe.id}`, { method: "PUT", retry: 0 });
-    changed = true;
+    landed(recipe);
     if (target.value !== recipe) return;
     ticked.value = new Set(ticked.value).add(collection.id);
     newName.value = "";

@@ -102,9 +102,12 @@ test('the profile page can turn it back on', async ({ page }) => {
   const writes: unknown[] = []
   await page.route('**/api/me', route => route.fulfill({ json: { provider: 'zitadel', subject: 'user', profile: { name: 'Ada' } } }))
   await page.route('**/api/recipes', route => route.fulfill({ json: { recipes: [] } }))
+  let preferences = { unitSystem: null, portions: null, paperNudge: 'off', ingredientMatching: null, ingredientBackfill: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null, stoveKind: null, stoveLowest: null, stoveHighest: null, stoveBoost: null, stoveMediumFrom: null, stoveHighFrom: null }
+  // A PUT answers with what it saved, as the server does. Answering with the
+  // old value put the radio back whenever the answer beat Playwright's check.
   await page.route('**/api/preferences', (route) => {
-    if (route.request().method() === 'PUT') writes.push(route.request().postDataJSON())
-    return route.fulfill({ json: { preferences: { unitSystem: null, portions: null, paperNudge: 'off', ingredientMatching: null, ingredientBackfill: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null, stoveKind: null, stoveLowest: null, stoveHighest: null, stoveBoost: null, stoveMediumFrom: null, stoveHighFrom: null } } })
+    if (route.request().method() === 'PUT') writes.push(preferences = route.request().postDataJSON())
+    return route.fulfill({ json: { preferences } })
   })
   // Reached inside the app, so the requests go through the browser and the mocks.
   await page.goto('/')

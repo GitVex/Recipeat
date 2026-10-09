@@ -21,7 +21,7 @@ const full = (id: string, pinned = true) => ({
 
 type Fake = { collections: { id: string, name: string, members: string[] }[], calls: string[] }
 
-async function mockApi(page: Page, fake: Fake, { pinned = true, failAdd = false, failContaining = false } = {}) {
+async function mockApi(page: Page, fake: Fake, { pinned = true, failAdd = false, failContaining = false, holdAdd = Promise.resolve() } = {}) {
   const card = (c: Fake['collections'][number]) => ({
     id: c.id, name: c.name, count: c.members.length, thumbnails: [],
     createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z',
@@ -49,10 +49,11 @@ async function mockApi(page: Page, fake: Fake, { pinned = true, failAdd = false,
     fake.collections.unshift(made)
     return route.fulfill({ status: 201, json: { collection: card(made) } })
   })
-  await page.route('**/api/collections/*/recipes/*', (route) => {
+  await page.route('**/api/collections/*/recipes/*', async (route) => {
     const [, , , collectionId, , recipeId] = new URL(route.request().url()).pathname.split('/')
     const method = route.request().method()
     fake.calls.push(`${method} ${collectionId} ${recipeId}`)
+    if (method === 'PUT') await holdAdd
     if (failAdd && method === 'PUT') return route.fulfill({ status: 500, json: { message: 'x' } })
     const collection = fake.collections.find(c => c.id === collectionId)!
     if (method === 'PUT' && !collection.members.includes(recipeId!)) collection.members.push(recipeId!)
@@ -161,10 +162,27 @@ test('from the list, by keyboard alone', async ({ page }) => {
   await dialog.getByRole('checkbox', { name: /Weeknight/ }).focus()
   await page.keyboard.press('Space')
   await expect(dialog.getByRole('checkbox', { name: /Weeknight/ })).toBeChecked()
-  expect(fake.calls).toEqual([`PUT ${weeknight} ${ids.focaccia}`])
+  // The tick shows at once; the PUT follows it.
+  await expect.poll(() => fake.calls).toEqual([`PUT ${weeknight} ${ids.focaccia}`])
   await page.keyboard.press('Escape')
   await expect(dialog).toBeHidden()
-  await expect(button).toBeFocused()
+  // Closing relists, and the same button comes back under its new name.
+  await expect(page.getByRole('button', { name: 'Focaccia is in a collection' })).toBeFocused()
+})
+
+test('closed before a tick lands, the list still learns of it', async ({ page }) => {
+  let land!: () => void
+  const fake = twoCollections()
+  await mockApi(page, fake, { holdAdd: new Promise<void>(resolve => (land = resolve)) })
+  await openCollection(page)
+  await page.getByRole('button', { name: 'Add Focaccia to a collection' }).click()
+  const dialog = page.getByRole('dialog', { name: /Add to a collection/ })
+  await dialog.getByRole('checkbox', { name: /Weeknight/ }).check()
+  await expect.poll(() => fake.calls).toEqual([`PUT ${weeknight} ${ids.focaccia}`])
+  await page.keyboard.press('Escape')
+  await expect(dialog).toBeHidden()
+  land()
+  await expect(page.getByRole('button', { name: 'Focaccia is in a collection' })).toBeVisible()
 })
 
 test('a tick the server refuses goes back, and says so', async ({ page }) => {
