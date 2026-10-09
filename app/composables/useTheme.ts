@@ -1,5 +1,6 @@
 import {
   PREFERENCE_KEYS,
+  PREFERENCE_SPECS,
   PREFERENCES,
   isPreferenceValue,
   type PreferenceSpec,
@@ -39,7 +40,7 @@ export function useTheme() {
     const set = account.value;
     if (!set || !theme.value) return null;
     const off = PREFERENCE_KEYS.filter(
-      (key) => (PREFERENCES[key] as PreferenceSpec).theme === theme.value && set[key] === "off",
+      (key) => (PREFERENCE_SPECS[key] as PreferenceSpec).theme === theme.value && set[key] === "off",
     ).map((key) => key.replace(/Effect$/, ""));
     return off.length ? off.join(" ") : null;
   });

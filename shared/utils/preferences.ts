@@ -7,6 +7,20 @@ type Common = { label: string; description: string; unset: string; theme?: strin
 export type PreferenceSpec =
   | (Common & { kind: "choice"; options: readonly { value: string; label: string }[] })
   | (Common & { kind: "number"; min: number; max: number });
+// Keys that belong together (#200), folded into one section on the profile.
+// Only how they're declared and shown: the stored document stays flat, so a
+// key's name is unique across groups. `check` sees the whole set and answers
+// what's wrong with it, or null; `when` shows the group only while another key
+// holds a value, and hidden, its keys keep what they hold.
+export type PreferenceGroup = {
+  kind: "group";
+  label: string;
+  description: string;
+  keys: Record<string, PreferenceSpec>;
+  check?: (values: Record<string, string | number | null>) => string | null;
+  when?: { key: string; value: string };
+};
+type PreferenceEntry = PreferenceSpec | PreferenceGroup;
 
 export const PREFERENCES = {
   unitSystem: {
@@ -106,9 +120,28 @@ export const PREFERENCES = {
     unset: "On",
     options: [{ value: "off", label: "Off" }],
   },
-} as const satisfies Record<string, PreferenceSpec>;
+} as const satisfies Record<string, PreferenceEntry>;
 
-export type PreferenceKey = keyof typeof PREFERENCES;
+// Every key, groups opened up: what is stored, sent and checked.
+type Entries = typeof PREFERENCES;
+type Grouped = { [K in keyof Entries]: Entries[K] extends { kind: "group"; keys: infer G } ? G : never }[keyof Entries];
+type Merged<U> = (U extends unknown ? (u: U) => void : never) extends (m: infer M) => void ? M : never;
+type Specs = { [K in keyof Entries as Entries[K] extends { kind: "group" } ? never : K]: Entries[K] } & Merged<Grouped>;
+
+/** Every key in `entries`, its group's keys in its place. Throws on a name two use. */
+export function specsOf(entries: Record<string, PreferenceEntry>): Record<string, PreferenceSpec> {
+  const specs: Record<string, PreferenceSpec> = {};
+  for (const [key, entry] of Object.entries(entries))
+    for (const [name, spec] of entry.kind === "group" ? Object.entries(entry.keys) : [[key, entry] as const]) {
+      if (name in specs) throw new Error(`Two preferences are called ${name}.`);
+      specs[name] = spec;
+    }
+  return specs;
+}
+
+export const PREFERENCE_SPECS = specsOf(PREFERENCES) as unknown as Specs;
+
+export type PreferenceKey = keyof Specs;
 
 type ValueOf<S> = S extends { kind: "choice"; options: readonly { value: infer V }[] }
   ? V
@@ -116,9 +149,21 @@ type ValueOf<S> = S extends { kind: "choice"; options: readonly { value: infer V
     ? number
     : never;
 
-export type Preferences = { -readonly [K in PreferenceKey]: ValueOf<(typeof PREFERENCES)[K]> | null };
+export type Preferences = { -readonly [K in PreferenceKey]: ValueOf<Specs[K]> | null };
 
-export const PREFERENCE_KEYS = Object.keys(PREFERENCES) as PreferenceKey[];
+export const PREFERENCE_KEYS = Object.keys(PREFERENCE_SPECS) as PreferenceKey[];
+
+/** The first group in `entries` whose check `values` fails, as its message. */
+export function groupProblem(
+  values: Record<string, string | number | null>,
+  entries: Record<string, PreferenceEntry> = PREFERENCES,
+): string | null {
+  for (const entry of Object.values(entries)) {
+    const problem = entry.kind === "group" ? entry.check?.(values) : null;
+    if (problem) return problem;
+  }
+  return null;
+}
 
 export const NO_PREFERENCES = Object.fromEntries(PREFERENCE_KEYS.map((key) => [key, null])) as Preferences;
 

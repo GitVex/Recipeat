@@ -3,12 +3,13 @@ import { sql, type Kysely } from 'kysely'
 import { json, type Database } from '../database/schema.ts'
 import { readJsonBody } from '../extraction/body.ts'
 import { fail } from '../extraction/errors.ts'
-import { isPreferenceValue, PREFERENCE_KEYS, PREFERENCES, preferenceRule, type Preferences } from '../../shared/utils/preferences.ts'
+import { groupProblem, isPreferenceValue, PREFERENCE_KEYS, PREFERENCE_SPECS, preferenceRule, type Preferences } from '../../shared/utils/preferences.ts'
 
 /**
  * A whole set of preferences from a request body: every key in PREFERENCES,
  * each something it may hold or null, and nothing else. Every key is required,
- * so a body that forgot one does not quietly unset it.
+ * so a body that forgot one does not quietly unset it. Then every group's
+ * check across its keys (#200).
  */
 export function validatePreferences(body: unknown): Preferences {
   if (typeof body !== 'object' || body === null || Array.isArray(body)) throw fail(400, 'Expected an object.')
@@ -16,10 +17,13 @@ export function validatePreferences(body: unknown): Preferences {
   for (const key of Object.keys(given))
     if (!PREFERENCE_KEYS.includes(key as never)) throw fail(400, `There is no preference called ${key}.`)
   for (const key of PREFERENCE_KEYS) {
-    const spec = PREFERENCES[key]
+    const spec = PREFERENCE_SPECS[key]
     if (!(key in given) || !isPreferenceValue(spec, given[key])) throw fail(400, `${key} must be ${preferenceRule(spec)}.`)
   }
-  return Object.fromEntries(PREFERENCE_KEYS.map(key => [key, given[key]])) as Preferences
+  const preferences = Object.fromEntries(PREFERENCE_KEYS.map(key => [key, given[key]])) as Preferences
+  const problem = groupProblem(preferences)
+  if (problem) throw fail(400, problem)
+  return preferences
 }
 
 export async function readPreferencesBody(event: H3Event): Promise<Preferences> {
@@ -34,7 +38,7 @@ export async function readPreferencesBody(event: H3Event): Promise<Preferences> 
 function fromSettings(settings: Record<string, unknown>): Preferences {
   return Object.fromEntries(PREFERENCE_KEYS.map((key) => {
     const value = settings[key] ?? null
-    return [key, isPreferenceValue(PREFERENCES[key], value) ? value : null]
+    return [key, isPreferenceValue(PREFERENCE_SPECS[key], value) ? value : null]
   })) as Preferences
 }
 
