@@ -1,3 +1,4 @@
+import { heatParts } from './heat.ts'
 import { kindOf, measurementPattern, parseQuantity } from './quantity.ts'
 import type { ExtractedRecipe, Ingredient, Quantity, QuantityKind, Step, StepPart, StepQuantity } from './recipe.ts'
 
@@ -63,7 +64,7 @@ function linkedIngredient(
   return best
 }
 
-function normalizeStep(step: Step, ingredients: Ingredient[]): Step {
+function normalizeStep(step: Step, ingredients: Ingredient[], sourceLang: string): Step {
   const text = step.originalText
   const parts: StepPart[] = []
   const quantities: Record<string, StepQuantity> = {}
@@ -97,15 +98,16 @@ function normalizeStep(step: Step, ingredients: Ingredient[]): Step {
 
   const tail = text.slice(cursor)
   if (tail) parts.push({ type: 'text', value: tail })
-  // A step with no recognised measurement keeps its single text part.
-  return { ...step, parts: parts.length ? parts : [{ type: 'text', value: text }], quantities }
+  // A step with no recognised measurement keeps its single text part. Heat
+  // levels are read out of the text that is left.
+  return { ...step, parts: heatParts(parts.length ? parts : [{ type: 'text', value: text }], sourceLang), quantities }
 }
 
 /**
  * Third pipeline step, after the model has answered and parseExtraction has
  * validated it: reads the segmented quantities into numbers and units, finds
- * the measurements inside each step, and points the ones that restate an
- * ingredient back at it.
+ * the measurements and heat levels inside each step, and points the
+ * measurements that restate an ingredient back at it.
  *
  * Every reference it emits points at an ID it created itself, which is why
  * this runs here rather than being asked of the model.
@@ -120,6 +122,6 @@ export function normalizeRecipe(recipe: ExtractedRecipe): ExtractedRecipe {
   return {
     ...recipe,
     ingredients,
-    steps: recipe.steps.map(step => normalizeStep(step, ingredients)),
+    steps: recipe.steps.map(step => normalizeStep(step, ingredients, recipe.source_lang)),
   }
 }

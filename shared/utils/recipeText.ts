@@ -343,7 +343,8 @@ export type PartText = {
 export function partText(
   part: StepPart, step: Step, ingredients: Map<string, Ingredient>, lang: string, system: UnitSystem, scale: Scale = UNSCALED,
 ): PartText {
-  if (part.type === 'text') return { text: part.value, amount: false, unscaled: false }
+  // A heat level reads as written, whatever the scale.
+  if (part.type === 'text' || part.type === 'heat') return { text: part.value, amount: false, unscaled: false }
   if (part.type === 'ingredientQuantity') {
     const ingredient = ingredients.get(part.ingredientId)
     const quantity = ingredient?.quantity
