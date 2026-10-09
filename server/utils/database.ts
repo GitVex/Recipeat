@@ -28,9 +28,15 @@ export function requireDatabase(): Sql {
 
 export function useDatabase(): Sql {
   if (!pool) {
-    const { databaseUrl } = useRuntimeConfig()
+    const { databaseUrl, ingredientBackfillBatch, ingredientBackfillHours } = useRuntimeConfig()
     if (!databaseUrl) throw new Error('NUXT_DATABASE_URL is not set')
     pool = postgres(databaseUrl, {
+      // Read by the opt-in trigger in 007_ingredient_matching.sql (#180),
+      // which has no other way to see the runtime config.
+      connection: {
+        'recipeat.ingredient_backfill_batch': String(ingredientBackfillBatch),
+        'recipeat.ingredient_backfill_hours': String(ingredientBackfillHours),
+      },
       // The app is one container answering one host's traffic; ten is already
       // more than the extraction routes can be waiting on at once.
       max: 10,
@@ -76,6 +82,13 @@ export function requireKysely(): Kysely<Database> {
   if (!hasDatabase()) throw createError({ statusCode: 503, message: 'Storage is not configured on this deployment.' })
   return useKysely()
 }
+
+// Settles once startup migrations are done: true when there is a schema to
+// work on. Set by plugins/database.ts, and waited on by work that no request
+// starts, so it doesn't matter which plugin Nitro runs first.
+let markMigrated!: (ready: boolean) => void
+export const migrated = new Promise<boolean>((resolve) => { markMigrated = resolve })
+export { markMigrated }
 
 export async function closeDatabase(): Promise<void> {
   const open = pool

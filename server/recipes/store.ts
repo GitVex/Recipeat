@@ -6,7 +6,7 @@ import { lineTags } from '../tags/store.ts'
 import { copySourcePhoto, imageUrl } from '../images/store.ts'
 import { recipeChanges } from '../../shared/utils/recipeDiff.ts'
 import { NO_FILTERS, type RecipeFilters } from '../../shared/utils/recipeFilters.ts'
-import type { ExtractedRecipe, RecipeBranch, RecipeDeletion, RecipeHistory, RecipeSummary, RecipeVersion, SavedRecipe } from '../../shared/types/recipe.ts'
+import type { ExtractedRecipe, IngredientEntry, RecipeBranch, RecipeDeletion, RecipeHistory, RecipeSummary, RecipeVersion, SavedRecipe } from '../../shared/types/recipe.ts'
 
 // Shared with the app, which renders what these routes return.
 export type { RecipeDeletion, RecipeHistory, RecipeSummary, SavedRecipe } from '../../shared/types/recipe.ts'
@@ -15,9 +15,13 @@ export type { RecipeDeletion, RecipeHistory, RecipeSummary, SavedRecipe } from '
 // the migration, so it is imported instead.
 type Row = RecipeRow
 
+// The entries a recipe's lines link to, by line id, as entriesOf reads them.
+type Entries = Record<string, IngredientEntry>
+
 // NUMERIC arrives as a string, because it is arbitrary precision and a double
 // is not. Portions are small, so reading it back into a number loses nothing.
-const asRecipe = (row: Row, tags: string[]): SavedRecipe => ({
+// A row just written has no links yet: matching runs after the save.
+const asRecipe = (row: Row, tags: string[], entries: Entries = {}): SavedRecipe => ({
   id: row.id,
   tags,
   title: row.title,
@@ -25,7 +29,7 @@ const asRecipe = (row: Row, tags: string[]): SavedRecipe => ({
   portions: row.portions === null ? null : Number(row.portions),
   image: row.image,
   totalTime: row.total_time,
-  ingredients: row.ingredients,
+  ingredients: row.ingredients.map(line => ({ ...line, ingredient: entries[line.id] ?? null })),
   steps: row.steps,
   source: row.source,
   lineId: row.line_id,
@@ -79,6 +83,23 @@ const tagsOf = (sql: Sql, table: string) => sql`(
   WHERE rt.line_id = ${sql(table)}.line_id AND rt.owner_sub = ${sql(table)}.owner_sub
 )`
 
+// The entry each line links to (#181), joined on the name it was linked for,
+// so a line renamed since has none. Named in the recipe's language, else the
+// one every language shares. Never written back: the JSON stays the cook's.
+const entriesOf = (sql: Sql, table: string) => sql`(
+  SELECT coalesce(jsonb_object_agg(l.line_id, jsonb_build_object(
+    'id', i.id::text,
+    'name', coalesce((
+      SELECT n.name FROM ingredient_names n WHERE n.ingredient_id = i.id AND n.is_main
+      ORDER BY n.lang = lower(split_part(replace(${sql(table)}.source_lang, '_', '-'), '-', 1)) DESC, n.lang = 'xx' DESC, n.lang
+      LIMIT 1), l.name),
+    'densityGPerMl', i.density_g_per_ml,
+    'isLiquid', i.is_liquid)), '{}')
+  FROM jsonb_array_elements(${sql(table)}.ingredients) AS line
+  JOIN ingredient_links l ON l.recipe_id = ${sql(table)}.id AND l.line_id = line->>'id' AND l.name = trim(line->>'name')
+  JOIN ingredients i ON i.id = l.ingredient_id
+)`
+
 // cardCover in server/images/store.ts, for postgres.js: the version's own
 // cover, else the newest one in its line.
 const coverOf = (sql: Sql, table: string) => sql`(
@@ -120,15 +141,15 @@ export async function insertRecipe(db: Kysely<Database>, ownerSub: string, recip
  * Null means no such row, or not theirs.
  */
 export async function updateRecipe(sql: Sql, ownerSub: string, id: string, recipe: ExtractedRecipe): Promise<SavedRecipe | null> {
-  const [row] = await sql<(Row & { tags: string[] })[]>`
+  const [row] = await sql<(Row & { tags: string[], entries: Entries })[]>`
     UPDATE recipes SET
       title = ${recipe.title}, source_lang = ${recipe.source_lang}, portions = ${recipe.portions},
       image = ${recipe.image}, total_time = ${recipe.totalTime},
       ingredients = ${sql.json(recipe.ingredients)}, steps = ${sql.json(recipe.steps)}, source = ${sql.json(recipe.source)}
     WHERE id = ${id} AND owner_sub = ${ownerSub}
-    RETURNING *, ${tagsOf(sql, 'recipes')} AS tags
+    RETURNING *, ${tagsOf(sql, 'recipes')} AS tags, ${entriesOf(sql, 'recipes')} AS entries
   `
-  return row ? asRecipe(row, row.tags) : null
+  return row ? asRecipe(row, row.tags, row.entries) : null
 }
 
 /**
@@ -366,9 +387,16 @@ export function listing(sql: Sql, ownerSub: string, filters: RecipeFilters, limi
             AND lower(t.name) IN (SELECT lower(name) FROM unnest(${filters.tags}::text[]) AS name)
         ) = (SELECT count(DISTINCT lower(name)) FROM unnest(${filters.tags}::text[]) AS name)`
       : sql``,
+    // By the line's text, or by a name of the entry it links to, in any
+    // language (#181): "flour" finds a "Mehl" linked to flour.
     ...filters.ingredients.map(term => sql`AND EXISTS (
       SELECT 1 FROM jsonb_array_elements(ingredients) AS ingredient
       WHERE ingredient->>'name' ILIKE ${containing(term)}
+         OR EXISTS (
+           SELECT 1 FROM ingredient_links l JOIN ingredient_names n ON n.ingredient_id = l.ingredient_id
+           WHERE l.recipe_id = recipes.id AND l.line_id = ingredient->>'id' AND l.name = trim(ingredient->>'name')
+             AND n.confirmed AND lower(n.name) = lower(${term})
+         )
     )`),
     filters.maxTime !== null ? sql`AND total_time <= ${filters.maxTime}` : sql``,
     filters.minPortions !== null ? sql`AND portions >= ${filters.minPortions}` : sql``,
@@ -398,10 +426,11 @@ export function listing(sql: Sql, ownerSub: string, filters: RecipeFilters, limi
  * rather than forbidden: whether a given id exists is not theirs to learn.
  */
 export async function findRecipe(sql: Sql, ownerSub: string, id: string): Promise<SavedRecipe | null> {
-  const [row] = await sql<(Row & { tags: string[] })[]>`
-    SELECT *, ${tagsOf(sql, 'recipes')} AS tags FROM recipes WHERE id = ${id} AND owner_sub = ${ownerSub}
+  const [row] = await sql<(Row & { tags: string[], entries: Entries })[]>`
+    SELECT *, ${tagsOf(sql, 'recipes')} AS tags, ${entriesOf(sql, 'recipes')} AS entries
+    FROM recipes WHERE id = ${id} AND owner_sub = ${ownerSub}
   `
-  return row ? asRecipe(row, row.tags) : null
+  return row ? asRecipe(row, row.tags, row.entries) : null
 }
 
 /**

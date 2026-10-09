@@ -58,7 +58,8 @@ const saving = ref<"saving" | "saved" | "failed" | null>(null);
 // A theme's own switches (#87) sit folded under the Theme row, and only while
 // that theme is the one picked.
 const ENTRIES = Object.entries(PREFERENCES) as [PreferenceKey, PreferenceSpec][];
-const topPreferences = ENTRIES.filter(([, spec]) => !spec.theme);
+// A `hidden` one is set somewhere else, and only carried through the form.
+const topPreferences = ENTRIES.filter(([, spec]) => !spec.theme && !spec.hidden);
 const themeEffects = computed(() => ENTRIES.filter(([, spec]) => spec.theme && spec.theme === form.theme));
 const themeName = computed(
   () => PREFERENCES.theme.options.find((option) => option.value === form.theme)?.label,
@@ -86,6 +87,31 @@ async function savePreferences() {
   }
   showSaved();
 }
+
+// Opting in to the ingredient store (#180) asks first, in a dialog, how the
+// recipes already saved go through; that answer is saved with it. Opting out
+// saves at once. While in, the row says how many questions are waiting.
+const optingIn = ref(false);
+function changeMatching() {
+  if (form.ingredientMatching === "on" && preferences.value?.ingredientMatching !== "on") optingIn.value = true;
+  else savePreferences();
+}
+function optIn(backfill: "batched" | null) {
+  optingIn.value = false;
+  form.ingredientBackfill = backfill ?? "";
+  savePreferences();
+}
+function notNow() {
+  optingIn.value = false;
+  showSaved();
+}
+const optedIn = computed(() => preferences.value?.ingredientMatching === "on");
+const waiting = useFetch<{ waiting: number }>("/api/ingredients/waiting", {
+  retry: 0,
+  server: false,
+  immediate: false,
+});
+watch(optedIn, (on) => on && waiting.refresh(), { immediate: true });
 
 // Signed out, the theme is the one preference there is, kept in a cookie (#87).
 const { theme, choose: chooseTheme } = useTheme();
@@ -173,7 +199,16 @@ useHead(() => ({
         <form @submit.prevent>
           <fieldset class="preference-list" :disabled="!preferences">
             <template v-for="[key, spec] in topPreferences" :key="key">
-              <PreferenceRow v-model="form[key]" :name="key" :spec="spec" @change="savePreferences" />
+              <PreferenceRow
+                v-model="form[key]"
+                :name="key"
+                :spec="spec"
+                @change="key === 'ingredientMatching' ? changeMatching() : savePreferences()"
+              />
+              <p v-if="key === 'ingredientMatching' && optedIn && waiting.data.value?.waiting" class="preference-waiting">
+                {{ waiting.data.value.waiting }} question{{ waiting.data.value.waiting === 1 ? "" : "s" }} waiting on
+                your recipes.
+              </p>
               <details v-if="key === 'theme' && themeEffects.length" class="preference-effects">
                 <summary>{{ themeName }} effects</summary>
                 <PreferenceRow
@@ -195,6 +230,7 @@ useHead(() => ({
           </p>
         </form>
       </section>
+      <IngredientOptInDialog :open="optingIn" @confirm="optIn" @cancel="notNow" />
 
       <section class="profile-recipes" aria-labelledby="profile-recipes-heading">
         <div class="profile-recipes-heading">

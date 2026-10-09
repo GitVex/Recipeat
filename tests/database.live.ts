@@ -12,7 +12,13 @@ import { addToCollection, collectionsContaining, createCollection, deleteCollect
 import { listTags, setTags } from '../server/tags/store.ts'
 import { addPhoto, arrangePhotos, deleteImage, listPhotos, readImage, setSourcePhoto } from '../server/images/store.ts'
 import { readPreferences, writePreferences } from '../server/utils/preferences.ts'
-import { readFilters } from '../shared/utils/recipeFilters.ts'
+import { NO_FILTERS, readFilters } from '../shared/utils/recipeFilters.ts'
+import { validateRecipe } from '../server/recipes/validate.ts'
+import { readPortions, seedIngredients } from '../scripts/seed-ingredients.ts'
+import { drainQueue, MATCHED, matchNext, previewQuestions } from '../server/ingredients/match.ts'
+import { answerQuestion, countWaiting, readQuestions } from '../server/ingredients/answer.ts'
+import { NO_PREFERENCES } from '../shared/utils/preferences.ts'
+import { lookUpDue } from '../server/ingredients/lookup.ts'
 
 // The half of the runner that needs a database. Everything here happens inside
 // a schema of its own, so a development database keeps its own
@@ -31,7 +37,7 @@ const migrations = (...versions: string[]) => versions.map(version => ({
   sql: readFileSync(new URL(`../server/database/migrations/${version}`, import.meta.url), 'utf8'),
 }))
 // What the stores need under them.
-const STORE = ['001_recipes.sql', '002_collections.sql', '003_tags.sql', '004_preferences.sql', '005_images.sql']
+const STORE = ['001_recipes.sql', '002_collections.sql', '003_tags.sql', '004_preferences.sql', '005_images.sql', '006_ingredients.sql', '007_ingredient_matching.sql']
 
 describe('migration runner', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () => {
   let admin: Sql
@@ -270,8 +276,9 @@ describe('recipes store', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }
     assert.equal(saved.lineId, saved.id)
     assert.equal(saved.pinned, true)
     assert.deepEqual([saved.progressionOf, saved.variantOf], [null, null])
-    // JSONB round-trips whole: the parts and the links normalizeRecipe found.
-    assert.deepEqual(found!.ingredients, recipe('Bread').ingredients)
+    // JSONB round-trips whole: the parts and the links normalizeRecipe found,
+    // and no store entry on any line yet (#181).
+    assert.deepEqual(found!.ingredients, recipe('Bread').ingredients.map(line => ({ ...line, ingredient: null })))
     assert.equal(found!.steps[0]!.parts.some(part => part.type === 'ingredientQuantity'), true)
     // NUMERIC arrives as a string and is read back to what was stored.
     assert.equal(found!.portions, 2)
@@ -1297,15 +1304,15 @@ describe('preferences', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, 
   })
 
   test('nothing saved reads as nothing set', async () => {
-    assert.deepEqual(await readPreferences(db, 'nobody'), { unitSystem: null, portions: null, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
+    assert.deepEqual(await readPreferences(db, 'nobody'), { unitSystem: null, portions: null, paperNudge: null, ingredientMatching: null, ingredientBackfill: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
   })
 
   test('a save replaces the whole set, per owner', async () => {
-    assert.deepEqual(await writePreferences(db, 'user_a', { unitSystem: 'imperial', portions: 4, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null }), { unitSystem: 'imperial', portions: 4, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
-    await writePreferences(db, 'user_b', { unitSystem: 'metric', portions: null, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
-    assert.deepEqual(await writePreferences(db, 'user_a', { unitSystem: null, portions: 2, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null }), { unitSystem: null, portions: 2, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
-    assert.deepEqual(await readPreferences(db, 'user_a'), { unitSystem: null, portions: 2, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
-    assert.deepEqual(await readPreferences(db, 'user_b'), { unitSystem: 'metric', portions: null, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
+    assert.deepEqual(await writePreferences(db, 'user_a', { unitSystem: 'imperial', portions: 4, paperNudge: null, ingredientMatching: null, ingredientBackfill: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null }), { unitSystem: 'imperial', portions: 4, paperNudge: null, ingredientMatching: null, ingredientBackfill: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
+    await writePreferences(db, 'user_b', { unitSystem: 'metric', portions: null, paperNudge: null, ingredientMatching: null, ingredientBackfill: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
+    assert.deepEqual(await writePreferences(db, 'user_a', { unitSystem: null, portions: 2, paperNudge: null, ingredientMatching: null, ingredientBackfill: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null }), { unitSystem: null, portions: 2, paperNudge: null, ingredientMatching: null, ingredientBackfill: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
+    assert.deepEqual(await readPreferences(db, 'user_a'), { unitSystem: null, portions: 2, paperNudge: null, ingredientMatching: null, ingredientBackfill: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
+    assert.deepEqual(await readPreferences(db, 'user_b'), { unitSystem: 'metric', portions: null, paperNudge: null, ingredientMatching: null, ingredientBackfill: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
     const [{ n }] = await sql<{ n: number }[]>`SELECT count(*)::int AS n FROM preferences WHERE owner_sub = 'user_a'`
     assert.equal(n, 1)
   })
@@ -1318,10 +1325,10 @@ describe('preferences', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, 
   test('stored settings read as the config has them now', async () => {
     // A key it no longer has, and values it would not take: left out, and unset.
     await sql`INSERT INTO preferences (owner_sub, settings) VALUES ('user_d', ${{ stove: 'gas', unitSystem: 'si', portions: 4 }}::jsonb)`
-    assert.deepEqual(await readPreferences(db, 'user_d'), { unitSystem: null, portions: 4, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
-    await writePreferences(db, 'user_d', { unitSystem: 'metric', portions: 4, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
+    assert.deepEqual(await readPreferences(db, 'user_d'), { unitSystem: null, portions: 4, paperNudge: null, ingredientMatching: null, ingredientBackfill: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
+    await writePreferences(db, 'user_d', { unitSystem: 'metric', portions: 4, paperNudge: null, ingredientMatching: null, ingredientBackfill: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
     const [{ settings }] = await sql<{ settings: unknown }[]>`SELECT settings FROM preferences WHERE owner_sub = 'user_d'`
-    assert.deepEqual(settings, { unitSystem: 'metric', portions: 4, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
+    assert.deepEqual(settings, { unitSystem: 'metric', portions: 4, paperNudge: null, ingredientMatching: null, ingredientBackfill: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null })
   })
 })
 
@@ -1463,5 +1470,752 @@ describe('images', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () =>
     assert.equal((await deleteRecipe(sql, 'user_a', cake.id))!.photos, 2)
     const [{ n }] = await sql<{ n: number }[]>`SELECT count(*)::int AS n FROM images WHERE owner_sub = 'user_a' AND recipe_id = ${cake.id}`
     assert.equal(n, 0)
+  })
+})
+
+// The ingredient store (#171) and its seed, from a few OFF entries and FDC
+// portions written out here rather than the real files.
+describe('ingredient store', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () => {
+  const SCHEMA = 'ingredients_check'
+  let admin: Sql
+  let sql: Sql
+
+  before(async () => {
+    admin = postgres(url!, { max: 1, onnotice: () => {} })
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin`CREATE SCHEMA ${admin(SCHEMA)}`
+    sql = postgres(url!, { max: 5, onnotice: () => {}, connection: { search_path: SCHEMA } })
+    assert.deepEqual(await applyMigrations(sql, migrations('006_ingredients.sql')), ['006_ingredients.sql'])
+  })
+
+  after(async () => {
+    await sql?.end()
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin?.end()
+  })
+
+  const PORTIONS = [
+    '"id","fdc_id","seq_num","amount","measure_unit_id","portion_description","modifier","gram_weight"',
+    // Flour: the plain tablespoon wins over the cup with a modifier.
+    '"1","100","1","1","9999","","cup, sifted","100"',
+    '"2","100","2","1","9999","","tbsp","7.5"',
+    // Sugar: cup over tablespoon, both plain; and its second FDC id has none.
+    '"3","200","1","1","9999","","tbsp","12.5"',
+    '"4","200","2","1","9999","","cup","200"',
+    // Salt: a teaspoon at 3.6 g/ml, out of range, so no density.
+    '"5","300","1","1","9999","","tsp","17.7"',
+    '"6","300","2","1","9999","","serving","5"',
+  ].join('\n')
+  const TAXONOMY = {
+    'en:flour': { synonyms: { en: ['flour', 'Flour', 'plain flour'], de: ['Mehl', 'Weizenmehl'], xx: ['farina'] }, usda_fdc_code: { en: '100' } },
+    'en:sugar': { synonyms: { en: ['sugar', 'white sugar'], de: ['Zucker'] }, usda_fdc_code: { en: '200, 999' } },
+    'en:salt': { synonyms: { en: ['salt', 'pepper'] }, usda_fdc_code: { en: '300' } },
+    'en:black-pepper': { synonyms: { en: ['black pepper', 'pepper'], de: ['Pfeffer'] }, usda_fdc_code: { en: '400' } },
+    // No FDC id: left out.
+    'en:quark': { synonyms: { en: ['quark'], de: ['Quark'] } },
+  }
+
+  let report: Awaited<ReturnType<typeof seedIngredients>>
+  const byOff = async (offId: string) => (await sql<{ id: string, density_g_per_ml: string | null, density_source: string | null, density_ref: string | null }[]>`
+    SELECT i.* FROM ingredients i JOIN ingredient_sources s ON s.ingredient_id = i.id
+    WHERE s.source = 'off' AND s.external_id = ${offId}`)[0]
+  const names = async (id: string) => (await sql<{ lang: string, name: string, is_main: boolean }[]>`
+    SELECT lang, name, is_main FROM ingredient_names WHERE ingredient_id = ${id} AND confirmed AND source = 'off' AND added_by IS NULL ORDER BY lang, name`)
+    .map(row => `${row.lang}:${row.name}${row.is_main ? '*' : ''}`)
+
+  test('seeds one entry per OFF entry with an FDC id, with its sources and names', async () => {
+    report = await seedIngredients(sql, TAXONOMY, readPortions(PORTIONS))
+    assert.equal(report.ingredients, 4)
+    assert.equal(await byOff('en:quark'), undefined)
+    const sugar = await byOff('en:sugar')
+    const sources = await sql`SELECT source, external_id FROM ingredient_sources WHERE ingredient_id = ${sugar!.id} ORDER BY source, external_id`
+    assert.deepEqual(sources.map(row => `${row.source}:${row.external_id}`), ['fdc:200', 'fdc:999', 'off:en:sugar'])
+    // The first in each language is the main name; a case-only repeat is dropped.
+    assert.deepEqual(await names((await byOff('en:flour'))!.id), ['de:Mehl*', 'de:Weizenmehl', 'en:flour*', 'en:plain flour', 'xx:farina*'])
+  })
+
+  test('density follows the portion rule, with the portion as its ref', async () => {
+    assert.deepEqual(await byOff('en:flour').then(row => [row!.density_g_per_ml, row!.density_source, row!.density_ref]), ['0.5072', 'fdc', '2'])
+    assert.deepEqual(await byOff('en:sugar').then(row => [row!.density_g_per_ml, row!.density_ref]), ['0.8454', '4'])
+    assert.deepEqual(await byOff('en:salt').then(row => [row!.density_g_per_ml, row!.density_source, row!.density_ref]), [null, null, null])
+    assert.equal(report.withDensity, 2)
+  })
+
+  test('a name on two entries in one language is seeded on neither, and reported', async () => {
+    assert.deepEqual(report.duplicates, [{ lang: 'en', name: 'pepper', entries: ['en:salt', 'en:black-pepper'] }])
+    assert.deepEqual(await names((await byOff('en:salt'))!.id), ['en:salt*'])
+    assert.deepEqual(await names((await byOff('en:black-pepper'))!.id), ['de:Pfeffer*', 'en:black pepper*'])
+  })
+
+  test('the seed refuses to run again', async () => {
+    await assert.rejects(() => seedIngredients(sql, TAXONOMY, readPortions(PORTIONS)), /already has entries/)
+    assert.equal((await sql`SELECT count(*)::int AS n FROM ingredients`)[0]!.n, 4)
+  })
+
+  test('names are unique per language regardless of case, and found by trigram', async () => {
+    const flour = (await byOff('en:flour'))!.id
+    await assert.rejects(() => sql`INSERT INTO ingredient_names (ingredient_id, lang, name, confirmed, source) VALUES (${flour}, 'de', 'MEHL', true, 'cook')`, /ingredient_names_lang_name_idx/)
+    await assert.rejects(() => sql`INSERT INTO ingredient_names (ingredient_id, lang, name, is_main, confirmed, source) VALUES (${flour}, 'de', 'Mehlchen', true, false, 'cook')`, /check/)
+    const close = await sql`SELECT name FROM ingredient_names WHERE lower(name) OPERATOR(public.%) 'weizenmehle'`
+    assert.deepEqual(close.map(row => row.name), ['Weizenmehl'])
+  })
+
+  test('a density needs its source', async () => {
+    await assert.rejects(() => sql`INSERT INTO ingredients (density_g_per_ml) VALUES (1)`, /check/)
+  })
+})
+
+// Matching lines against the store after save (#172): the queue the save
+// trigger fills, and what a pass over a recipe leaves behind.
+describe('ingredient matching', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () => {
+  const SCHEMA = 'matching_check'
+  let admin: Sql
+  let sql: Sql
+  let db: Kysely<Database>
+  const entry: Record<string, string> = {}
+  let oldRecipe: string
+
+  before(async () => {
+    admin = postgres(url!, { max: 1, onnotice: () => {} })
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin`CREATE SCHEMA ${admin(SCHEMA)}`
+    sql = postgres(url!, { max: 10, onnotice: () => {}, connection: { search_path: SCHEMA } })
+    db = new Kysely<Database>({ dialect: new PostgresJSDialect({ postgres: sql }) })
+    // Up to the store, then a recipe saved before matching existed, then 007.
+    await applyMigrations(sql, migrations(...STORE.slice(0, 6)))
+    oldRecipe = (await insertRecipe(db, 'user_old', recipe('en', 'flour'))).id
+    await applyMigrations(sql, migrations(...STORE))
+
+    // A small store: each entry's confirmed and unconfirmed names, as lang:name.
+    const store: [string, string[], string[]][] = [
+      ['flour', ['en:flour', 'en:plain flour', 'de:Mehl', 'xx:farina'], []],
+      ['sugar', ['en:sugar', 'de:Zucker'], []],
+      ['laurel', ['en:laurel'], ['en:bay leaves']],
+      ['gift', ['en:gift'], []],
+      ['poison', ['de:Gift'], []],
+      ['tomato', ['en:tomato'], []],
+      ['tomatillo', ['en:tomatillo'], []],
+    ]
+    for (const [key, confirmed, unconfirmed] of store) {
+      const [{ id }] = await sql<{ id: string }[]>`INSERT INTO ingredients DEFAULT VALUES RETURNING id`
+      entry[key] = id
+      const mains = new Set<string>()
+      const rows = [...confirmed.map(n => [n, true] as const), ...unconfirmed.map(n => [n, false] as const)].map(([tagged, isConfirmed]) => {
+        const [lang, name] = tagged.split(':') as [string, string]
+        const is_main = isConfirmed && !mains.has(lang)
+        mains.add(lang)
+        return { ingredient_id: id, lang, name, is_main, confirmed: isConfirmed, source: isConfirmed ? 'off' : 'searxng' }
+      })
+      await sql`INSERT INTO ingredient_names ${sql(rows)}`
+    }
+    await sql`INSERT INTO preferences (owner_sub, settings) VALUES ('user_in', ${sql.json({ ingredientMatching: 'on' })})`
+  })
+
+  after(async () => {
+    await sql?.end()
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin?.end()
+  })
+
+  function recipe(lang: string, ...names: string[]) {
+    return normalizeRecipe(parseExtraction({
+      title: 'Test',
+      source_lang: lang,
+      ingredients: names.map(name => ({ originalText: name, quantity: null, name })),
+      steps: ['Cook.'],
+    }, { type: 'text', originalText: names.join('\n') }))
+  }
+  const save = async (owner: string, lang: string, ...names: string[]) => {
+    const saved = await insertRecipe(db, owner, recipe(lang, ...names))
+    await drainQueue(sql)
+    return saved
+  }
+  // line id → the entry it links to, read as readers will: only while the
+  // line still carries the name it was linked for.
+  const links = async (recipeId: string) => Object.fromEntries((await sql<{ line_id: string, ingredient_id: string }[]>`
+    SELECT l.line_id, l.ingredient_id FROM ingredient_links l
+    JOIN recipes r ON r.id = l.recipe_id
+    JOIN LATERAL jsonb_array_elements(r.ingredients) AS line ON line->>'id' = l.line_id AND trim(line->>'name') = l.name
+    WHERE l.recipe_id = ${recipeId}`).map(row => [row.line_id, row.ingredient_id]))
+  const candidates = async (recipeId: string) => [...await sql<{ line_id: string, ingredient_id: string, matched_name: string, similarity: number }[]>`
+    SELECT line_id, ingredient_id, matched_name, similarity FROM ingredient_candidates WHERE recipe_id = ${recipeId}
+    ORDER BY line_id, similarity DESC`]
+  const queued = async () => (await sql<{ recipe_id: string }[]>`SELECT recipe_id FROM ingredient_queue`).map(row => row.recipe_id)
+  const count = async (query: Promise<{ n: number }[]>) => (await query)[0]!.n
+
+  test('recipes saved before matching are queued by the migration, and saves queue theirs', async () => {
+    assert.deepEqual(await queued(), [oldRecipe])
+    await drainQueue(sql)
+    assert.deepEqual(await links(oldRecipe), { ingredient_1: entry.flour })
+    const fresh = await insertRecipe(db, 'user_a', recipe('en', 'sugar'))
+    assert.deepEqual(await queued(), [fresh.id])
+    await drainQueue(sql)
+    assert.deepEqual(await queued(), [])
+  })
+
+  test('languages: by primary subtag, xx names everywhere, und against all only when unambiguous', async () => {
+    const german = await save('user_a', 'de-DE', 'Mehl', 'zucker')
+    assert.deepEqual(await links(german.id), { ingredient_1: entry.flour, ingredient_2: entry.sugar })
+    // Same food, other language: the same entry; 'farina' is every language's.
+    const english = await save('user_a', 'en', 'flour', 'farina')
+    assert.deepEqual(await links(english.id), { ingredient_1: entry.flour, ingredient_2: entry.flour })
+    // A German name in an English recipe is no exact match.
+    assert.deepEqual(await links((await save('user_a', 'en', 'Zucker')).id), {})
+    // 'und' finds 'Zucker' in German; 'gift' is two entries across languages.
+    const unknown = await save('user_a', 'und', 'Zucker', 'gift')
+    assert.deepEqual(await links(unknown.id), { ingredient_1: entry.sugar })
+  })
+
+  test("an exact match links for every cook, and the line's text is untouched", async () => {
+    const out = await save('user_out', 'en', 'Plain Flour')
+    assert.deepEqual(await links(out.id), { ingredient_1: entry.flour })
+    const read = (await findRecipe(sql, 'user_out', out.id))!.ingredients
+    assert.deepEqual(read.map(line => line.ingredient?.id), [entry.flour])
+    assert.deepEqual(read.map(line => ({ ...line, ingredient: null })), out.ingredients)
+  })
+
+  test('close matches become up to three candidates for an opted-in cook, unconfirmed names included', async () => {
+    const opted = await save('user_in', 'en', 'tomatos', 'bay leaves')
+    assert.deepEqual(await links(opted.id), {})
+    const found = await candidates(opted.id)
+    const tomatos = found.filter(c => c.line_id === 'ingredient_1')
+    assert.ok(tomatos.length >= 1 && tomatos.length <= 3)
+    assert.equal(tomatos[0]!.ingredient_id, entry.tomato)
+    assert.ok(tomatos.every(c => c.similarity >= 0.4))
+    // An unconfirmed name: a candidate at 1.0, never a link.
+    assert.deepEqual(found.filter(c => c.line_id === 'ingredient_2').map(c => [c.ingredient_id, c.matched_name, c.similarity]), [[entry.laurel, 'bay leaves', 1]])
+    // An opted-out cook is asked nothing.
+    assert.deepEqual(await candidates((await save('user_out', 'en', 'tomatos')).id), [])
+  })
+
+  test("no match: an opted-in cook's line makes a new entry, an opted-out cook's stays unlinked", async () => {
+    const id = (await links((await save('user_in', 'en', 'Szechuan pepper')).id)).ingredient_1
+    assert.ok(id)
+    const [made] = await sql`SELECT i.created_by, n.lang, n.name, n.is_main, n.confirmed, n.source, n.added_by
+      FROM ingredients i JOIN ingredient_names n ON n.ingredient_id = i.id WHERE i.id = ${id}`
+    assert.deepEqual({ ...made }, { created_by: 'user_in', lang: 'en', name: 'Szechuan pepper', is_main: true, confirmed: true, source: 'cook', added_by: 'user_in' })
+    const entries = await count(sql`SELECT count(*)::int AS n FROM ingredients`)
+    assert.deepEqual(await links((await save('user_out', 'en', 'grains of paradise')).id), {})
+    assert.equal(await count(sql`SELECT count(*)::int AS n FROM ingredients`), entries)
+    // The next cook's line links to the entry the first one made.
+    assert.deepEqual(await links((await save('user_out', 'en', 'szechuan pepper')).id), { ingredient_1: id })
+  })
+
+  test('linking adds no version and leaves updated_at alone', async () => {
+    const saved = await save('user_a', 'en', 'sugar')
+    assert.deepEqual(await links(saved.id), { ingredient_1: entry.sugar })
+    const rows = await sql`SELECT updated_at FROM recipes WHERE line_id = ${saved.lineId}`
+    assert.deepEqual(rows.map(row => row.updated_at.toISOString()), [saved.updatedAt])
+  })
+
+  test('an edited or removed line loses its link and candidates, and an edited one is matched again', async () => {
+    const saved = await save('user_in', 'en', 'flour', 'tomatos', 'sugar')
+    assert.equal(Object.keys(await links(saved.id)).length, 2)
+    assert.ok((await candidates(saved.id)).length)
+    // Line 1 renamed; line 2, with its candidates, removed, so line 3 moves up.
+    await updateRecipe(sql, 'user_in', saved.id, recipe('en', 'saffron threads', 'sugar'))
+    // Before the pass, nothing reads as linked under the old names.
+    assert.deepEqual(await links(saved.id), {})
+    await drainQueue(sql)
+    assert.deepEqual(await candidates(saved.id), [])
+    const after = await links(saved.id)
+    assert.equal(after.ingredient_2, entry.sugar)
+    assert.ok(after.ingredient_1 && after.ingredient_1 !== entry.flour)
+    const stored = await sql`SELECT name FROM ingredient_links WHERE recipe_id = ${saved.id} ORDER BY line_id`
+    assert.deepEqual(stored.map(row => row.name), ['saffron threads', 'sugar'])
+  })
+
+  test('a save during a pass waits for it, then queues the recipe again', async () => {
+    const saved = await insertRecipe(db, 'user_a', recipe('en', 'flour'))
+    let release!: () => void
+    const held = new Promise<void>(resolve => { release = resolve })
+    // A pass holding its claim, as a slow worker would.
+    const pass = sql.begin(async (tx) => {
+      await tx`DELETE FROM ingredient_queue WHERE recipe_id = ${saved.id}`
+      await held
+    })
+    await new Promise(resolve => setTimeout(resolve, 100))
+    const edit = updateRecipe(sql, 'user_a', saved.id, recipe('en', 'sugar'))
+    await new Promise(resolve => setTimeout(resolve, 200))
+    release()
+    await Promise.all([pass, edit])
+    assert.deepEqual(await queued(), [saved.id])
+    await drainQueue(sql)
+    assert.deepEqual(await links(saved.id), { ingredient_1: entry.sugar })
+  })
+
+  test('two recipes creating the same new name at once end with one entry', async () => {
+    const one = await insertRecipe(db, 'user_in', recipe('en', 'Kala namak'))
+    const two = await insertRecipe(db, 'user_in', recipe('en', 'kala namak'))
+    await Promise.all([matchNext(sql), matchNext(sql)])
+    const [a, b] = [await links(one.id), await links(two.id)]
+    assert.ok(a.ingredient_1)
+    assert.equal(a.ingredient_1, b.ingredient_1)
+    assert.equal(await count(sql`SELECT count(*)::int AS n FROM ingredient_names WHERE lower(name) = 'kala namak'`), 1)
+    // The loser's entry was dropped, not left nameless.
+    assert.equal(await count(sql`SELECT count(*)::int AS n FROM ingredients WHERE id NOT IN (SELECT ingredient_id FROM ingredient_names)`), 0)
+  })
+
+  test('with the database unreachable the recipe stays queued, and a later pass matches it', async () => {
+    const saved = await insertRecipe(db, 'user_a', recipe('en', 'sugar'))
+    const away = postgres('postgres://nobody:nothing@127.0.0.1:1/none', { max: 1, connect_timeout: 1, onnotice: () => {} })
+    await assert.rejects(() => matchNext(away))
+    await away.end()
+    assert.deepEqual(await queued(), [saved.id])
+    assert.deepEqual(await links(saved.id), {})
+    await drainQueue(sql)
+    assert.deepEqual(await links(saved.id), { ingredient_1: entry.sugar })
+  })
+
+  test('a pass that fails rolls back, and holds the recipe back until a retry', async () => {
+    const saved = await insertRecipe(db, 'user_a', recipe('en', 'sugar'))
+    await sql`ALTER TABLE ingredient_links ADD CONSTRAINT fail_now CHECK (false) NOT VALID`
+    try {
+      await assert.rejects(() => matchNext(sql), /fail_now/)
+    } finally {
+      await sql`ALTER TABLE ingredient_links DROP CONSTRAINT fail_now`
+    }
+    assert.equal((await sql`SELECT not_before > now() AS held FROM ingredient_queue WHERE recipe_id = ${saved.id}`)[0]!.held, true)
+    // Held back, so there is nothing to claim; the next save readies it.
+    assert.equal(await matchNext(sql), false)
+    await updateRecipe(sql, 'user_a', saved.id, recipe('en', 'sugar'))
+    await drainQueue(sql)
+    assert.deepEqual(await links(saved.id), { ingredient_1: entry.sugar })
+  })
+
+  test('workers side by side never take the same recipe', async () => {
+    const saved = await Promise.all(Array.from({ length: 12 }, () => insertRecipe(db, 'user_a', recipe('en', 'flour', 'sugar'))))
+    const passes = await Promise.all(Array.from({ length: 4 }, async () => {
+      let mine = 0
+      while (await matchNext(sql)) mine++
+      return mine
+    }))
+    assert.equal(passes.reduce((a, b) => a + b), 12)
+    for (const { id } of saved) assert.deepEqual(await links(id), { ingredient_1: entry.flour, ingredient_2: entry.sugar })
+  })
+  // The owner's answers (#173).
+  const nameRows = (name: string) => sql`SELECT ingredient_id, lang, name, is_main, confirmed, source, added_by FROM ingredient_names WHERE lower(name) = lower(${name})`
+  const asked = async (owner: string, recipeId: string) => (await readQuestions(sql, owner, recipeId))!.questions
+    .map(q => [q.lineId, q.name, q.candidates.map(c => c.ingredientId)])
+
+  test('"same thing, my name" adds a confirmed alias in the recipe’s language, and links the line', async () => {
+    const other = await save('user_out', 'en', 'tomatoes')
+    const mine = await save('user_in', 'en-GB', 'tomatoes')
+    assert.ok((await asked('user_in', mine.id)).some(([, , ids]) => (ids as string[]).includes(entry.tomato!)))
+    assert.equal(await answerQuestion(sql, 'user_in', mine.id, 'ingredient_1', 'alias', entry.tomato!), true)
+    assert.deepEqual([...await nameRows('tomatoes')].map(row => ({ ...row })), [{ ingredient_id: entry.tomato, lang: 'en', name: 'tomatoes', is_main: false, confirmed: true, source: 'cook', added_by: 'user_in' }])
+    assert.deepEqual(await links(mine.id), { ingredient_1: entry.tomato })
+    assert.deepEqual(await candidates(mine.id), [])
+    assert.deepEqual(await asked('user_in', mine.id), [])
+    // In the shared store at once: the next cook's line is an exact match.
+    // The cook who saved before is untouched until their own next pass.
+    assert.deepEqual(await links(other.id), {})
+    assert.deepEqual((await findRecipe(sql, 'user_out', other.id))!.ingredients, other.ingredients)
+    assert.deepEqual(await links((await save('user_out', 'en', 'Tomatoes')).id), { ingredient_1: entry.tomato })
+  })
+
+  test('"typo" takes the matched name and links it; originalText stays and the misspelling is not stored', async () => {
+    const mine = await save('user_in', 'en', 'tomatto')
+    assert.equal(await answerQuestion(sql, 'user_in', mine.id, 'ingredient_1', 'typo', entry.tomato!), true)
+    const line = (await findRecipe(sql, 'user_in', mine.id))!.ingredients[0]!
+    assert.equal(line.name, 'tomato')
+    assert.equal(line.originalText, 'tomatto')
+    assert.equal((await nameRows('tomatto')).length, 0)
+    assert.deepEqual(await links(mine.id), { ingredient_1: entry.tomato })
+    // The rename queued the recipe; its pass keeps the link.
+    await drainQueue(sql)
+    assert.deepEqual(await links(mine.id), { ingredient_1: entry.tomato })
+  })
+
+  test('"none of these" makes a new entry under the line’s name, and links it', async () => {
+    const mine = await save('user_in', 'en', 'tomatillos verdes')
+    assert.ok((await candidates(mine.id)).length)
+    assert.equal(await answerQuestion(sql, 'user_in', mine.id, 'ingredient_1', 'none', null), true)
+    const [made] = await nameRows('tomatillos verdes')
+    assert.deepEqual({ ...made, ingredient_id: undefined }, { ingredient_id: undefined, lang: 'en', name: 'tomatillos verdes', is_main: true, confirmed: true, source: 'cook', added_by: 'user_in' })
+    assert.deepEqual(await links(mine.id), { ingredient_1: made!.ingredient_id })
+  })
+
+  test('picking an unconfirmed name confirms it', async () => {
+    const mine = await save('user_in', 'en', 'bay leaf')
+    assert.equal(await answerQuestion(sql, 'user_in', mine.id, 'ingredient_1', 'typo', entry.laurel!), true)
+    assert.equal((await findRecipe(sql, 'user_in', mine.id))!.ingredients[0]!.name, 'bay leaves')
+    assert.deepEqual([...await nameRows('bay leaves')].map(row => [row.ingredient_id, row.confirmed, row.is_main]), [[entry.laurel, true, false]])
+    // Now an exact match for anyone.
+    assert.deepEqual(await links((await save('user_out', 'en', 'bay leaves')).id), { ingredient_1: entry.laurel })
+  })
+
+  test('no question to answer: another cook’s recipe, opted out, a changed line, or a candidate not offered', async () => {
+    const mine = await save('user_in', 'en', 'tomattos')
+    assert.equal(await readQuestions(sql, 'user_out', mine.id), null)
+    assert.equal(await answerQuestion(sql, 'user_out', mine.id, 'ingredient_1', 'typo', entry.tomato!), null)
+    assert.equal(await answerQuestion(sql, 'user_in', mine.id, 'ingredient_1', 'typo', entry.sugar!), null)
+    assert.equal(await answerQuestion(sql, 'user_in', mine.id, 'ingredient_9', 'none', null), null)
+    // Renamed under the same id: the question was about the old name.
+    await updateRecipe(sql, 'user_in', mine.id, recipe('en', 'sugar'))
+    assert.equal(await answerQuestion(sql, 'user_in', mine.id, 'ingredient_1', 'typo', entry.tomato!), null)
+    // Opted out since: nothing is asked, and nothing can be answered.
+    const again = await save('user_in', 'en', 'tomattos')
+    await sql`UPDATE preferences SET settings = '{}' WHERE owner_sub = 'user_in'`
+    try {
+      assert.deepEqual(await asked('user_in', again.id), [])
+      assert.equal(await answerQuestion(sql, 'user_in', again.id, 'ingredient_1', 'typo', entry.tomato!), null)
+    } finally {
+      await sql`UPDATE preferences SET settings = ${sql.json({ ingredientMatching: 'on' })} WHERE owner_sub = 'user_in'`
+    }
+    // A recipe of unknown language files nothing under one; a typo is fine.
+    const unknown = await save('user_in', 'und', 'tomattos')
+    assert.equal(await answerQuestion(sql, 'user_in', unknown.id, 'ingredient_1', 'alias', entry.tomato!), 'und')
+    assert.equal(await answerQuestion(sql, 'user_in', unknown.id, 'ingredient_1', 'typo', entry.tomato!), true)
+  })
+  test('a pass and an answer each tell listeners the recipe’s id', async () => {
+    const heard: string[] = []
+    const { unlisten } = await sql.listen(MATCHED, payload => heard.push(payload))
+    try {
+      const mine = await save('user_in', 'en', 'tomatoe')
+      await answerQuestion(sql, 'user_in', mine.id, 'ingredient_1', 'typo', entry.tomato!)
+      for (let i = 0; i < 50 && heard.filter(heardId => heardId === mine.id).length < 2; i++) await new Promise(resolve => setTimeout(resolve, 20))
+      // The channel is the database's; listeners pick out their recipe.
+      assert.deepEqual(heard.filter(heardId => heardId === mine.id), [mine.id, mine.id])
+    } finally {
+      await unlisten()
+    }
+  })
+
+  // Opting in (#180). The queue in order, and when each comes due.
+  const queue = async () => [...await sql<{ recipe_id: string, due: number }[]>`
+    SELECT recipe_id, round(extract(epoch FROM not_before - now()) / 3600)::int AS due
+    FROM ingredient_queue ORDER BY queued_at`]
+  const setMatching = (owner: string, on: boolean, backfill: 'batched' | null = null) =>
+    writePreferences(db, owner, { ...NO_PREFERENCES, ingredientMatching: on ? 'on' : null, ingredientBackfill: backfill })
+
+  test('opting in queues every recipe the cook has, newest first; no change, or opting out, queues nothing', async () => {
+    const asked = await save('user_late', 'en', 'tomatos')
+    const exact = await save('user_late', 'en', 'flour')
+    const newest = await save('user_late', 'en', 'tomatos', 'Szechuan pepper')
+    // What a pass would ask: the two close lines, not the exact one or the miss. It writes nothing.
+    assert.equal(await previewQuestions(sql, 'user_late'), 2)
+    assert.equal(await count(sql`SELECT count(*)::int AS n FROM ingredient_candidates WHERE owner_sub = 'user_late'`), 0)
+    assert.equal(await count(sql`SELECT count(*)::int AS n FROM ingredient_queue`), 0)
+
+    await setMatching('user_late', true)
+    assert.deepEqual(await queue(), [newest, exact, asked].map(r => ({ recipe_id: r.id, due: 0 })))
+    await drainQueue(sql)
+    assert.equal(await countWaiting(sql, 'user_late'), 2)
+
+    await setMatching('user_late', true)
+    assert.deepEqual(await queue(), [])
+    await setMatching('user_late', false)
+    assert.deepEqual(await queue(), [])
+    // Questions stored from that opt-in stay, and count again next time.
+    assert.equal(await previewQuestions(sql, 'user_late'), 2)
+  })
+
+  test('a batch at a time: each batch one spacing later; a queued recipe keeps its place; opting out halfway asks nothing', async () => {
+    const [first, second, third] = [await save('user_slow', 'en', 'tomatos'), await save('user_slow', 'en', 'tomatos'), await save('user_slow', 'en', 'tomatos')]
+    // Saved and not yet matched: already queued.
+    const waiting = await insertRecipe(db, 'user_slow', recipe('en', 'tomatos'))
+    const [{ queued_at: before }] = await sql`SELECT queued_at FROM ingredient_queue WHERE recipe_id = ${waiting.id}`
+    await sql.begin(async (tx) => {
+      await tx`SELECT set_config('recipeat.ingredient_backfill_batch', '2', true), set_config('recipeat.ingredient_backfill_hours', '3', true)`
+      await tx`INSERT INTO preferences (owner_sub, settings) VALUES ('user_slow', ${tx.json({ ingredientMatching: 'on', ingredientBackfill: 'batched' })})`
+    })
+    assert.deepEqual(await queue(), [
+      { recipe_id: waiting.id, due: 0 },
+      { recipe_id: third.id, due: 0 },
+      { recipe_id: second.id, due: 3 },
+      { recipe_id: first.id, due: 3 },
+    ])
+    assert.deepEqual((await sql`SELECT queued_at FROM ingredient_queue WHERE recipe_id = ${waiting.id}`)[0]!.queued_at, before)
+
+    await setMatching('user_slow', false)
+    await sql`UPDATE ingredient_queue SET not_before = now()`
+    await drainQueue(sql)
+    assert.equal(await count(sql`SELECT count(*)::int AS n FROM ingredient_candidates WHERE owner_sub = 'user_slow'`), 0)
+  })
+
+  test('a cook with no recipes opts in to nothing, without error', async () => {
+    assert.equal(await previewQuestions(sql, 'user_none'), 0)
+    await setMatching('user_none', true, 'batched')
+    assert.deepEqual(await queue(), [])
+    assert.equal(await countWaiting(sql, 'user_none'), 0)
+  })
+
+  // The store in recipes (#181): entries joined on read, liquids asked, filters by entry.
+  const measured = async (owner: string, lang: string, ...lines: [amount: string, name: string][]) => {
+    const saved = await insertRecipe(db, owner, normalizeRecipe(parseExtraction({
+      title: 'Measured',
+      source_lang: lang,
+      ingredients: lines.map(([amount, name]) => ({ originalText: `${amount} ${name}`, quantity: amount, name })),
+      steps: ['Cook.'],
+    }, { type: 'text', originalText: 'x' })))
+    await drainQueue(sql)
+    return saved
+  }
+  const entries = async (owner: string, id: string) => (await findRecipe(sql, owner, id))!.ingredients.map(line => line.ingredient)
+
+  test('a recipe reads with each line’s entry, named in its language; a line renamed since, or unlinked, has none', async () => {
+    await sql`UPDATE ingredients SET density_g_per_ml = 0.53, density_source = 'fdc' WHERE id = ${entry.flour!}`
+    const german = await measured('user_a', 'de-DE', ['500 g', 'Mehl'], ['1', 'Ei'])
+    assert.deepEqual(await entries('user_a', german.id), [{ id: entry.flour, name: 'Mehl', densityGPerMl: 0.53, isLiquid: null }, null])
+    const english = await measured('user_a', 'en', ['1 cup', 'farina'])
+    assert.deepEqual((await entries('user_a', english.id))[0]!.name, 'flour')
+
+    // Renamed and saved: the link is stale, and the save's own answer says so.
+    const body = structuredClone(await findRecipe(sql, 'user_a', german.id)) as unknown as Record<string, unknown>
+    ;(body.ingredients as { name: string }[])[0]!.name = 'Dinkelmehl'
+    const { draft, source } = validateRecipe(body)
+    const saved = (await updateRecipe(sql, 'user_a', german.id, normalizeRecipe(parseExtraction(draft, source))))!
+    assert.equal(saved.ingredients[0]!.ingredient, null)
+    assert.equal((await entries('user_a', german.id))[0], null)
+  })
+
+  test('saving a recipe that carries its entries writes none of them', async () => {
+    const mine = await measured('user_a', 'en', ['2 cups', 'flour'])
+    const read = (await findRecipe(sql, 'user_a', mine.id))!
+    assert.ok(read.ingredients[0]!.ingredient)
+    const { draft, source } = validateRecipe({ recipe: read })
+    const saved = (await updateRecipe(sql, 'user_a', mine.id, normalizeRecipe(parseExtraction(draft, source))))!
+    assert.equal(saved.ingredients[0]!.ingredient!.id, entry.flour)
+    const [{ stored }] = await sql<{ stored: number }[]>`
+      SELECT count(*)::int AS stored FROM recipes, jsonb_array_elements(ingredients) AS line
+      WHERE line ? 'ingredient'`
+    assert.equal(stored, 0)
+  })
+
+  test('opted-in owners are asked whether a measured-by-volume entry is a liquid; the first answer is everyone’s', async () => {
+    await sql`UPDATE ingredients SET density_g_per_ml = 0.85, density_source = 'fdc' WHERE id = ${entry.sugar!}`
+    const mine = await measured('user_in', 'en', ['1 cup', 'sugar'], ['100 g', 'flour'], ['1', 'tomato'], ['2 tbsp', 'sugar'])
+    const also = await measured('user_in', 'de', ['1 cup', 'Zucker'])
+    const theirs = await measured('user_out', 'en', ['1 cup', 'sugar'])
+    const abouts = async (owner: string, id: string) => (await readQuestions(sql, owner, id))!.questions.filter(q => q.kind === 'about')
+    // Only the cup: grams need no conversion, the tomato has no density, and
+    // a spoon is a spoon either way.
+    assert.deepEqual(await abouts('user_in', mine.id), [{ kind: 'about', lineId: 'ingredient_1', name: 'sugar', ingredientId: entry.sugar }])
+    assert.equal((await abouts('user_in', also.id)).length, 1)
+    assert.equal(await countWaiting(sql, 'user_in') >= 2, true)
+    // Opted out: never asked, and the answer still reaches them.
+    assert.deepEqual(await abouts('user_out', theirs.id), [])
+    assert.equal(await answerQuestion(sql, 'user_out', theirs.id, 'ingredient_1', 'solid', null), null)
+
+    const told: string[] = []
+    const { unlisten } = await sql.listen(MATCHED, id => told.push(id))
+    assert.equal(await answerQuestion(sql, 'user_in', mine.id, 'ingredient_1', 'solid', null), true)
+    await new Promise(resolve => setTimeout(resolve, 200))
+    await unlisten()
+    assert.ok([mine.id, also.id, theirs.id].every(id => told.includes(id)))
+    assert.deepEqual(await abouts('user_in', mine.id), [])
+    assert.deepEqual(await abouts('user_in', also.id), [])
+    assert.equal((await entries('user_out', theirs.id))[0]!.isLiquid, false)
+
+    // A second answer, to the question left open in another tab, changes nothing.
+    assert.equal(await answerQuestion(sql, 'user_in', also.id, 'ingredient_1', 'liquid', null), null)
+    assert.equal((await sql`SELECT is_liquid FROM ingredients WHERE id = ${entry.sugar!}`)[0]!.is_liquid, false)
+  })
+
+  test('an ingredient filter finds lines by their entry’s names in any language, and by text otherwise', async () => {
+    const german = await measured('user_f', 'de', ['500 g', 'Mehl'])
+    const typed = await measured('user_f', 'en', ['1', 'quinoa'])
+    const found = async (term: string) => (await listRecipes(sql, 'user_f', { ...NO_FILTERS, ingredients: [term] })).map(row => row.id)
+    assert.deepEqual(await found('flour'), [german.id])
+    assert.deepEqual(await found('FARINA'), [german.id])
+    assert.deepEqual(await found('quin'), [typed.id])
+    assert.deepEqual(await found('Mehl'), [german.id])
+    assert.deepEqual(await found('sugar'), [])
+  })
+
+  // One answer settles the same question elsewhere (#194).
+  test('"same thing" re-matches every opted-in cook’s recipes asking about that name; other languages keep asking', async () => {
+    await setMatching('user_in2', true)
+    await setMatching('user_gone', true)
+    const mine = await save('user_in', 'en', 'farinna')
+    const theirs = await save('user_in2', 'en', 'Farinna')
+    const german = await save('user_in2', 'de', 'farinna')
+    const gone = await save('user_gone', 'en', 'farinna')
+    await setMatching('user_gone', false)
+    // Waiting in a batched backfill, a day out.
+    const held = await insertRecipe(db, 'user_in2', recipe('en', 'farinna'))
+    await sql`UPDATE ingredient_queue SET not_before = now() + interval '1 day' WHERE recipe_id = ${held.id}`
+    const [before] = await sql`SELECT queued_at, not_before FROM ingredient_queue WHERE recipe_id = ${held.id}`
+    for (const { id } of [mine, theirs, german, gone]) assert.ok((await candidates(id)).length)
+
+    assert.equal(await answerQuestion(sql, 'user_in', mine.id, 'ingredient_1', 'alias', entry.flour!), true)
+    assert.deepEqual(new Set((await queue()).map(row => row.recipe_id)), new Set([held.id, theirs.id, german.id]))
+    assert.deepEqual((await sql`SELECT queued_at, not_before FROM ingredient_queue WHERE recipe_id = ${held.id}`)[0], before)
+
+    const told: string[] = []
+    const { unlisten } = await sql.listen(MATCHED, id => told.push(id))
+    await drainQueue(sql)
+    await new Promise(resolve => setTimeout(resolve, 200))
+    await unlisten()
+    assert.deepEqual(await links(theirs.id), { ingredient_1: entry.flour })
+    assert.deepEqual(await asked('user_in2', theirs.id), [])
+    assert.ok(told.includes(theirs.id))
+    // Filed under en: the German recipe's line is no exact match, and still asks.
+    assert.deepEqual(await links(german.id), {})
+    assert.equal((await asked('user_in2', german.id)).length, 1)
+    // Opted out: left as it was, and the held recipe still waits its turn.
+    assert.ok((await candidates(gone.id)).length)
+    assert.deepEqual((await queue()).map(row => row.recipe_id), [held.id])
+    await sql`DELETE FROM ingredient_queue`
+  })
+
+  test('"none of these" settles the same name elsewhere; "typo" queues nothing', async () => {
+    const mine = await save('user_in', 'en', 'tomatillos rojos')
+    const theirs = await save('user_in2', 'en', 'tomatillos rojos')
+    assert.ok((await candidates(theirs.id)).length)
+    assert.equal(await answerQuestion(sql, 'user_in', mine.id, 'ingredient_1', 'none', null), true)
+    assert.deepEqual((await queue()).map(row => row.recipe_id), [theirs.id])
+    await drainQueue(sql)
+    assert.deepEqual(await links(theirs.id), await links(mine.id))
+    assert.deepEqual(await asked('user_in2', theirs.id), [])
+
+    const typo = await save('user_in', 'en', 'tomatto')
+    const other = await save('user_in2', 'en', 'tomatto')
+    assert.equal(await answerQuestion(sql, 'user_in', typo.id, 'ingredient_1', 'typo', entry.tomato!), true)
+    // The rename queued the answered recipe itself, and nothing else.
+    assert.deepEqual((await queue()).map(row => row.recipe_id), [typo.id])
+    await drainQueue(sql)
+    assert.equal((await asked('user_in2', other.id)).length, 1)
+  })
+})
+
+describe('ingredient lookups', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () => {
+  const SCHEMA = 'lookup_check'
+  let admin: Sql
+  let sql: Sql
+  const config = { searxngBaseUrl: 'http://searx.test', ingredientLookupBaseMinutes: 5 }
+
+  before(async () => {
+    admin = postgres(url!, { max: 1, onnotice: () => {} })
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin`CREATE SCHEMA ${admin(SCHEMA)}`
+    sql = postgres(url!, { max: 4, onnotice: () => {}, connection: { search_path: SCHEMA } })
+    await applyMigrations(sql, migrations(...STORE))
+  })
+
+  after(async () => {
+    await sql?.end()
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin?.end()
+  })
+
+  // An entry a cook made `minutes` ago under `name`, as matching makes one;
+  // `by` null is a seeded one.
+  async function made(name: string, minutes: number, by: string | null = 'user_a') {
+    const [{ id }] = await sql<{ id: string }[]>`
+      INSERT INTO ingredients (created_by, created_at) VALUES (${by}, now() - ${minutes} * interval '1 minute') RETURNING id`
+    await sql`INSERT INTO ingredient_names (ingredient_id, lang, name, is_main, confirmed, source, added_by)
+      VALUES (${id}, 'en', ${name}, true, true, ${by ? 'cook' : 'off'}, ${by})`
+    return id
+  }
+  const ago = async (minutes: number) => (await sql<{ t: Date }[]>`SELECT now() - ${minutes} * interval '1 minute' AS t`)[0]!.t
+  // Wikidata and SearXNG answering as given; null is down. Counts the calls.
+  function sources(names: Record<string, string> | null, snippet: string | null) {
+    const calls = { wikidata: 0, searxng: 0 }
+    const fetcher = (async (input: URL) => {
+      if (input.host === 'www.wikidata.org') {
+        calls.wikidata++
+        if (!names) return new Response('', { status: 503 })
+        return new Response(JSON.stringify(input.searchParams.get('action') === 'wbsearchentities'
+          ? { search: [{ id: 'Q1' }] }
+          : { entities: { Q1: { labels: Object.fromEntries(Object.entries(names).map(([language, value]) => [language, { language, value }])) } } }))
+      }
+      calls.searxng++
+      if (snippet === null) throw new Error('connection refused')
+      return new Response(JSON.stringify({ results: [
+        { url: 'https://a.com/', title: 'Something', content: 'No figure.' },
+        { url: 'https://b.com/density', title: 'Density', content: snippet },
+      ] }))
+    }) as typeof fetch
+    return { calls, fetcher }
+  }
+  const namesOf = (id: string) => sql`SELECT lang, name, is_main, confirmed, source FROM ingredient_names WHERE ingredient_id = ${id} ORDER BY lang`
+  const densityOf = async (id: string) => ({ ...(await sql`SELECT density_g_per_ml::float AS value, density_source, density_ref FROM ingredients WHERE id = ${id}`)[0] })
+  const none = { value: null, density_source: null, density_ref: null }
+
+  test('a new entry gets unconfirmed names in other languages and a density with its address', async () => {
+    const since = await ago(1)
+    const id = await made('nutmeg', 0)
+    await lookUpDue(sql, since, config, sources({ en: 'nutmeg', de: 'Muskatnuss', fr: 'noix de muscade' }, 'Ground nutmeg: 0.47 g/ml.').fetcher)
+    assert.deepEqual([...await namesOf(id)].map(row => ({ ...row })), [
+      { lang: 'de', name: 'Muskatnuss', is_main: false, confirmed: false, source: 'wikidata' },
+      { lang: 'en', name: 'nutmeg', is_main: true, confirmed: true, source: 'cook' },
+      { lang: 'fr', name: 'noix de muscade', is_main: false, confirmed: false, source: 'wikidata' },
+    ])
+    assert.deepEqual(await densityOf(id), { value: 0.47, density_source: 'searxng', density_ref: 'https://b.com/density' })
+    // Found both: not looked up again, whatever is due.
+    const again = sources({ de: 'x' }, '1 g/ml')
+    await lookUpDue(sql, await ago(60 * 24 * 8), config, again.fetcher)
+    assert.deepEqual(again.calls, { wikidata: 0, searxng: 0 })
+  })
+
+  test('an unconfirmed name makes a candidate, never a link', async () => {
+    const since = await ago(1)
+    await made('mace', 0)
+    await lookUpDue(sql, since, config, sources({ de: 'Macis' }, null).fetcher)
+    await sql`INSERT INTO preferences (owner_sub, settings) VALUES ('user_in', ${sql.json({ ingredientMatching: 'on' })})`
+    const db = new Kysely<Database>({ dialect: new PostgresJSDialect({ postgres: sql }) })
+    const saved = await insertRecipe(db, 'user_in', normalizeRecipe(parseExtraction(
+      { title: 'Test', source_lang: 'de', ingredients: [{ originalText: 'Macis', quantity: null, name: 'Macis' }], steps: ['Kochen.'] },
+      { type: 'text', originalText: 'Macis' })))
+    await drainQueue(sql)
+    assert.equal((await sql`SELECT 1 FROM ingredient_links WHERE recipe_id = ${saved.id}`).length, 0)
+    assert.deepEqual((await sql`SELECT matched_name FROM ingredient_candidates WHERE recipe_id = ${saved.id}`).map(row => row.matched_name), ['Macis'])
+  })
+
+  test('no figure, or a source down: that part stays missing, and the other is kept', async () => {
+    // Each case alone, so an earlier entry still due doesn't take its names.
+    await sql`DELETE FROM ingredients`
+    const noFigure = await made('sumac', 0)
+    await lookUpDue(sql, await ago(1), config, sources({ de: 'Sumach' }, 'Sumac is a spice.').fetcher)
+    assert.deepEqual(await densityOf(noFigure), none)
+    assert.equal((await namesOf(noFigure)).length, 2)
+
+    await sql`DELETE FROM ingredients`
+    const down = await made('zaatar', 0)
+    await lookUpDue(sql, await ago(1), config, sources(null, null).fetcher)
+    assert.equal((await namesOf(down)).length, 1)
+    assert.deepEqual(await densityOf(down), none)
+
+    // SearXNG unconfigured: names still come, the density waits.
+    await sql`DELETE FROM ingredients`
+    const unconfigured = await made('ajwain', 0)
+    await lookUpDue(sql, await ago(1), { ...config, searxngBaseUrl: '' }, sources({ de: 'Königskümmel' }, '1 g/ml').fetcher)
+    assert.equal((await namesOf(unconfigured)).length, 2)
+    assert.deepEqual(await densityOf(unconfigured), none)
+  })
+
+  test('tries fall at base·k² after creation, for a week, for entries cooks made', async () => {
+    await sql`DELETE FROM ingredients`
+    // Since two minutes ago, base 5: the try at 20 min (k=2) is due for an
+    // entry 21 minutes old; none falls in the last two for one 19 minutes old.
+    await made('caraway', 21)
+    await made('fenugreek', 19)
+    // k=44 falls at 9680 min, inside the week; 7 days and 5 minutes is past it.
+    await made('mahlab', 9681)
+    await made('nigella', 60 * 24 * 7 + 5)
+    // Seeded: never looked up.
+    await made('cumin', 21, null)
+    const { calls, fetcher } = sources({}, null)
+    const next = await lookUpDue(sql, await ago(2), config, fetcher)
+    // Each due entry: Wikidata's search and its (empty) labels, one web search.
+    assert.deepEqual(calls, { wikidata: 4, searxng: 2 })
+    // The answer is the next call's since: nothing is due again at once.
+    await lookUpDue(sql, next, config, fetcher)
+    assert.deepEqual(calls, { wikidata: 4, searxng: 2 })
+  })
+
+  test('an entry another lookup holds is skipped, not waited for', async () => {
+    await sql`DELETE FROM ingredients`
+    const held = await made('anise', 0)
+    await made('cardamom', 0)
+    const { calls, fetcher } = sources({}, null)
+    const since = await ago(1)
+    await sql.begin(async (tx) => {
+      await tx`SELECT 1 FROM ingredients WHERE id = ${held} FOR NO KEY UPDATE`
+      await lookUpDue(sql, since, config, fetcher)
+    })
+    assert.deepEqual(calls, { wikidata: 2, searxng: 1 })
   })
 })

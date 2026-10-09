@@ -18,7 +18,7 @@ const nudge = (page: Page) => page.locator('.paper-nudge')
 /** Opens the recipe and saves an edit to it as `choice`; answers the writes it saw. */
 async function saveAs(page: Page, choice: 'new version' | 'separate recipe', paperNudge: string | null = null) {
   const rows = new Map([[root, recipe(root, 'Focaccia')]])
-  let preferences = { unitSystem: null, portions: null, paperNudge, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null }
+  let preferences = { unitSystem: null, portions: null, paperNudge, ingredientMatching: null, ingredientBackfill: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null }
   const writes: unknown[] = []
   await page.route('**/api/preferences', (route) => {
     if (route.request().method() === 'PUT') writes.push(preferences = route.request().postDataJSON())
@@ -83,7 +83,7 @@ test('"Don\'t suggest this" saves the preference and the line goes', async ({ pa
   const writes = await saveAs(page, 'new version')
   await nudge(page).getByRole('button', { name: 'Don’t suggest this' }).click()
   await expect(nudge(page)).toHaveCount(0)
-  expect(writes).toEqual([{ unitSystem: null, portions: null, paperNudge: 'off', theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null }])
+  expect(writes).toEqual([{ unitSystem: null, portions: null, paperNudge: 'off', ingredientMatching: null, ingredientBackfill: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null }])
 })
 
 test('with the preference off, a new version says nothing', async ({ page }) => {
@@ -104,7 +104,7 @@ test('the profile page can turn it back on', async ({ page }) => {
   await page.route('**/api/recipes', route => route.fulfill({ json: { recipes: [] } }))
   await page.route('**/api/preferences', (route) => {
     if (route.request().method() === 'PUT') writes.push(route.request().postDataJSON())
-    return route.fulfill({ json: { preferences: { unitSystem: null, portions: null, paperNudge: 'off', theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null } } })
+    return route.fulfill({ json: { preferences: { unitSystem: null, portions: null, paperNudge: 'off', ingredientMatching: null, ingredientBackfill: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null } } })
   })
   // Reached inside the app, so the requests go through the browser and the mocks.
   await page.goto('/')
@@ -112,6 +112,6 @@ test('the profile page can turn it back on', async ({ page }) => {
   await page.evaluate(() => (document.querySelector('#__nuxt') as any).__vue_app__.config.globalProperties.$router.push('/profile'))
   await expect(page.getByRole('radio', { name: 'Don’t suggest it' })).toBeChecked()
   await page.getByRole('radio', { name: 'Suggest it', exact: true }).check()
-  await expect.poll(() => writes).toEqual([{ unitSystem: null, portions: null, paperNudge: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null }])
+  await expect.poll(() => writes).toEqual([{ unitSystem: null, portions: null, paperNudge: null, ingredientMatching: null, ingredientBackfill: null, theme: null, grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null }])
   await page.screenshot({ path: 'test-results/paper-nudge-profile.png', fullPage: true })
 })

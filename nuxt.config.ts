@@ -19,6 +19,18 @@ export default defineNuxtConfig({
     // SearXNG, for "Similar recipes elsewhere" (#59). No key: it's ours, on
     // recipeat-search-net. Empty turns the section into a quiet "not set up".
     searxngBaseUrl: 'http://127.0.0.1:8104',
+    // Matching recipe lines against the ingredient store (#172): how many
+    // passes run side by side, and how often the queue is checked when no
+    // save has woken it. NUXT_INGREDIENT_WORKERS=0 turns matching off.
+    ingredientWorkers: 2,
+    ingredientScanMinutes: 5,
+    // Names and density for an entry a cook made (#174) are tried again at
+    // base · k² minutes after it was made, for a week.
+    ingredientLookupBaseMinutes: 5,
+    // A cook who opts in and picks "a batch at a time" (#180) has their
+    // recipes matched this many at once, this many hours apart.
+    ingredientBackfillBatch: 10,
+    ingredientBackfillHours: 24,
     public: {
       // The filter lab (/lab/filters, #87): set NUXT_PUBLIC_LAB=1 in a
       // checkout's .env to reach it. Unset in any deployment, where it is a 404.

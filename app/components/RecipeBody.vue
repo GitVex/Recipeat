@@ -344,6 +344,8 @@ const typedTime = computed(() => {
               ingredient.extra
             }}</span>
             <span v-if="ingredient.unscaled" class="unscaled-note">not scaled</span>
+            <!-- What the page has to add to a line, such as its open question (#173). -->
+            <slot name="ingredient" :line-id="ingredient.id" />
           </li>
         </ul>
       </template>
