@@ -15,33 +15,40 @@ export const DEFAULT_CUTS = {
   coil: { medium: 0.4, high: 0.75 },
 } as const;
 
-type Stove = Pick<Preferences, "stoveKind" | "stoveLowest" | "stoveHighest" | "stoveMediumFrom" | "stoveHighFrom">;
+export type Stove = Pick<Preferences, "stoveKind" | "stoveLowest" | "stoveHighest" | "stoveMediumFrom" | "stoveHighFrom">;
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
 /**
- * The setting a level means on the cook's stove, "6" or "6–7", or null: gas,
- * no stove, or a range too small for three areas has nothing honest to say.
+ * Where medium and high start on the cook's stove: their own cuts where set,
+ * the kind's default for the rest, moved out of the way of the cook's. Null
+ * for gas, no stove, a range too small for three areas, or a cook's cut that
+ * leaves no room beside it (high from 2 on a dial from 1).
  */
-export function heatSetting(level: HeatLevel, stove: Stove | null): string | null {
+export function stoveCuts(stove: Stove | null): [medium: number, high: number] | null {
   const kind = stove?.stoveKind;
   const low = stove?.stoveLowest;
   const top = stove?.stoveHighest;
   if (!kind || kind === "gas" || low == null || top == null || top - low < 2) return null;
   const at = (fraction: number) => low + Math.round(fraction * (top - low));
-  // The cook's cut wins; a default left beside it moves out of its way.
   let medium = stove.stoveMediumFrom ?? at(DEFAULT_CUTS[kind].medium);
   let high = stove.stoveHighFrom ?? at(DEFAULT_CUTS[kind].high);
   if (stove.stoveMediumFrom == null) medium = clamp(medium, low + 1, (stove.stoveHighFrom ?? top) - 1);
   if (stove.stoveHighFrom == null) high = clamp(high, medium + 1, top);
-  // A cook's cut can leave no room beside it (high from 2 on a dial from 1).
-  if (!(low < medium && medium < high && high <= top)) return null;
+  return low < medium && medium < high && high <= top ? [medium, high] : null;
+}
+
+/** The setting a level means on the cook's stove, "6" or "6–7", or null where stoveCuts has none. */
+export function heatSetting(level: HeatLevel, stove: Stove | null): string | null {
+  const cuts = stoveCuts(stove);
+  if (!cuts) return null;
+  const [medium, high] = cuts;
   const [from, to] = {
-    low: [low, medium - 1],
+    low: [stove!.stoveLowest!, medium - 1],
     "medium-low": [medium - 1, medium],
     medium: [medium, high - 1],
     "medium-high": [high - 1, high],
-    high: [high, top],
+    high: [high, stove!.stoveHighest!],
   }[level];
   return from === to ? String(from) : `${from}–${to}`;
 }

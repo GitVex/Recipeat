@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { HeatLevel } from '../shared/types/recipe.ts'
-import { heatSetting } from '../shared/utils/heat.ts'
+import { heatSetting, stoveCuts } from '../shared/utils/heat.ts'
+import { PREFERENCES } from '../shared/utils/preferences.ts'
 
 // A heat level as a setting on the cook's stove (#54).
 const LEVELS: HeatLevel[] = ['low', 'medium-low', 'medium', 'medium-high', 'high']
@@ -51,4 +52,16 @@ test('gas, no stove, or a range too small says nothing rather than invent', () =
   assert.equal(heatSetting('medium', stove('induction', null, 9)), null)
   assert.equal(heatSetting('medium', stove('induction', 1, null)), null)
   assert.equal(heatSetting('medium', stove('induction', 1, 2)), null)
+})
+
+test('the cuts are what the levels are read from, and where the slider\'s thumbs sit (#109)', () => {
+  assert.deepEqual(stoveCuts(stove('ceramic', 1, 9)), [4, 7])
+  assert.deepEqual(stoveCuts(stove('ceramic', 1, 9, 3)), [3, 7])
+  assert.deepEqual(stoveCuts(stove('induction', 1, 9, null, 8)), [3, 8])
+  for (const none of [stove('gas', 1, 9), stove(null, 1, 9), stove('coil', null, 6), stove('coil', 1, 2), null])
+    assert.equal(stoveCuts(none), null)
+  const { slider } = PREFERENCES.stove
+  assert.deepEqual(slider.keys, ['stoveMediumFrom', 'stoveHighFrom'])
+  assert.deepEqual(slider.thumbs(stove('coil', 1, 6, 2)), [2, 5])
+  assert.equal(slider.thumbs(stove('gas', 1, 9)), null)
 })
