@@ -67,7 +67,10 @@ const topPreferences = (Object.entries(PREFERENCES) as [PreferenceKey, Preferenc
 );
 const shown = (group: PreferenceGroup) => !group.when || form[group.when.key as PreferenceKey] === group.when.value;
 const groupKeys = (group: PreferenceGroup) =>
-  (Object.entries(group.keys) as [PreferenceKey, PreferenceSpec][]).filter(([, spec]) => !spec.hidden);
+  (Object.entries(group.keys) as [PreferenceKey, PreferenceSpec][]).filter(
+    // A slider's thumbs are its own, not rows.
+    ([name, spec]) => !spec.hidden && !group.slider?.keys.includes(name),
+  );
 // A theme's own switches (#87) sit folded under the Theme row, and only while
 // that theme is the one picked.
 const themeEffects = computed(() =>
@@ -78,16 +81,51 @@ const themeEffects = computed(() =>
 const themeName = computed(
   () => PREFERENCES.theme.options.find((option) => option.value === form.theme)?.label,
 );
-async function savePreferences() {
-  // Anything a preference may not hold — an empty or out-of-range number —
-  // is unset, as each row's description says.
-  const body = Object.fromEntries(
+// What is on the form, as it would be saved. Anything a preference may not
+// hold — an empty or out-of-range number — is unset, as each row's
+// description says.
+function formValues(): Preferences {
+  return Object.fromEntries(
     PREFERENCE_KEYS.map((key) => {
       const text = String(form[key] ?? "").trim();
       const value = !text ? null : PREFERENCE_SPECS[key].kind === "number" ? Number(text) : text;
       return [key, isPreferenceValue(PREFERENCE_SPECS[key], value) ? value : null];
     }),
   ) as Preferences;
+}
+// A group's slider (#109): where its thumbs sit for what is on the form, and
+// between which of its keys; null, there is no slider to show.
+function sliderOf(group: PreferenceGroup) {
+  const slider = group.slider;
+  const values = formValues();
+  const thumbs = slider?.thumbs(values);
+  if (!slider || !thumbs) return null;
+  const [min, max] = slider.bounds.map((key) => values[key as PreferenceKey] as number);
+  const [first, second] = slider.keys as [PreferenceKey, PreferenceKey];
+  return {
+    slider,
+    thumbs,
+    min: min!,
+    max: max!,
+    labels: [group.keys[first]!.label, group.keys[second]!.label] as [string, string],
+    set: values[first] !== null || values[second] !== null,
+  };
+}
+function moveSlider(group: PreferenceGroup, [first, second]: [number, number]) {
+  const [one, two] = group.slider!.keys as [PreferenceKey, PreferenceKey];
+  form[one] = String(first);
+  form[two] = String(second);
+  savePreferences();
+}
+function resetSlider(group: PreferenceGroup) {
+  for (const key of group.slider!.keys) form[key as PreferenceKey] = "";
+  savePreferences();
+}
+// /profile#<group> opens that group: where a recipe page sends someone to set
+// up their stove (#109).
+const opened = useRoute().hash.slice(1);
+async function savePreferences() {
+  const body = formValues();
   // Left on the form to put right, rather than put back.
   problem.value = groupProblem(body);
   if (problem.value) {
@@ -219,9 +257,19 @@ useHead(() => ({
         <form @submit.prevent>
           <fieldset class="preference-list" :disabled="!preferences">
             <template v-for="[key, spec] in topPreferences" :key="key">
-              <details v-if="spec.kind === 'group'" v-show="shown(spec)" class="preference-effects">
-                <summary>{{ spec.label }}</summary>
-                <p class="preference-hint">{{ spec.description }}</p>
+              <details
+                v-if="spec.kind === 'group'"
+                v-show="shown(spec)"
+                :id="key"
+                :open="opened === key"
+                class="preference-effects preference-group"
+              >
+                <summary>
+                  <span class="preference-key">
+                    <span class="preference-name">{{ spec.label }}</span>
+                    <span class="preference-hint">{{ spec.description }}</span>
+                  </span>
+                </summary>
                 <PreferenceRow
                   v-for="[name, keySpec] in groupKeys(spec)"
                   :key="name"
@@ -229,6 +277,13 @@ useHead(() => ({
                   :name="name"
                   :spec="keySpec"
                   @change="savePreferences"
+                />
+                <PreferenceSlider
+                  v-if="sliderOf(spec)"
+                  :name="key"
+                  v-bind="sliderOf(spec)!"
+                  @move="moveSlider(spec, $event)"
+                  @reset="resetSlider(spec)"
                 />
               </details>
               <PreferenceRow

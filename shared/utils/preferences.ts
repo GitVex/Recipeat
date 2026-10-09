@@ -1,3 +1,5 @@
+import { stoveCuts } from "./heat.ts";
+
 // Every preference a person can set (#62), and what each may hold. The one
 // place to add one: the type, the route's check and the profile's form all
 // follow from this. Null is always allowed, and is `unset`.
@@ -19,6 +21,18 @@ export type PreferenceGroup = {
   keys: Record<string, PreferenceSpec>;
   check?: (values: Record<string, string | number | null>) => string | null;
   when?: { key: string; value: string };
+  slider?: PreferenceSlider;
+};
+// Two of a group's number keys as the thumbs of one slider (#109), cutting
+// the span between two others into areas. `thumbs` says where they sit for
+// the set, its own values where set; null is no slider. The thumbs' keys get
+// no rows of their own, and unsetting both goes back to what `thumbs` gives.
+export type PreferenceSlider = {
+  label: string;
+  keys: [string, string];
+  bounds: [string, string];
+  areas: [string, string, string];
+  thumbs: (values: Record<string, string | number | null>) => [number, number] | null;
 };
 type PreferenceEntry = PreferenceSpec | PreferenceGroup;
 
@@ -151,6 +165,15 @@ export const PREFERENCES = {
       },
       stoveMediumFrom: { kind: "number", label: "Medium starts at", description: "The first setting that is medium heat.", unset: "Default", min: 0, max: 20 },
       stoveHighFrom: { kind: "number", label: "High starts at", description: "The first setting that is high heat.", unset: "Default", min: 0, max: 20 },
+    },
+    // Where medium and high start, dragged rather than typed (#109). No
+    // slider for gas or a stove without its range.
+    slider: {
+      label: "Low, medium and high",
+      keys: ["stoveMediumFrom", "stoveHighFrom"],
+      bounds: ["stoveLowest", "stoveHighest"],
+      areas: ["Low", "Medium", "High"],
+      thumbs: (values) => stoveCuts(values as Parameters<typeof stoveCuts>[0]),
     },
     // Only what is set is compared, so the stove can be filled in a key at a time.
     check: ({ stoveLowest: low, stoveHighest: high, stoveMediumFrom: medium, stoveHighFrom: hot }) => {

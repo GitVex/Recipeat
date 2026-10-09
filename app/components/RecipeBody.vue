@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ExtractedRecipe, SavedRecipe } from "#shared/types/recipe";
 import { ingredientUntouched, parseMinutes } from "#shared/utils/recipeDraft";
-import { heatSetting } from "#shared/utils/heat";
+import { heatSetting, stoveCuts } from "#shared/utils/heat";
 import { LIMITS } from "#shared/utils/recipeLimits";
 import { formatFactor, stepPortions, UNSCALED } from "#shared/utils/recipeScale";
 import {
@@ -100,6 +100,16 @@ const steps = computed(() =>
       })),
     };
   }),
+);
+
+// Heat levels and no stove to show them on: signed in, offered a way to set
+// one up (#109). Gas is a stove set up, with nothing to show.
+const offerStove = computed(
+  () =>
+    !!preferences.value &&
+    preferences.value.stoveKind !== "gas" &&
+    !stoveCuts(preferences.value) &&
+    props.recipe.steps.some((step) => step.parts.some((part) => part.type === "heat")),
 );
 
 // Being edited: a line reads as it did until it is changed, and as it was
@@ -373,6 +383,9 @@ const typedTime = computed(() => {
             >
           </li>
         </ol>
+        <p v-if="offerStove" class="stove-offer">
+          <NuxtLink to="/profile#stove">Set up your stove</NuxtLink> to see heat levels as its settings.
+        </p>
       </template>
     </template>
   </div>
