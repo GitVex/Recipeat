@@ -3766,8 +3766,12 @@ a.history-title:hover {
 }
 /* Preferences (#62), beside the account card: one row per preference, what
    it is on the left and its choices on the right, a rule between rows. */
-.profile-recipes {
+.profile-recipes,
+.profile-send {
     grid-column: 1 / -1;
+}
+.profile-send code {
+    overflow-wrap: anywhere;
 }
 .profile-preferences {
     background: var(--paper);

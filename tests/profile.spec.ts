@@ -277,3 +277,16 @@ test('Crate Label’s effects each switch off on their own, and only show with i
   await expect(page.getByText('Crate Label effects')).toHaveCount(0)
   await expect(page.getByRole('radiogroup', { name: 'Halftone photos' })).toHaveCount(0)
 })
+
+test('the bookmarklet sends the page it is clicked on to this Recipeat', async ({ page }) => {
+  await page.route('**/api/me', route => route.fulfill({ json: me }))
+  await page.route('**/api/recipes', route => route.fulfill({ json: { recipes: [] } }))
+  await visit(page)
+  const link = page.getByRole('link', { name: 'Send to Recipeat' })
+  const origin = new URL(page.url()).origin
+  await expect(link).toHaveAttribute('href', `javascript:void(location='${origin}/get/'+location.href)`)
+  // Clicked here rather than dragged, it goes nowhere.
+  await link.click()
+  await expect(page).toHaveURL(/\/profile$/)
+  await expect(page.getByRole('region', { name: 'Send a page to Recipeat' })).toContainText(`${origin}/get/https://example.com/recipe`)
+})

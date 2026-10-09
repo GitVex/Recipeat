@@ -99,11 +99,19 @@ onMounted(() => {
   emit("resume");
 });
 
+// A prefix link (#136) arrives as the dialog opens: on the Website tab, filled
+// in and not sent. Signed out, it is kept for the sign-in like anything typed.
+const { prefill } = useDialogs();
 watch(
   () => props.open,
   (open) => {
-    if (open) error.value = "";
-    else cancel();
+    if (!open) return cancel();
+    error.value = "";
+    if (!prefill.value) return;
+    switchTo("website");
+    input.value = prefill.value.url;
+    error.value = prefill.value.error;
+    prefill.value = null;
   },
 );
 
@@ -287,6 +295,7 @@ const WAIT: Record<ExtractionSource, string> = {
         know whose it is. Sign in, and you can bring recipes in from websites,
         photos and your own notes.
       </p>
+      <p v-if="error" role="alert" class="error">{{ error }}</p>
       <button class="button full-width" @click="signIn">
         Sign in to continue<AppIcon name="arrow" :size="17" />
       </button>

@@ -297,6 +297,31 @@ test('an extraction opens the recipe it returned, after a busy answer is retried
   expect(bodies).toEqual([{ url: 'https://example.com/pancakes' }, { url: 'https://example.com/pancakes' }])
 })
 
+// A prefix link (#136): filled in on the Website tab and left there, since any
+// page can make a browser load it. Only the person's click sends it.
+test('a prefix link fills in the import and sends nothing until asked', async ({ page }) => {
+  const bodies: unknown[] = []
+  await page.route('**/api/extract/website', route => { bodies.push(route.request().postDataJSON()); return route.fulfill(answer(200)) })
+  await signIn(page)
+  const url = 'https://example.com/pancakes?serves=4'
+  await page.goto(`/get/${url}`)
+  await expect(page).toHaveURL(/\/recipes$/)
+  await expect(page.getByRole('tab', { name: 'Website' })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByLabel('Recipe URL')).toHaveValue(url)
+  await page.waitForTimeout(500)
+  expect(bodies).toEqual([])
+  await page.getByRole('button', { name: 'Bring it in' }).click()
+  await expect(page.getByRole('dialog')).toContainText('Playwright pancakes')
+  expect(bodies).toEqual([{ url }])
+})
+
+test('signed out, a prefix link comes back from the sign-in with its address', async ({ page }) => {
+  await page.goto('/get/https://example.com/pancakes')
+  await page.getByRole('button', { name: 'Sign in to continue' }).click()
+  await expect(page.getByText('Test Cook', { exact: true })).toBeVisible()
+  await expect(page.getByLabel('Recipe URL')).toHaveValue('https://example.com/pancakes')
+})
+
 test('one request at a time, and closing or switching tabs drops it for good', async ({ page }) => {
   let calls = 0
   const held: (() => Promise<void>)[] = []

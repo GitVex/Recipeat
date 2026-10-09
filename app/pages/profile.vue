@@ -177,6 +177,12 @@ const themeSpec = PREFERENCES.theme;
 
 // The page says "signed out" to a person, and the response says it to
 // everything else.
+// The bookmarklet (#136): the page it is clicked on, sent to this Recipeat's
+// /get/. The origin is the browser's, which a proxy in front cannot change.
+const origin = ref("");
+onMounted(() => (origin.value = location.origin));
+const bookmarklet = computed(() => `javascript:void(location='${origin.value}/get/'+location.href)`);
+
 const event = useRequestEvent();
 onServerPrefetch(async () => {
   await me;
@@ -320,6 +326,24 @@ useHead(() => ({
         </form>
       </section>
       <IngredientOptInDialog :open="optingIn" @confirm="optIn" @cancel="notNow" />
+
+      <section class="profile-preferences profile-send" aria-labelledby="profile-send-heading">
+        <h2 id="profile-send-heading">Send a page to Recipeat</h2>
+        <div class="preference-row">
+          <p class="preference-key">
+            <span class="preference-name">Bookmarklet</span>
+            <span class="preference-hint"
+              >Drag the button to your bookmarks bar. On a recipe page, click it to open that page here,
+              ready to bring in.</span
+            >
+          </p>
+          <a v-if="origin" class="button small" :href="bookmarklet" @click.prevent>Send to Recipeat</a>
+        </div>
+        <p class="preference-hint">
+          Or put this site’s address in front of any recipe’s, like
+          <code>{{ origin }}/get/https://example.com/recipe</code>.
+        </p>
+      </section>
 
       <section class="profile-recipes" aria-labelledby="profile-recipes-heading">
         <div class="profile-recipes-heading">
