@@ -15,7 +15,7 @@ const recipe = {
 }
 const preferences = (ingredientMatching: 'on' | null) => ({
   unitSystem: null, portions: null, paperNudge: null, ingredientMatching, theme: null,
-  grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null,
+  grainEffect: null, stampEffect: null, misprintEffect: null, halftoneEffect: null, ticketEffect: null, stoveKind: null, stoveLowest: null, stoveHighest: null, stoveBoost: null, stoveMediumFrom: null, stoveHighFrom: null,
 })
 const bayLeaves = { lineId: 'ingredient_1', name: 'bay leafs', candidates: [{ ingredientId: '7', name: 'bay leaves' }, { ingredientId: '8', name: 'bay laurel' }] }
 const tomato = { lineId: 'ingredient_2', name: 'tomatto', candidates: [{ ingredientId: '9', name: 'tomato' }] }
