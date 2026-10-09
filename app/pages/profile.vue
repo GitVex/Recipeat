@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import {
+  groupProblem,
   isPreferenceValue,
   PREFERENCE_KEYS,
+  PREFERENCE_SPECS,
   PREFERENCES,
+  type PreferenceGroup,
   type PreferenceKey,
   type PreferenceSpec,
   type Preferences,
@@ -55,12 +58,23 @@ function showSaved() {
 }
 watch(preferences, showSaved, { immediate: true });
 const saving = ref<"saving" | "saved" | "failed" | null>(null);
+// What a group's check (#200) says is wrong with the form; it isn't saved.
+const problem = ref<string | null>(null);
+// A group (#200) is one folded section, shown while its `when` holds. A
+// `hidden` key is set somewhere else, and only carried through the form.
+const topPreferences = (Object.entries(PREFERENCES) as [PreferenceKey, PreferenceSpec | PreferenceGroup][]).filter(
+  ([, entry]) => entry.kind === "group" || (!entry.theme && !entry.hidden),
+);
+const shown = (group: PreferenceGroup) => !group.when || form[group.when.key as PreferenceKey] === group.when.value;
+const groupKeys = (group: PreferenceGroup) =>
+  (Object.entries(group.keys) as [PreferenceKey, PreferenceSpec][]).filter(([, spec]) => !spec.hidden);
 // A theme's own switches (#87) sit folded under the Theme row, and only while
 // that theme is the one picked.
-const ENTRIES = Object.entries(PREFERENCES) as [PreferenceKey, PreferenceSpec][];
-// A `hidden` one is set somewhere else, and only carried through the form.
-const topPreferences = ENTRIES.filter(([, spec]) => !spec.theme && !spec.hidden);
-const themeEffects = computed(() => ENTRIES.filter(([, spec]) => spec.theme && spec.theme === form.theme));
+const themeEffects = computed(() =>
+  (Object.entries(PREFERENCE_SPECS) as [PreferenceKey, PreferenceSpec][]).filter(
+    ([, spec]) => spec.theme && spec.theme === form.theme,
+  ),
+);
 const themeName = computed(
   () => PREFERENCES.theme.options.find((option) => option.value === form.theme)?.label,
 );
@@ -70,10 +84,16 @@ async function savePreferences() {
   const body = Object.fromEntries(
     PREFERENCE_KEYS.map((key) => {
       const text = String(form[key] ?? "").trim();
-      const value = !text ? null : PREFERENCES[key].kind === "number" ? Number(text) : text;
-      return [key, isPreferenceValue(PREFERENCES[key], value) ? value : null];
+      const value = !text ? null : PREFERENCE_SPECS[key].kind === "number" ? Number(text) : text;
+      return [key, isPreferenceValue(PREFERENCE_SPECS[key], value) ? value : null];
     }),
   ) as Preferences;
+  // Left on the form to put right, rather than put back.
+  problem.value = groupProblem(body);
+  if (problem.value) {
+    saving.value = null;
+    return;
+  }
   saving.value = "saving";
   try {
     stored.value = await $fetch<{ preferences: Preferences }>("/api/preferences", {
@@ -199,7 +219,20 @@ useHead(() => ({
         <form @submit.prevent>
           <fieldset class="preference-list" :disabled="!preferences">
             <template v-for="[key, spec] in topPreferences" :key="key">
+              <details v-if="spec.kind === 'group'" v-show="shown(spec)" class="preference-effects">
+                <summary>{{ spec.label }}</summary>
+                <p class="preference-hint">{{ spec.description }}</p>
+                <PreferenceRow
+                  v-for="[name, keySpec] in groupKeys(spec)"
+                  :key="name"
+                  v-model="form[name]"
+                  :name="name"
+                  :spec="keySpec"
+                  @change="savePreferences"
+                />
+              </details>
               <PreferenceRow
+                v-else
                 v-model="form[key]"
                 :name="key"
                 :spec="spec"
@@ -223,7 +256,8 @@ useHead(() => ({
             </template>
           </fieldset>
           <p class="preference-status" role="status">
-            <template v-if="preferencesRequest.error.value">Preferences aren’t available on this server.</template>
+            <template v-if="problem">{{ problem }}</template>
+            <template v-else-if="preferencesRequest.error.value">Preferences aren’t available on this server.</template>
             <template v-else-if="saving === 'saving'">Saving…</template>
             <template v-else-if="saving === 'saved'">Saved to your account.</template>
             <template v-else-if="saving === 'failed'">That didn’t save. Try again.</template>
