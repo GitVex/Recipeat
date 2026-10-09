@@ -1515,6 +1515,12 @@ input.editable-input {
     white-space: nowrap;
 }
 
+/* The setting a heat level means on the cook's stove (#110), after its words. */
+.heat-setting {
+    color: var(--muted);
+    white-space: nowrap;
+}
+
 /* Unsaved: said at the bottom of the recipe for as long as it is true. */
 .edit-bar {
     position: sticky;
