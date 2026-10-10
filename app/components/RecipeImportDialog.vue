@@ -10,7 +10,11 @@ import {
   siteSupport,
   type SiteSupport,
 } from "#shared/utils/siteSupport";
-import { instagramShortcode } from "#shared/utils/instagram";
+import {
+  CAPTION_HINT,
+  instagramShortcode,
+  type CaptionVerdict,
+} from "#shared/utils/instagram";
 const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{
   close: [];
@@ -51,6 +55,44 @@ const support = computed<SiteSupport | null>(() =>
       ? siteSupport(input.value, hosts.value)
       : null,
 );
+
+// An Instagram post is checked before it can be sent (#219): Submit waits for
+// what its caption holds, and stays locked if the post cannot be read. Typing
+// restarts the check, after a pause, since each one reads Instagram.
+const verdict = ref<CaptionVerdict | null>(null);
+const checkError = ref("");
+const recheck = ref(0);
+const locked = computed(() => instagram.value && !verdict.value);
+watch(
+  () => [props.open && loggedIn.value && instagram.value ? input.value : null, recheck.value] as const,
+  ([url], _, onCleanup) => {
+    verdict.value = null;
+    checkError.value = "";
+    if (!url) return;
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      try {
+        const answer = await $fetch<{ verdict: CaptionVerdict }>(
+          "/api/extract/instagram/check",
+          { method: "POST", body: { url }, signal: controller.signal, retry: 0 },
+        );
+        verdict.value = answer.verdict;
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        const status = (error as { statusCode?: number }).statusCode;
+        checkError.value =
+          status === 422
+            ? "We can’t read that post. It may be private or deleted."
+            : failureFor(status, "instagram").message;
+      }
+    }, 400);
+    onCleanup(() => {
+      clearTimeout(timer);
+      controller.abort();
+    });
+  },
+);
+
 watchEffect(() => {
   if (
     props.open &&
@@ -166,7 +208,7 @@ function request(): ExtractionRequest | null {
 }
 
 async function submit() {
-  if (pending.value || !loggedIn.value) return;
+  if (pending.value || locked.value || !loggedIn.value) return;
   error.value = "";
   const next = request();
   if (!next) return;
@@ -251,7 +293,14 @@ const WAIT: Record<ExtractionSource, string> = {
           :class="['site-hint', support]"
           aria-live="polite"
         >
-          <template v-if="support">{{ SITE_HINT[support] }} </template
+          <template v-if="checkError"
+            ><span class="error">{{ checkError }}</span>
+            <button type="button" class="text-button" @click="recheck++">
+              Check again
+            </button>
+          </template>
+          <template v-else-if="verdict">{{ CAPTION_HINT[verdict] }} </template>
+          <template v-else-if="support">{{ SITE_HINT[support] }} </template
           ><NuxtLink to="/sites" target="_blank">{{
             support ? "See the list" : "See which sites are supported"
           }}</NuxtLink>
@@ -284,7 +333,7 @@ const WAIT: Record<ExtractionSource, string> = {
             Sign in again
           </button>
         </div>
-        <button class="button full-width" :disabled="!!pending">
+        <button class="button full-width" :disabled="!!pending || locked">
           {{ pending ? "Reading…" : "Bring it in"
           }}<AppIcon name="sparkle" :size="17" />
         </button>

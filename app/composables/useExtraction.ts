@@ -43,7 +43,7 @@ const NOT_FOUND: Record<ExtractionSource, string> = {
     "We couldn’t find a recipe in that post. If it’s private or was deleted, we can’t read it.",
 };
 
-function failureFor(
+export function failureFor(
   status: number | undefined,
   source: ExtractionSource,
 ): ExtractionFailure {

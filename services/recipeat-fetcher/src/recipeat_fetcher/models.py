@@ -78,6 +78,9 @@ class InstagramRequest(Wire):
     # The code in /p/{shortcode}/. A shortcode rather than a URL, so the caller
     # has no way to name a host.
     shortcode: str = Field(pattern=r"^[A-Za-z0-9_-]{5,64}$")
+    # The import dialog's check before submit (#219): the caption and whether
+    # it is a video, with no media downloaded.
+    preview: bool = False
 
 
 class InstagramImage(Wire):
@@ -90,8 +93,9 @@ class InstagramPost(Wire):
     url: str
     author: str | None = None
     caption: str | None = None
-    # In the post's order; a video contributes its cover.
+    # In the post's order; a video contributes its cover. Empty in a preview.
     images: list[InstagramImage]
+    video: bool = False
 
 
 class FetchRequest(Wire):

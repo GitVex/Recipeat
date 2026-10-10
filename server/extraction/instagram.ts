@@ -4,6 +4,7 @@ import { parseExtraction, type ExtractedRecipe } from './recipe.ts'
 import { httpUrl } from './url.ts'
 import { askFetcher, extractWebsite, type FetcherConfig } from './website.ts'
 import type { InstagramPostRef } from '../../shared/types/recipe.ts'
+import type { CaptionVerdict } from '../../shared/utils/instagram.ts'
 
 type Image = { mimeType: string, data: string }
 const isImage = (value: unknown): value is Image =>
@@ -36,6 +37,33 @@ export function captionLinks(caption: string | null): string[] {
     if (links.size === MAX_CAPTION_LINKS) break
   }
   return [...links]
+}
+
+// A line that starts with an amount or a bullet, after any emoji: "2 eggs",
+// "• salt", "1️⃣ Preheat". A few of them make a list, which is what a recipe in
+// a caption looks like and what prose about a dish rarely has.
+const LIST_LINE = /^[^\p{L}\p{N}]*?(?:[-•*·▪◦–]|\p{N})/u
+const MIN_LIST_LINES = 3
+
+/**
+ * Where a caption says the recipe is, for the import dialog's check (#219). A
+ * guess from the caption alone, to tell the cook what will be read: the import
+ * itself still tries everything in its own order.
+ */
+export function captionVerdict(caption: string | null): CaptionVerdict {
+  if (captionLinks(caption).length) return 'link'
+  const listed = caption?.split('\n').filter(line => LIST_LINE.test(line)).length ?? 0
+  return listed >= MIN_LIST_LINES ? 'caption' : 'images'
+}
+
+/** The check itself: the post read without its media, and no model. */
+export async function checkInstagram(
+  shortcode: string,
+  config: FetcherConfig,
+  fetcher: typeof globalThis.fetch = globalThis.fetch,
+): Promise<CaptionVerdict> {
+  const read = await askFetcher('/instagram', { shortcode, preview: true }, config, fetcher)
+  return captionVerdict(typeof read.caption === 'string' ? read.caption : null)
 }
 
 /**
