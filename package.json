@@ -29,6 +29,7 @@
     "vue": "^3.5.0"
   },
   "devDependencies": {
+    "@mozilla/readability": "^0.6.0",
     "@playwright/test": "^1.55.0"
   }
 }

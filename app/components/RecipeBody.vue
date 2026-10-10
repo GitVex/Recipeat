@@ -84,6 +84,22 @@ const portionsShown = computed(() =>
     ? null
     : new Intl.NumberFormat("en", { maximumFractionDigits: 1 }).format(scaler.portions.value),
 );
+// Servings and time, as the reading-mode copy says them.
+const readerFacts = computed(() =>
+  [
+    (portionsShown.value ?? props.recipe.portions) && `Serves ${portionsShown.value ?? props.recipe.portions}`,
+    time.value,
+  ]
+    .filter(Boolean)
+    .join(" · "),
+);
+// An ingredient as one line of text: "500 g (not scaled) flour, type 00", or
+// with no amount for the marker to sit beside, "olive oil, to taste (not scaled)".
+function readerLine(line: { amount: string | null; name: string; extra: string | null; unscaled?: boolean }) {
+  const note = line.unscaled ? " (not scaled)" : "";
+  const food = line.extra ? `${line.name}, ${line.extra}` : line.name;
+  return line.amount ? `${line.amount}${note} ${food}` : `${food}${note}`;
+}
 const byId = computed(
   () => new Map(props.recipe.ingredients.map((ingredient) => [ingredient.id, ingredient])),
 );
@@ -391,4 +407,42 @@ const typedTime = computed(() => {
       </template>
     </template>
   </div>
+  <!-- What a browser's reading mode shows (#97): the recipe as plain text,
+       amounts as the page shows them, none of the controls around it.
+       Readability, which Firefox's Reader View runs, decides much of this:
+       - at the end of the body (#teleports, the target Nuxt also renders on
+         the server), away from the recipe on show, or it takes both;
+       - out of sight with a class of its own (.reader-text), since it drops
+         anything named "hidden"; inert, so a screen reader skips it;
+       - an id and class it scores as an article's ("article", "text"), so it
+         wins over the recipe on show;
+       - each line in a <p>, the text it scores, and no classes inside, since
+         it drops names that look like asides ("extra"). -->
+  <Teleport v-if="scalable" to="#teleports">
+    <article id="reader-article" class="reader-text" inert>
+      <h1>{{ recipeTitle(recipe) }}</h1>
+      <p v-if="readerFacts">{{ readerFacts }}</p>
+      <template v-if="ingredients.length">
+        <h2>Ingredients</h2>
+        <ul>
+          <li v-for="ingredient in ingredients" :key="ingredient.id">
+            <p>{{ readerLine(ingredient) }}</p>
+          </li>
+        </ul>
+      </template>
+      <template v-if="steps.length">
+        <h2>Steps</h2>
+        <ol>
+          <li v-for="step in steps" :key="step.id">
+            <p>
+              <template v-for="(part, index) in step.parts" :key="index"
+                >{{ part.text }}{{ part.unscaled ? " (not scaled)" : ""
+                }}{{ part.setting ? ` · ${part.setting}` : "" }}</template
+              >
+            </p>
+          </li>
+        </ol>
+      </template>
+    </article>
+  </Teleport>
 </template>
