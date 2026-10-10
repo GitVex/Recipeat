@@ -27,8 +27,10 @@ const props = withDefaults(
     editor?: RecipeEditor;
     // A stored recipe, which can be scaled while it is read.
     scalable?: boolean;
+    // A picture shown in place of the recipe's own `image`, never saved as it.
+    banner?: string | null;
   }>(),
-  { titleTag: "h2", editor: undefined, scalable: false },
+  { titleTag: "h2", editor: undefined, scalable: false, banner: null },
 );
 
 // Reading is where a recipe opens. Without a reading side to switch to, as
@@ -152,9 +154,9 @@ const typedTime = computed(() => {
 
 <template>
   <img
-    v-if="recipe.image"
+    v-if="banner ?? recipe.image"
     class="detail-image"
-    :src="recipe.image"
+    :src="(banner ?? recipe.image)!"
     :alt="recipeTitle(recipe)"
   />
   <div class="detail-content">

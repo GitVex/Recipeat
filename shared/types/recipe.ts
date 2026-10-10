@@ -133,6 +133,9 @@ export type RecipeDeletion = {
 export type RecipePhotos = {
   photos: { id: string, cover: boolean }[]
   source: string | null
+  // The cover a card shows for this version (#193): its own, else the newest
+  // in its line. The recipe page's banner, over the page's `image`.
+  lineCover: string | null
 }
 
 // A few words either side of what changed in a line of text. `removed` and

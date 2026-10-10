@@ -2,7 +2,8 @@ import { test, expect, type Page, type Request } from '@playwright/test'
 
 // Photos of a version (#45), against a mocked API: the strip in order with
 // its cover, an arrangement sent whole, a picture shrunk in the browser before
-// it goes, the eleventh refused before any upload, and the kept source page.
+// it goes, the eleventh refused before any upload, the kept source page, and
+// the line's cover as the banner (#193).
 const id = '33333333-3333-4333-8333-333333333333'
 const recipe = {
   id, title: 'Focaccia', image: null, totalTime: 30, portions: 2, source_lang: 'en',
@@ -16,15 +17,19 @@ const photo = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '
 // A 1×1 PNG: something a canvas can draw.
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64')
 
-async function open(page: Page, photos: { photos: { id: string, cover: boolean }[], source: string | null }) {
+type Photos = { photos: { id: string, cover: boolean }[], source: string | null, lineCover?: string | null }
+
+// `answer` is what a change is answered with; the same set unless given.
+async function open(page: Page, photos: Photos, { image = null as string | null, answer = photos } = {}) {
   const writes: Request[] = []
-  await page.route('**/api/recipes', route => route.fulfill({ json: { recipes: [{ ...recipe, ingredientCount: 1, stepCount: 1 }] } }))
-  await page.route('**/api/recipes/*', route => route.fulfill({ json: { recipe } }))
+  const shown = { ...recipe, image }
+  await page.route('**/api/recipes', route => route.fulfill({ json: { recipes: [{ ...shown, ingredientCount: 1, stepCount: 1 }] } }))
+  await page.route('**/api/recipes/*', route => route.fulfill({ json: { recipe: shown } }))
   await page.route('**/api/images/*', route => route.fulfill({ body: png, contentType: 'image/png' }))
   await page.route('**/api/recipes/*/photos', (route) => {
     if (route.request().method() === 'GET') return route.fulfill({ json: photos })
     writes.push(route.request())
-    return route.fulfill({ json: photos })
+    return route.fulfill({ json: answer })
   })
   await page.goto('/')
   await page.waitForFunction(() => !!(document.querySelector('#__nuxt') as any)?.__vue_app__)
@@ -74,4 +79,21 @@ test('ten photos refuse an eleventh before anything is uploaded', async ({ page 
 test('a kept source page is shown beside the photos', async ({ page }) => {
   await open(page, { photos: [], source: photo(99) })
   await expect(page.getByRole('img', { name: 'The page this recipe was imported from' })).toHaveAttribute('src', `/api/images/${photo(99)}?size=thumb`)
+})
+
+test("the banner is the line's cover, and follows a new one without a reload", async ({ page }) => {
+  await open(page, { photos: [{ id: photo(1), cover: true }, { id: photo(2), cover: false }], source: null, lineCover: photo(1) }, {
+    image: 'https://example.com/focaccia.jpg',
+    answer: { photos: [{ id: photo(1), cover: false }, { id: photo(2), cover: true }], source: null, lineCover: photo(2) },
+  })
+  const banner = page.locator('.detail-image')
+  await expect(banner).toHaveAttribute('src', `/api/images/${photo(1)}`)
+  await page.locator('.photo-item').nth(1).getByRole('button', { name: 'Make cover' }).click()
+  await expect(banner).toHaveAttribute('src', `/api/images/${photo(2)}`)
+})
+
+test('without a cover in the line, the banner is the imported picture', async ({ page }) => {
+  await page.route('https://example.com/**', route => route.fulfill({ body: png, contentType: 'image/png' }))
+  await open(page, { photos: [], source: null, lineCover: null }, { image: 'https://example.com/focaccia.jpg' })
+  await expect(page.locator('.detail-image')).toHaveAttribute('src', 'https://example.com/focaccia.jpg')
 })
