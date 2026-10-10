@@ -182,3 +182,36 @@ test('a recipe that is not there is not found, not forbidden', async ({ page }) 
   await page.getByRole('link', { name: 'Back to your recipes' }).click()
   await expect(page).toHaveURL(/\/recipes$/)
 })
+
+test('a long list scrolls inside the rail without a scrollbar of its own', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 })
+  const long = [...listing, ...Array.from({ length: 57 }, (_, i) => summary(`f${i}`, `Filler ${i}`, null))]
+  await mockApi(page, { status: 200, body: { recipes: long } })
+  await openCollection(page)
+  const rail = page.locator('.collection-list')
+  await expect(page.locator('.collection-entry')).toHaveCount(60)
+  // Headless scrollbars overlay and take no width, so the style is what's checked.
+  const bar = () => rail.evaluate(el => ({ style: getComputedStyle(el).scrollbarWidth, overflows: el.scrollHeight > el.clientHeight }))
+  expect(await bar()).toEqual({ style: 'none', overflows: true })
+  // The page keeps its scrollbar; only the rail's goes.
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollbarWidth)).toBe('auto')
+
+  const top = () => rail.evaluate(el => el.scrollTop)
+  await rail.hover()
+  await page.mouse.wheel(0, 400)
+  await expect.poll(top).toBeGreaterThan(0)
+  await rail.evaluate(el => { el.scrollTop = 0 })
+  await page.locator('.collection-entry').last().focus()
+  await expect.poll(top).toBeGreaterThan(0)
+  await page.keyboard.press('Home')
+  await expect.poll(top).toBe(0)
+  await page.keyboard.press('PageDown')
+  await expect.poll(top).toBeGreaterThan(0)
+
+  await page.locator('.collection-entry').nth(2).click()
+  await expect(page.locator('.collection')).toHaveClass(/folded/)
+  expect((await bar()).style).toBe('none')
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect((await bar()).style).toBe('none')
+})
