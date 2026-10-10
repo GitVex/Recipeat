@@ -511,6 +511,7 @@ test('an Instagram post link is a website import, with its own hint and wording'
     sent.push(route.request().postDataJSON())
     return route.fulfill(answer(sent.length === 1 ? 422 : 200))
   })
+  await page.route('**/api/extract/instagram/check', route => route.fulfill({ json: { verdict: 'link' } }))
   await signIn(page)
   await page.getByRole('button', { name: 'Save your first recipe' }).click()
   const field = page.getByLabel('Recipe URL')
@@ -520,9 +521,8 @@ test('an Instagram post link is a website import, with its own hint and wording'
   await field.fill('https://www.instagram.com/noor.baqtiar/')
   await expect(hint).toHaveText('See which sites are supported')
   await field.fill('https://www.instagram.com/p/DbXWEUaxWVd/?igsh=abc')
-  // Recognised, and asked for the recipe's own link first (#121).
-  await expect(hint).toContainText('Instagram post recognised')
-  await expect(hint).toContainText('paste that link instead')
+  // Recognised, and told what its caption holds (#219).
+  await expect(hint).toContainText('Its caption links to a recipe page')
 
   await page.getByRole('button', { name: 'Bring it in' }).click()
   await expect(page.getByRole('alert')).toContainText('We couldn’t find a recipe in that post.')
@@ -534,6 +534,41 @@ test('an Instagram post link is a website import, with its own hint and wording'
     { url: 'https://www.instagram.com/p/DbXWEUaxWVd/?igsh=abc' },
   ])
 })
+test('an Instagram post is checked before it can be sent, and a failed check keeps it locked (#219)', async ({ page }) => {
+  const checks: unknown[] = []
+  let release!: () => void
+  const held = new Promise<void>(resolve => (release = resolve))
+  await page.route('**/api/extract/sites', route => route.fulfill({ status: 502, json: { statusCode: 502 } }))
+  await page.route('**/api/extract/website', route => route.fulfill(answer(200)))
+  await page.route('**/api/extract/instagram/check', async route => {
+    checks.push(route.request().postDataJSON())
+    if (checks.length === 1) return route.fulfill({ status: 503, json: { statusCode: 503 } })
+    await held
+    return route.fulfill({ json: { verdict: 'images' } })
+  })
+  await signIn(page)
+  await page.getByRole('button', { name: 'Save your first recipe' }).click()
+  const hint = page.locator('#site-hint')
+  const submit = page.getByRole('button', { name: 'Bring it in' })
+
+  await page.getByLabel('Recipe URL').fill('https://www.instagram.com/reel/DdzbnL4qqNC/')
+  await expect(hint).toContainText('Recipeat is busy right now')
+  await expect(submit).toBeDisabled()
+
+  // Checking again: still locked while it runs, open once it answers.
+  await page.getByRole('button', { name: 'Check again' }).click()
+  await expect(hint).toContainText('Checking its caption')
+  await expect(submit).toBeDisabled()
+  release()
+  await expect(hint).toContainText('we’ll read the post’s images with it')
+  await submit.click()
+  await expect(page.getByRole('dialog')).toContainText(extracted.title!)
+  expect(checks).toEqual([
+    { url: 'https://www.instagram.com/reel/DdzbnL4qqNC/' },
+    { url: 'https://www.instagram.com/reel/DdzbnL4qqNC/' },
+  ])
+})
+
 test('without the site list there is no hint, and importing still works', async ({ page }) => {
   await page.route('**/api/extract/sites', route => route.fulfill({ status: 502, json: { statusCode: 502 } }))
   await page.route('**/api/extract/website', route => route.fulfill(answer(200)))

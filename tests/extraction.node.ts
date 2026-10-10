@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import { createServer } from 'node:http'
 import { readFileSync } from 'node:fs'
 import { createApp, defineEventHandler, readRawBody, toNodeListener, toWebHandler } from 'h3'
-import { captionLinks, extractInstagram, extractPhoto, extractText, extractWebsite, isUnit, normalizeRecipe, parseExtraction, parseQuantity, readExtractionPhoto, readExtractionText, supportedSites, unitInfo, validateText, validateUrl } from '../server/utils/extraction.ts'
+import { captionLinks, captionVerdict, checkInstagram, extractInstagram, extractPhoto, extractText, extractWebsite, isUnit, normalizeRecipe, parseExtraction, parseQuantity, readExtractionPhoto, readExtractionText, supportedSites, unitInfo, validateText, validateUrl } from '../server/utils/extraction.ts'
 import { instagramShortcode } from '../shared/utils/instagram.ts'
 
 const bread = { originalText: '1 slice bread', quantity: '1 slice', name: 'bread' }
@@ -611,6 +611,25 @@ test("a caption's web links are found in order, without Instagram's own", () => 
   assert.deepEqual(captionLinks('https://a.example https://a.example https://b.example https://c.example https://d.example'),
     ['https://a.example/', 'https://b.example/', 'https://c.example/'])
   assert.deepEqual(captionLinks('javascript:alert(1) (see https://cook.example/x)'), ['https://cook.example/x'])
+})
+
+test("the check says where a caption puts the recipe, from the caption alone (#219)", () => {
+  assert.equal(captionVerdict('Steak! Recipe at www.cook.example/steak #dinner'), 'link')
+  assert.equal(captionVerdict('Pancakes\n\n• 2 eggs\n🥛 250 ml milk\n½ cup flour\n\nWhisk and fry.'), 'caption')
+  assert.equal(captionVerdict('Zutaten:\n- Salz\n- Pfeffer\n- Butter'), 'caption')
+  // Prose, a couple of stray numbers, or nothing at all: the images it is.
+  assert.equal(captionVerdict('The best steak of 2026. Save this for later! 🔥\n2 ways to cook it'), 'images')
+  assert.equal(captionVerdict(null), 'images')
+})
+
+test('the check reads the post without its media, and asks no model', async () => {
+  const asked: string[] = []
+  const fetcher: typeof fetch = async (url, init) => {
+    asked.push(`${url} ${init?.body}`)
+    return Response.json({ ...post, images: [], video: true, caption: 'Pancakes\n1 egg\n2 cups milk\n3 tbsp sugar' })
+  }
+  assert.equal(await checkInstagram('DbXWEUaxWVd', instagramConfig, fetcher), 'caption')
+  assert.deepEqual(asked, ['http://recipeat-fetcher:8103/instagram {"shortcode":"DbXWEUaxWVd","preview":true}'])
 })
 
 test('a recipe page the caption links to is read before the post, and credits it (#122)', async () => {

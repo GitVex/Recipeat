@@ -39,8 +39,9 @@ GONE = "That post could not be found. It may be private or deleted."
 REFUSED = "Instagram is not answering requests from us right now; try again later."
 
 
-def _read_post(shortcode: str, settings: Settings) -> tuple[str, str | None, list[str]]:
-    """The post's author, caption and media URLs — a video's cover, not the video."""
+def _read_post(shortcode: str, settings: Settings) -> tuple[str, str | None, list[str], bool]:
+    """The post's author, caption, media URLs (a video's cover, not the video)
+    and whether it is a video."""
     loader = instaloader.Instaloader(
         quiet=True,
         # One attempt: on a 429 instaloader otherwise sleeps until the limit
@@ -53,7 +54,8 @@ def _read_post(shortcode: str, settings: Settings) -> tuple[str, str | None, lis
         # All read here so a failure lands in the mapping below: they are lazy,
         # and a carousel with a video in it may query again.
         nodes = list(post.get_sidecar_nodes()) if post.typename == "GraphSidecar" else []
-        return post.owner_username, post.caption, [node.display_url for node in nodes] or [post.url]
+        media = [node.display_url for node in nodes] or [post.url]
+        return post.owner_username, post.caption, media, post.is_video
     except (QueryReturnedNotFoundException, BadResponseException, LoginRequiredException) as error:
         # Logged out, a private post and a deleted one look the same: no items.
         raise HTTPException(status_code=422, detail=GONE) from error
@@ -115,10 +117,11 @@ def _download(urls: list[str], settings: Settings) -> list[InstagramImage]:
 def instagram(
     request: InstagramRequest, settings: Annotated[Settings, Depends(get_settings)]
 ) -> InstagramPost:
-    author, caption, media = _read_post(request.shortcode, settings)
+    author, caption, media, video = _read_post(request.shortcode, settings)
     return InstagramPost(
         url=f"https://www.instagram.com/p/{request.shortcode}/",
         author=author,
         caption=caption,
-        images=_download(media, settings),
+        images=[] if request.preview else _download(media, settings),
+        video=video,
     )

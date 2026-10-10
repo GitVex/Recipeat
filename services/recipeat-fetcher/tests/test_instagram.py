@@ -15,8 +15,9 @@ from recipeat_fetcher.config import Settings, get_settings
 
 
 class StubPost:
-    def __init__(self, media, caption="Pancakes\n• 2 eggs", author="cook"):
-        self.typename = "GraphSidecar" if len(media) > 1 else "GraphImage"
+    def __init__(self, media, caption="Pancakes\n• 2 eggs", author="cook", video=False):
+        self.typename = "GraphSidecar" if len(media) > 1 else "GraphVideo" if video else "GraphImage"
+        self.is_video = video
         self.owner_username = author
         self.caption = caption
         self._media = media
@@ -64,6 +65,16 @@ def test_a_carousel_comes_back_as_caption_author_and_images_in_order(client, sit
         ("image/jpeg", b"jpeg-first"),
         ("image/png", b"png-second"),
     ]
+
+
+def test_a_preview_reads_the_caption_and_downloads_nothing(client, post):
+    # The client fixture's settings refuse loopback media, so a download would 502.
+    post(StubPost(["http://127.0.0.1:1/cover.jpg"], video=True))
+    response = client.post("/instagram", json={"shortcode": "DbXWEUaxWVd", "preview": True})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert (body["caption"], body["images"], body["video"]) == ("Pancakes\n• 2 eggs", [], True)
 
 
 @pytest.mark.parametrize("shortcode", ["../../etc", "a b c d e", "http://x", ""])
