@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { SavedRecipe } from "#shared/types/recipe";
 import type { SaveAction } from "~/composables/useRecipeWrites";
+import { imageUrl } from "#shared/utils/images";
 
 // A stored recipe at its own address, so it survives a reload and can be
 // linked to. It is read here, scaled, edited, saved one of three ways, and
@@ -45,6 +46,13 @@ onServerPrefetch(async () => {
   await request;
   if (event && failure.value === "notFound") setResponseStatus(event, 404);
 });
+
+// The cover its card shows, as the banner (#193). Read with the photos below
+// it, so a new cover reaches the banner too.
+const { data: photos } = useRecipePhotos(id);
+const banner = computed(() =>
+  photos.value?.lineCover ? imageUrl(photos.value.lineCover) : null,
+);
 
 useHead(() => ({
   title: recipe.value ? `${recipeTitle(recipe.value)} — Recipeat` : "Recipeat",
@@ -168,6 +176,7 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", warnBeforeUnloa
       <RecipeBody
         :recipe="recipe"
         :editor="editor"
+        :banner="banner"
         scalable
         title-id="open-recipe-title"
       >

@@ -9,10 +9,7 @@ import { imageUrl, MAX_PHOTOS } from "#shared/utils/images";
 // what is shown.
 const props = defineProps<{ recipeId: string }>();
 
-const { data, refresh } = useFetch<RecipePhotos>(`/api/recipes/${props.recipeId}/photos`, {
-  key: `photos:${props.recipeId}`,
-  retry: 0,
-});
+const { data, refresh } = useRecipePhotos(props.recipeId);
 const { relist } = useRecipeListCache();
 const photos = computed(() => data.value?.photos ?? []);
 const full = computed(() => photos.value.length >= MAX_PHOTOS);

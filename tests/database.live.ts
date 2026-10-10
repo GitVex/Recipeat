@@ -1422,13 +1422,16 @@ describe('images', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () =>
     const stew = await insertRecipe(db, 'user_a', recipe('Stew'))
     const [first] = ids(await addPhoto(db, 'user_a', stew.id, upload()))
     const again = await insertProgression(db, 'user_a', stew.id, recipe('Stew, again'))
-    assert.deepEqual(await listPhotos(db, 'user_a', again!.id), { photos: [], source: null })
+    // Its banner is the line's cover until it has one of its own (#193).
+    assert.deepEqual(await listPhotos(db, 'user_a', again!.id), { photos: [], source: null, lineCover: first })
     assert.deepEqual(ids(await listPhotos(db, 'user_a', stew.id)), [first])
     const card = async () => (await listRecipes(sql, 'user_a')).find(entry => entry.lineId === stew.id)!.image
     // The pin has none yet, so the line's is shown rather than nothing.
     assert.equal(await card(), `/api/images/${first}?size=thumb`)
     const [own] = ids(await addPhoto(db, 'user_a', again!.id, upload(2)))
     assert.equal(await card(), `/api/images/${own}?size=thumb`)
+    assert.equal((await listPhotos(db, 'user_a', again!.id))!.lineCover, own)
+    assert.equal((await listPhotos(db, 'user_a', stew.id))!.lineCover, first)
   })
 
   test("the source photo is the line's, and a variant takes a copy of it and none of the dish photos", async () => {

@@ -44,9 +44,16 @@ async function photosOf(db: Db, ownerSub: string, recipeId: string): Promise<Rec
     ]))
     .orderBy('i.position')
     .execute()
+  const line = await db
+    .selectFrom('recipes as r')
+    .select(cardCover('r').as('cover'))
+    .where('r.id', '=', recipeId)
+    .where('r.owner_sub', '=', ownerSub)
+    .executeTakeFirst()
   return {
     photos: rows.filter(row => row.kind === 'dish').map(row => ({ id: row.id, cover: row.cover })),
     source: rows.find(row => row.kind === 'source')?.id ?? null,
+    lineCover: line?.cover ?? null,
   }
 }
 
