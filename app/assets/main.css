@@ -4383,6 +4383,23 @@ a.history-title:hover {
     white-space: nowrap;
 }
 
+/* The recipe as a browser's reading mode shows it (#97): out of sight like
+   .visually-hidden, but not named so, since Readability drops any element
+   whose class says "hidden". */
+.reader-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+@media print {
+    .reader-text {
+        display: none;
+    }
+}
+
 /* The lineage node's itemised changes: an ingredient's amount before and
    after, and a step's number with the words that changed in it. */
 .change-headline {
