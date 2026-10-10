@@ -36,6 +36,12 @@ def fetch_page(url: str, settings: Settings) -> tuple[str, str]:
             headers=HEADERS,
         ) as client:
             with client.stream("GET", url) as response:
+                if response.status_code in (401, 403):
+                    raise HTTPException(
+                        status_code=502,
+                        detail=f"{host} won't let us read that page. It may only open "
+                        "in its app or once you're signed in.",
+                    )
                 if response.status_code >= 400:
                     raise HTTPException(
                         status_code=502,

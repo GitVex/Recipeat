@@ -73,6 +73,15 @@ def test_an_error_from_the_site_is_reported_as_one(site):
     assert status_of(site("/missing")) == 502
 
 
+def test_a_refusal_is_explained_in_words_not_a_status(site):
+    """A page behind a login or only in an app (#188)."""
+    with pytest.raises(HTTPException) as caught:
+        fetch_page(site("/members-only"), SETTINGS)
+    assert caught.value.status_code == 502
+    assert "403" not in caught.value.detail
+    assert "signed in" in caught.value.detail
+
+
 def test_an_unreachable_host_fails_fast_rather_than_hanging():
     """Whether a closed port is refused or silently dropped is the platform's
     business. Either way it must land on a status the caller can act on."""

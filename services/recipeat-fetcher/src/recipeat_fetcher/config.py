@@ -17,7 +17,8 @@ class Settings(BaseSettings):
     # The page fetch. recipe-scrapers' own urllib call has none of these.
     fetch_timeout: float = 10.0
     fetch_max_bytes: int = 5_000_000
-    fetch_max_redirects: int = 3
+    # A Picnic share link takes five to reach the recipe (#188).
+    fetch_max_redirects: int = 10
     # Turns the SSRF guard off, so the tests can fetch from their loopback
     # server. Never set it anywhere else.
     fetch_allow_private: bool = False
