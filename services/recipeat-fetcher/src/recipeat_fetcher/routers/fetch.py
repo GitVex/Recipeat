@@ -1,3 +1,4 @@
+import re
 from typing import Annotated, Callable, TypeVar
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -33,6 +34,23 @@ def _optional(getter: Callable[[], T]) -> T | None:
         return getter()
     except Exception:
         return None
+
+
+# Markdown emphasis some sites write their steps in: Picnic bolds every
+# quantity (#215). A pair only, opening on a word and closing on one, so the
+# lone `*` of "5 * 2" or a footnote mark stays. scripts/strip-step-emphasis.ts
+# applies the same three to steps already stored.
+_EMPHASIS = [
+    re.compile(r"\*\*(?=\S)(.+?)(?<=\S)\*\*"),
+    re.compile(r"(?<!\w)__(?=\S)(.+?)(?<=\S)__(?!\w)"),
+    re.compile(r"(?<![*\w])\*(?=[^\s*])([^*]+?)(?<=[^\s*])\*(?![*\w])"),
+]
+
+
+def strip_emphasis(text: str) -> str:
+    for pattern in _EMPHASIS:
+        text = pattern.sub(r"\1", text)
+    return text
 
 
 def _extra(parsed: ParsedIngredient) -> str | None:
@@ -107,7 +125,7 @@ def fetch(
         author=_optional(scraper.author),
         canonical_url=_optional(scraper.canonical_url) or final_url,
         ingredients=_parse(lines[:MAX_INGREDIENTS]),
-        steps=_optional(scraper.instructions_list) or [],
+        steps=[strip_emphasis(step) for step in _optional(scraper.instructions_list) or []],
     )
 
 
