@@ -6,6 +6,8 @@ run against the loopback server, which stands in for Instagram's CDN.
 """
 
 import base64
+import shutil
+import subprocess
 
 import pytest
 from instaloader.exceptions import BadResponseException, ConnectionException
@@ -15,9 +17,11 @@ from recipeat_fetcher.config import Settings, get_settings
 
 
 class StubPost:
-    def __init__(self, media, caption="Pancakes\n• 2 eggs", author="cook", video=False):
+    def __init__(self, media, caption="Pancakes\n• 2 eggs", author="cook", video=False, duration=None):
         self.typename = "GraphSidecar" if len(media) > 1 else "GraphVideo" if video else "GraphImage"
         self.is_video = video
+        self.video_url = media[0] if video else None
+        self.video_duration = duration
         self.owner_username = author
         self.caption = caption
         self._media = media
@@ -129,3 +133,89 @@ def test_being_throttled_is_a_503(client, post):
 def test_any_other_instagram_failure_is_a_502(client, post):
     post(ConnectionException("something else"))
     assert client.post("/instagram", json={"shortcode": "DbXWEUaxWVd"}).status_code == 502
+
+
+needs_ffmpeg = pytest.mark.skipif(not shutil.which("ffmpeg"), reason="ffmpeg is in the image, not necessarily here")
+
+
+@needs_ffmpeg
+def test_a_reels_sound_track_comes_back_copied_not_re_encoded(client, site, post, loopback_cdn, tmp_path):
+    post(StubPost([site("/reel.mp4")], video=True, duration=1.0))
+    response = client.post("/instagram/audio", json={"shortcode": "DdzbnL4qqNC"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["mimeType"] == "audio/mp4"
+    track = tmp_path / "sound.m4a"
+    track.write_bytes(base64.b64decode(body["data"]))
+    streams = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "stream=codec_type,codec_name,bit_rate", "-of", "csv=p=0", str(track)],
+        capture_output=True, text=True, check=True,
+    ).stdout.split()
+    # The fixture's own 32 kb/s AAC, and no picture.
+    assert len(streams) == 1 and streams[0].startswith("aac,audio")
+
+
+@needs_ffmpeg
+def test_a_reel_without_sound_is_a_422(client, site, post, loopback_cdn):
+    post(StubPost([site("/silent.mp4")], video=True))
+    response = client.post("/instagram/audio", json={"shortcode": "DdzbnL4qqNC"})
+    assert response.status_code == 422
+    assert "no sound" in response.json()["detail"]
+
+
+def test_a_post_that_is_not_a_video_has_no_sound_track(client, site, post, loopback_cdn):
+    post(StubPost([site("/slide1.jpg")]))
+    assert client.post("/instagram/audio", json={"shortcode": "DbXWEUaxWVd"}).status_code == 422
+
+
+def test_a_reel_over_three_minutes_is_refused_before_the_download(client, post):
+    # Not on loopback's allowlist either: a download would be a 502, not a 413.
+    post(StubPost(["http://127.0.0.1:1/reel.mp4"], video=True, duration=181.0))
+    response = client.post("/instagram/audio", json={"shortcode": "DdzbnL4qqNC"})
+    assert response.status_code == 413
+    assert "3 minutes" in response.json()["detail"]
+
+
+def test_a_reel_past_the_byte_limit_is_cut_off(client, site, post):
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        fetch_timeout=0.5, instagram_media_hosts=("127.0.0.1",), instagram_max_video_bytes=1_000,
+        fetch_allow_private=True,
+    )
+    post(StubPost([site("/reel.mp4")], video=True))
+    response = client.post("/instagram/audio", json={"shortcode": "DdzbnL4qqNC"})
+    assert response.status_code == 413
+    assert "50 MB" in response.json()["detail"]
+
+
+def test_a_reel_on_any_other_host_is_not_downloaded(client, site, post):
+    # The client fixture's settings: Instagram's hosts only, not loopback.
+    post(StubPost([site("/reel.mp4")], video=True))
+    response = client.post("/instagram/audio", json={"shortcode": "DdzbnL4qqNC"})
+    assert response.status_code == 502
+    assert "host" in response.json()["detail"]
+
+
+def test_a_reel_whose_media_host_resolves_inward_is_refused(client, post, monkeypatch):
+    import socket
+    real = socket.getaddrinfo
+    monkeypatch.setattr(socket, "getaddrinfo", lambda host, port, *a, **k: [
+        (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.0.0.5", port))] if host == "scontent.cdninstagram.com" else real(host, port, *a, **k))
+    app.dependency_overrides[get_settings] = lambda: Settings(fetch_timeout=0.5)
+    post(StubPost(["https://scontent.cdninstagram.com/v/reel.mp4"], video=True))
+    response = client.post("/instagram/audio", json={"shortcode": "DdzbnL4qqNC"})
+    assert response.status_code == 502
+    assert "host" in response.json()["detail"]
+
+
+@needs_ffmpeg
+def test_a_reel_whose_length_instagram_left_out_is_measured_after_the_download(client, site, post):
+    # The fixture is one second long; a limit under that stands in for 3 minutes.
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        fetch_timeout=0.5, instagram_media_hosts=("127.0.0.1",), instagram_max_video_seconds=0.5,
+        fetch_allow_private=True,
+    )
+    post(StubPost([site("/reel.mp4")], video=True, duration=None))
+    response = client.post("/instagram/audio", json={"shortcode": "DdzbnL4qqNC"})
+    assert response.status_code == 413
+    assert "3 minutes" in response.json()["detail"]

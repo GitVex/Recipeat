@@ -98,6 +98,14 @@ class InstagramPost(Wire):
     video: bool = False
 
 
+class InstagramAudio(Wire):
+    """A reel's sound track, copied out of the video as it was (#124)."""
+
+    mime_type: str = "audio/mp4"
+    # Base64, like an image: the app forwards it to the model as inline data.
+    data: str
+
+
 class FetchRequest(Wire):
     url: HttpUrl
 

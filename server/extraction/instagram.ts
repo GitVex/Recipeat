@@ -1,5 +1,5 @@
 import { fail } from './errors.ts'
-import { askGemini, INSTAGRAM_PROMPT, type GeminiConfig, type Part } from './gemini.ts'
+import { askGemini, AUDIO_PROMPT, INSTAGRAM_PROMPT, type GeminiConfig, type Part } from './gemini.ts'
 import { parseExtraction, type ExtractedRecipe } from './recipe.ts'
 import { httpUrl } from './url.ts'
 import { askFetcher, extractWebsite, type FetcherConfig } from './website.ts'
@@ -50,10 +50,10 @@ const MIN_LIST_LINES = 3
  * guess from the caption alone, to tell the cook what will be read: the import
  * itself still tries everything in its own order.
  */
-export function captionVerdict(caption: string | null): CaptionVerdict {
+export function captionVerdict(caption: string | null, video = false): CaptionVerdict {
   if (captionLinks(caption).length) return 'link'
   const listed = caption?.split('\n').filter(line => LIST_LINE.test(line)).length ?? 0
-  return listed >= MIN_LIST_LINES ? 'caption' : 'images'
+  return listed >= MIN_LIST_LINES ? 'caption' : video ? 'audio' : 'images'
 }
 
 /** The check itself: the post read without its media, and no model. */
@@ -63,7 +63,7 @@ export async function checkInstagram(
   fetcher: typeof globalThis.fetch = globalThis.fetch,
 ): Promise<CaptionVerdict> {
   const read = await askFetcher('/instagram', { shortcode, preview: true }, config, fetcher)
-  return captionVerdict(typeof read.caption === 'string' ? read.caption : null)
+  return captionVerdict(typeof read.caption === 'string' ? read.caption : null, read.video === true)
 }
 
 /**
@@ -72,7 +72,9 @@ export async function checkInstagram(
  *
  * 1. a page the caption links to, through the website import (#122);
  * 2. the caption and images together, through the model, in one call, because
- *    these recipes are routinely split across the two.
+ *    these recipes are routinely split across the two;
+ * 3. for a reel, the caption and its sound track (#124), where the creator
+ *    says the recipe aloud.
  *
  * Either way the source is a website source crediting the post.
  */
@@ -104,21 +106,32 @@ export async function extractInstagram(
 
   // Each its own part, never interpolated into the instructions: a caption is
   // whatever its author wrote, including things that read like instructions.
+  const captionPart: Part[] = caption ? [{ type: 'text', text: caption }] : []
   const parts: Part[] = [
-    ...(caption ? [{ type: 'text' as const, text: caption }] : []),
+    ...captionPart,
     ...read.images.map(image => ({ type: 'image' as const, data: image.data, mime_type: image.mimeType })),
   ]
   if (!parts.length) throw fail(422, 'No recipe could be found in that post.')
 
-  const draft = await askGemini(parts, INSTAGRAM_PROMPT, config, fetcher)
-  return {
-    recipe: parseExtraction(draft, {
-      type: 'website',
-      url: post.url,
-      author: post.author,
-      siteName: 'Instagram',
-      retrievedAt: new Date().toISOString(),
-      post,
-    }),
+  const source = {
+    type: 'website' as const,
+    url: post.url,
+    author: post.author,
+    siteName: 'Instagram',
+    retrievedAt: new Date().toISOString(),
+    post,
   }
+  try {
+    return { recipe: parseExtraction(await askGemini(parts, INSTAGRAM_PROMPT, config, fetcher), source) }
+  } catch (error) {
+    // Only "no recipe here" moves on to the sound; a failure is the caller's.
+    if (read.video !== true || (error as { statusCode?: number }).statusCode !== 422) throw error
+  }
+
+  const audio = await askFetcher('/instagram/audio', { shortcode }, config, fetcher)
+  if (audio.mimeType !== 'audio/mp4' || typeof audio.data !== 'string' || !audio.data) {
+    throw fail(502, 'The recipe fetcher returned a malformed sound track.', audio)
+  }
+  const draft = await askGemini([...captionPart, { type: 'audio', data: audio.data, mime_type: 'audio/mp4' }], AUDIO_PROMPT, config, fetcher)
+  return { recipe: parseExtraction(draft, source) }
 }

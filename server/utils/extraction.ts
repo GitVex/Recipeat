@@ -12,6 +12,7 @@ export {
   askGemini,
   extractPhoto,
   extractText,
+  AUDIO_PROMPT,
   INSTAGRAM_PROMPT,
   PHOTO_PROMPT,
   SYSTEM_PROMPT,

@@ -7,6 +7,7 @@ something is actually serving them.
 """
 
 import threading
+from pathlib import Path
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -27,6 +28,7 @@ MARKED_HTML = b"""<html><head><title>Pancakes</title>
  "recipeInstructions": [{"@type": "HowToStep", "text": "Whisk."},
                         {"@type": "HowToStep", "text": "Fry."}]}
 </script></head><body>Pancakes</body></html>"""
+PAGES = Path(__file__).parent / "pages"
 GERMAN_HTML ="<html>Gr\u00fc\u00dfe aus der K\u00fcche</html>".encode("iso-8859-1")
 
 
@@ -46,6 +48,9 @@ class _Handler(BaseHTTPRequestHandler):
             "/slide1.jpg": (b"jpeg-first", "image/jpeg"),
             "/slide2.png": (b"png-second", "image/png"),
             "/big.jpg": (b"x" * 2_000_000, "image/jpeg"),
+            # One second of black with a tone, and the same with no sound.
+            "/reel.mp4": (PAGES.joinpath("reel.mp4").read_bytes(), "video/mp4"),
+            "/silent.mp4": (PAGES.joinpath("silent.mp4").read_bytes(), "video/mp4"),
         }
 
         if self.path == "/slow":

@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     # reach the model base64-encoded in one request, which Gemini caps at 20 MB.
     instagram_media_hosts: tuple[str, ...] = ("cdninstagram.com", "fbcdn.net")
     instagram_max_bytes: int = 10_000_000
+    # A reel read for its sound (#124): refused past this length when Instagram
+    # says it up front, and its download cut off past this size regardless.
+    instagram_max_video_seconds: float = 180.0
+    instagram_max_video_bytes: int = 50_000_000
+    ffmpeg_timeout: float = 30.0
 
 
 @lru_cache

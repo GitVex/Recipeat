@@ -26,10 +26,11 @@ const MAX_OUTPUT_TOKENS = 8192
 
 export type GeminiConfig = { geminiApiKey: string, geminiModel: string }
 
-/** One piece of what the model is shown: the source text, or the photo. */
+/** One piece of what the model is shown: the source text, a photo, or a reel's sound. */
 export type Part =
   | { type: 'text', text: string }
   | { type: 'image', data: string, mime_type: string }
+  | { type: 'audio', data: string, mime_type: string }
 
 export const SYSTEM_PROMPT = [
   'Extract the recipe in the user message into JSON.',
@@ -62,6 +63,16 @@ export const INSTAGRAM_PROMPT = [
   'The recipe is often split between them — ingredients in the caption and steps on a slide, or the other way round — so read all of them and combine them into one recipe.',
   'Hashtags, mentions, requests to follow, like, save or comment, and sponsorship notes are not part of the recipe.',
   'An image that only shows the finished dish is neither an ingredient nor a step. Read quantities in images with particular care.',
+].join(' ')
+
+// What is true of a reel read from its sound (#124): the caption, when it has
+// one, then the sound track, with the creator saying the recipe aloud.
+export const AUDIO_PROMPT = [
+  SYSTEM_PROMPT,
+  'The user message is an Instagram reel: its caption, when it has one, followed by its sound track, in which the creator says the recipe aloud.',
+  'Take the recipe from what is said, using the caption for anything it adds. Write each ingredient line and each step as plain written text, not as a transcript.',
+  'An amount that is not said stays without a number: "some olive oil" has no quantity. Do not guess amounts that would only be shown on screen.',
+  'Greetings, the story around the dish, and requests to follow, like, save or comment are not part of the recipe.',
 ].join(' ')
 
 /**
