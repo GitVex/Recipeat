@@ -2290,6 +2290,11 @@ input.editable-input {
     max-height: calc(100dvh - 48px);
     overflow-y: auto;
     min-width: 0;
+    /* Scrolls, but draws no bar beside the page's. */
+    scrollbar-width: none;
+}
+.collection-list::-webkit-scrollbar {
+    display: none;
 }
 .collection-heading {
     display: flex;
