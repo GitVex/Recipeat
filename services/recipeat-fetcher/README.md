@@ -296,7 +296,7 @@ optional.
 | `FETCHER_RELOAD` | `false` | Reload on source changes |
 | `FETCHER_FETCH_TIMEOUT` | `10.0` | Seconds to wait on a recipe site |
 | `FETCHER_FETCH_MAX_BYTES` | `5000000` | Largest page to read |
-| `FETCHER_FETCH_MAX_REDIRECTS` | `3` | Redirects to follow |
+| `FETCHER_FETCH_MAX_REDIRECTS` | `10` | Redirects to follow. A Picnic share link takes five |
 | `FETCHER_FETCH_ALLOW_PRIVATE` | `false` | Turns the SSRF guard off. For the tests' loopback server only; never set it in a deployment |
 | `FETCHER_INSTAGRAM_MEDIA_HOSTS` | `["cdninstagram.com","fbcdn.net"]` | Hosts, and their subdomains, a post's images may be read from |
 | `FETCHER_INSTAGRAM_MAX_BYTES` | `10000000` | All of one post's images together |

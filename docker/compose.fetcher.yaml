@@ -18,7 +18,7 @@ services:
     environment:
       FETCHER_FETCH_TIMEOUT: "10.0"
       FETCHER_FETCH_MAX_BYTES: "5000000"
-      FETCHER_FETCH_MAX_REDIRECTS: "3"
+      FETCHER_FETCH_MAX_REDIRECTS: "10"
     cpus: 1.0
     # Holds the CRF model and a part-of-speech tagger; measure before trimming.
     mem_limit: 1g
