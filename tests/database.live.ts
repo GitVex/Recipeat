@@ -15,6 +15,7 @@ import { readPreferences, writePreferences } from '../server/utils/preferences.t
 import { NO_FILTERS, readFilters } from '../shared/utils/recipeFilters.ts'
 import { validateRecipe } from '../server/recipes/validate.ts'
 import { readPortions, seedIngredients } from '../scripts/seed-ingredients.ts'
+import { stripEmphasis, stripStoredSteps } from '../scripts/strip-step-emphasis.ts'
 import { drainQueue, MATCHED, matchNext, previewQuestions } from '../server/ingredients/match.ts'
 import { answerQuestion, countWaiting, readQuestions } from '../server/ingredients/answer.ts'
 import { NO_PREFERENCES } from '../shared/utils/preferences.ts'
@@ -2220,5 +2221,71 @@ describe('ingredient lookups', { skip: url ? false : 'NUXT_DATABASE_URL is not s
       await lookUpDue(sql, since, config, fetcher)
     })
     assert.deepEqual(calls, { wikidata: 2, searxng: 1 })
+  })
+})
+
+describe('stripping step emphasis', { skip: url ? false : 'NUXT_DATABASE_URL is not set' }, () => {
+  const SCHEMA = 'emphasis_check'
+  let admin: Sql
+  let sql: Sql
+  let db: Kysely<Database>
+
+  before(async () => {
+    admin = postgres(url!, { max: 1, onnotice: () => {} })
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin`CREATE SCHEMA ${admin(SCHEMA)}`
+    sql = postgres(url!, { max: 10, onnotice: () => {}, connection: { search_path: SCHEMA } })
+    db = new Kysely<Database>({ dialect: new PostgresJSDialect({ postgres: sql }) })
+    await applyMigrations(sql, migrations(...STORE))
+  })
+
+  after(async () => {
+    await sql?.end()
+    await admin`DROP SCHEMA IF EXISTS ${admin(SCHEMA)} CASCADE`
+    await admin?.end()
+  })
+
+  const STEP = '**1 Zitrone** pressen, **200 g Mehl** sieben und 5 * 2 Eier* dazu.'
+  const save = (source: 'website' | 'text') => insertRecipe(db, 'user_a', normalizeRecipe(parseExtraction({
+    title: 'Souvlaki',
+    source_lang: 'de',
+    portions: 2,
+    totalTime: 25,
+    ingredients: [{ originalText: '200 g Mehl', quantity: '200 g', name: 'Mehl' }],
+    steps: [STEP],
+  }, source === 'website'
+    ? { type: 'website', url: 'https://picnic.app/de/rezepte/x', author: null, siteName: 'Picnic', retrievedAt: '2026-10-01T00:00:00.000Z' }
+    : { type: 'text', originalText: STEP })))
+
+  test('only paired markers go', () => {
+    assert.equal(stripEmphasis(STEP), '1 Zitrone pressen, 200 g Mehl sieben und 5 * 2 Eier* dazu.')
+    assert.equal(stripEmphasis('__fein__ und *langsam*'), 'fein und langsam')
+    assert.equal(stripEmphasis('snake_case__x__y'), 'snake_case__x__y')
+  })
+
+  test("a website recipe's steps lose their markers and keep their measurements; a pasted one is untouched", async () => {
+    const site = await save('website')
+    const pasted = await save('text')
+    const before = await findRecipe(sql, 'user_a', site.id)
+    const measured = before!.steps[0]!.parts.filter(part => part.type !== 'text')
+    assert.ok(measured.length > 0)
+
+    // A report first: nothing is written.
+    assert.deepEqual(await stripStoredSteps(sql, { apply: false }), [site.id])
+    assert.equal((await findRecipe(sql, 'user_a', site.id))!.steps[0]!.originalText, STEP)
+
+    assert.deepEqual(await stripStoredSteps(sql, { apply: true }), [site.id])
+    const after = await findRecipe(sql, 'user_a', site.id)
+    const step = after!.steps[0]!
+    assert.equal(step.originalText, '1 Zitrone pressen, 200 g Mehl sieben und 5 * 2 Eier* dazu.')
+    assert.deepEqual(step.parts.filter(part => part.type !== 'text'), measured)
+    assert.equal(step.parts.map(part => (part.type === 'text' ? part.value : '#')).join('').includes('**'), false)
+    assert.deepEqual(step.quantities, before!.steps[0]!.quantities)
+    // Not a cook's edit: the listing's order stays as it was.
+    assert.equal(after!.updatedAt, before!.updatedAt)
+
+    assert.equal((await findRecipe(sql, 'user_a', pasted.id))!.steps[0]!.originalText, STEP)
+    // A second run finds nothing left to do.
+    assert.deepEqual(await stripStoredSteps(sql, { apply: true }), [])
   })
 })

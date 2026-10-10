@@ -58,7 +58,7 @@ curl -X POST http://localhost:8103/fetch \
   "author": "…",
   "canonicalUrl": "https://…",  // the page's own, else the URL asked for
   "ingredients": [ /* below */ ],
-  "steps": ["…"]
+  "steps": ["…"]              // paired Markdown emphasis stripped (#215)
 }
 ```
 
