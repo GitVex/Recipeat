@@ -544,7 +544,7 @@ test('an Instagram post is checked before it can be sent, and a failed check kee
     checks.push(route.request().postDataJSON())
     if (checks.length === 1) return route.fulfill({ status: 503, json: { statusCode: 503 } })
     await held
-    return route.fulfill({ json: { verdict: 'images' } })
+    return route.fulfill({ json: { verdict: 'audio' } })
   })
   await signIn(page)
   await page.getByRole('button', { name: 'Save your first recipe' }).click()
@@ -560,13 +560,26 @@ test('an Instagram post is checked before it can be sent, and a failed check kee
   await expect(hint).toContainText('Checking its caption')
   await expect(submit).toBeDisabled()
   release()
-  await expect(hint).toContainText('we’ll read the post’s images with it')
+  // A reel with no recipe in its caption is read from its sound (#124).
+  await expect(hint).toContainText('we’ll listen to the reel')
   await submit.click()
   await expect(page.getByRole('dialog')).toContainText(extracted.title!)
   expect(checks).toEqual([
     { url: 'https://www.instagram.com/reel/DdzbnL4qqNC/' },
     { url: 'https://www.instagram.com/reel/DdzbnL4qqNC/' },
   ])
+})
+
+test('a reel too long to read says so, rather than calling it a fault (#124)', async ({ page }) => {
+  await page.route('**/api/extract/sites', route => route.fulfill({ status: 502, json: { statusCode: 502 } }))
+  await page.route('**/api/extract/instagram/check', route => route.fulfill({ json: { verdict: 'audio' } }))
+  await page.route('**/api/extract/website', route => route.fulfill(answer(413)))
+  await signIn(page)
+  await page.getByRole('button', { name: 'Save your first recipe' }).click()
+  await page.getByLabel('Recipe URL').fill('https://www.instagram.com/reel/DdzbnL4qqNC/')
+  await page.getByRole('button', { name: 'Bring it in' }).click()
+  await expect(page.getByRole('alert')).toContainText('We can read reels up to 3 minutes.')
+  await expect(page.getByRole('alert')).not.toHaveClass(/error/)
 })
 
 test('without the site list there is no hint, and importing still works', async ({ page }) => {

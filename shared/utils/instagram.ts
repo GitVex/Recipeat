@@ -20,12 +20,13 @@ export function instagramShortcode(address: unknown): string | null {
 }
 
 // What the import dialog's check (#219) says a post's caption holds: a link
-// to the recipe, the recipe itself, or neither, in which case the post's
-// images are read with it. #124 adds the audio for a reel.
-export type CaptionVerdict = 'link' | 'caption' | 'images'
+// to the recipe, the recipe itself, or neither: then a reel is read from its
+// sound (#124), and any other post from its images.
+export type CaptionVerdict = 'link' | 'caption' | 'audio' | 'images'
 
 export const CAPTION_HINT: Record<CaptionVerdict, string> = {
   link: 'Instagram post recognised. Its caption links to a recipe page, which we’ll read first.',
   caption: 'Instagram post recognised. The recipe looks to be in its caption, so we’ll read it from there.',
+  audio: 'Instagram post recognised. Its caption doesn’t seem to hold the recipe, so we’ll listen to the reel: recipes said aloud can be read from its sound. Reels up to 3 minutes.',
   images: 'Instagram post recognised. Its caption doesn’t seem to hold the recipe, so we’ll read the post’s images with it.',
 }

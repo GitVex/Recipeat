@@ -47,6 +47,13 @@ export function failureFor(
   status: number | undefined,
   source: ExtractionSource,
 ): ExtractionFailure {
+  // A reel past 3 minutes or 50 MB (#124): too big, not broken.
+  if (status === 413 && source === "instagram")
+    return {
+      action: "edit",
+      message: "That reel is too long for us to read. We can read reels up to 3 minutes.",
+      fault: false,
+    };
   switch (status) {
     case undefined:
       return {

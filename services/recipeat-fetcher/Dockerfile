@@ -12,6 +12,11 @@ ENV UV_COMPILE_BYTECODE=1 \
 
 WORKDIR /app
 
+# Copies a reel's sound track out of its video for the model (#124).
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ffmpeg \
+ && rm -rf /var/lib/apt/lists/*
+
 # Dependencies first: they change far less often than the source does, and
 # pyproject.toml names the README, so it has to come along.
 COPY pyproject.toml uv.lock README.md ./

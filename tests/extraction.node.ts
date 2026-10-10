@@ -620,6 +620,69 @@ test("the check says where a caption puts the recipe, from the caption alone (#2
   // Prose, a couple of stray numbers, or nothing at all: the images it is.
   assert.equal(captionVerdict('The best steak of 2026. Save this for later! 🔥\n2 ways to cook it'), 'images')
   assert.equal(captionVerdict(null), 'images')
+  // A reel is read from its sound instead (#124), but only once the caption fails.
+  assert.equal(captionVerdict('Garlic butter steak! Comment “recipe” 🔥', true), 'audio')
+  assert.equal(captionVerdict('Zutaten:\n- Salz\n- Pfeffer\n- Butter', true), 'caption')
+})
+
+const reel = { ...post, caption: 'Garlic butter steak! Comment “recipe” 🔥', images: [{ mimeType: 'image/jpeg', data: 'AQID' }], video: true }
+const empty = { title: null, source_lang: 'en', portions: null, ingredients: [], steps: [] }
+
+test('a reel whose caption and cover hold no recipe is read from its sound (#124)', async () => {
+  const calls: { url: string, body: any }[] = []
+  const answers = [reel, interaction(empty), { mimeType: 'audio/mp4', data: 'AAAA' }, interaction(recipe)]
+  const fetcher: typeof fetch = async (url, init) => {
+    calls.push({ url: String(url), body: JSON.parse(init!.body as string) })
+    return Response.json(answers[calls.length - 1])
+  }
+
+  const { recipe: result } = await extractInstagram('DdzbnL4qqNC', instagramConfig, fetcher)
+
+  assert.deepEqual(calls.map(call => call.url.replace(/^https:\/\/generativelanguage.*/, 'gemini')), [
+    'http://recipeat-fetcher:8103/instagram', 'gemini', 'http://recipeat-fetcher:8103/instagram/audio', 'gemini',
+  ])
+  assert.deepEqual(calls[2]!.body, { shortcode: 'DdzbnL4qqNC' })
+  // The caption still goes along, as its own part; the cover image does not.
+  assert.deepEqual(calls[3]!.body.input, [
+    { type: 'text', text: reel.caption },
+    { type: 'audio', data: 'AAAA', mime_type: 'audio/mp4' },
+  ])
+  assert.match(calls[3]!.body.system_instruction, /sound track/)
+  assert.equal(result.title, 'Toast')
+  assert.equal((result.source as { post: unknown }).post !== undefined, true)
+})
+
+test('only a reel, and only "no recipe", moves on to the sound', async () => {
+  const run = (read: object, answer: object) => {
+    const asked: string[] = []
+    const answers = [read, answer]
+    const fetcher: typeof fetch = async (url) => {
+      asked.push(String(url))
+      const next = answers[asked.length - 1]
+      return next ? Response.json(next, { status: (next as { code?: number }).code ?? 200 }) : Response.json({}, { status: 500 })
+    }
+    return { asked, done: extractInstagram('DdzbnL4qqNC', instagramConfig, fetcher) }
+  }
+
+  // A photo post with no recipe is a 422, with no sound track asked for.
+  const photo = run({ ...reel, video: false }, interaction(empty))
+  await assert.rejects(photo.done, status(422))
+  assert.equal(photo.asked.length, 2)
+
+  // A model that is down is the caller's failure, not a reason to listen.
+  const down = run(reel, { code: 429, error: { code: 'too_many_requests' } })
+  await assert.rejects(down.done, status(503))
+  assert.equal(down.asked.length, 2)
+})
+
+test("a reel too long for the fetcher is refused with the fetcher's reason", async () => {
+  const answers = [reel, interaction(empty)]
+  let calls = 0
+  const fetcher: typeof fetch = async () => {
+    const next = answers[calls++]
+    return next ? Response.json(next) : Response.json({ detail: 'That reel is too long to read: up to 3 minutes.' }, { status: 413 })
+  }
+  await assert.rejects(extractInstagram('DdzbnL4qqNC', instagramConfig, fetcher), status(413))
 })
 
 test('the check reads the post without its media, and asks no model', async () => {

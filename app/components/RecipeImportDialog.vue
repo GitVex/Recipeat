@@ -230,7 +230,8 @@ const WAIT: Record<ExtractionSource, string> = {
   website: "Reading the page. This usually takes a few seconds.",
   text: "Reading your recipe. This usually takes several seconds.",
   photo: "Reading your photo. This usually takes several seconds.",
-  instagram: "Reading the post. This usually takes several seconds.",
+  instagram:
+    "Reading the post. This usually takes several seconds, and up to a minute for a reel read from its sound.",
 };
 </script>
 
